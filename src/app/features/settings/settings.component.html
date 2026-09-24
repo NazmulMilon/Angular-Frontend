@@ -1,0 +1,38 @@
+<div class="settings">
+  <div class="settings__header">
+    <h1 class="settings__title">
+      <span class="settings__icon">⚙️</span>
+      Settings
+    </h1>
+    <p class="settings__subtitle">Manage your system configuration and preferences</p>
+  </div>
+
+  <div class="settings__grid">
+    @for (group of groups; track group.title) {
+      <div class="panel" [class]="'panel--' + group.accent">
+        <div class="panel__header">
+          <span class="panel__icon">{{ group.icon }}</span>
+          <h2 class="panel__title">{{ group.title }}</h2>
+          <span class="panel__count">{{ group.items.length }}</span>
+        </div>
+        <div class="panel__body">
+          @for (item of group.items; track item.label) {
+            @if (item.route) {
+              <a class="panel__item" [routerLink]="item.route">
+                <span class="panel__item-dot"></span>
+                <span class="panel__item-label">{{ item.label }}</span>
+                <span class="panel__item-arrow">›</span>
+              </a>
+            } @else {
+              <span class="panel__item panel__item--disabled">
+                <span class="panel__item-dot"></span>
+                <span class="panel__item-label">{{ item.label }}</span>
+                <span class="panel__item-arrow">›</span>
+              </span>
+            }
+          }
+        </div>
+      </div>
+    }
+  </div>
+</div>

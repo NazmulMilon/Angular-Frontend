@@ -1,0 +1,126 @@
+<div class="page">
+  <nav class="breadcrumb">
+    <a routerLink="/settings" class="breadcrumb__link">Settings</a>
+    <span class="breadcrumb__sep">/</span>
+    <span class="breadcrumb__current">Email Template for Vendors</span>
+  </nav>
+
+  <div class="page__header">
+    <div class="page__header-row">
+      <div>
+        <h1 class="page__title">Email Template for Vendors</h1>
+        <p class="page__subtitle">Manage email templates sent to vendors. Use <code>#####</code> as a placeholder for the Job PO number.</p>
+      </div>
+      @if (editingKey() === null) {
+        <button type="button" class="btn btn--primary btn--icon" (click)="startCreate()">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          New Template
+        </button>
+      }
+    </div>
+  </div>
+
+  @if (error()) {
+    <div class="error-banner">{{ error() }}</div>
+  }
+
+  <!-- ── Inline Form (create / edit) ── -->
+  @if (editingKey() !== null) {
+    <div class="form-card" #formCard [class.form-card--edit]="editingKey()! > 0">
+      <div class="form-card__badge">{{ editingKey() === 0 ? 'New Template' : 'Editing Template' }}</div>
+      <form (ngSubmit)="save()" #form="ngForm">
+        <div class="form-card__fields">
+          <div class="field field--full">
+            <label class="field__label" for="templateName">Email For</label>
+            <input
+              id="templateName"
+              type="text"
+              class="field__input"
+              [ngModel]="formName()"
+              (ngModelChange)="formName.set($event)"
+              name="templateName"
+              required
+              placeholder="Who is this template for..."
+            />
+          </div>
+          <div class="field field--full">
+            <label class="field__label" for="subjectLine">Subject Line</label>
+            <input
+              id="subjectLine"
+              type="text"
+              class="field__input"
+              [ngModel]="formSubject()"
+              (ngModelChange)="formSubject.set($event)"
+              name="subjectLine"
+              required
+              placeholder="e.g. Please submit your invoice for PO: #####"
+            />
+          </div>
+          <div class="field field--full">
+            <label class="field__label" for="bodyContent">Email Body</label>
+            <app-rich-text-editor
+              [ngModel]="formBody()"
+              (ngModelChange)="formBody.set($event)"
+              name="bodyContent"
+              required
+              placeholder="Compose the email body..."
+            />
+            <p class="field__hint">In the Email Body, <code>#####</code> is replaced by the Job PO when sent to the vendor.</p>
+          </div>
+        </div>
+        <div class="form-card__actions">
+          <button type="submit" class="btn btn--primary" [disabled]="form.invalid || saving()">{{ saving() ? 'Saving...' : 'Save' }}</button>
+          <button type="button" class="btn btn--ghost" (click)="cancelEdit()">Cancel</button>
+        </div>
+      </form>
+    </div>
+  }
+
+  <!-- ── Template Cards ── -->
+  @if (loading()) {
+    <div class="loading-note">Loading templates…</div>
+  } @else if (templates().length === 0) {
+    <div class="empty">
+      <div class="empty__icon">✉️</div>
+      <p class="empty__text">No email templates yet</p>
+      <p class="empty__hint">Click "New Template" to create your first one.</p>
+    </div>
+  } @else {
+    <div class="list-search">
+      <svg class="list-search__icon" width="15" height="15" viewBox="0 0 15 15" fill="none"><circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" stroke-width="1.4"/><path d="M10 10l3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+      <input type="text" class="list-search__input" [ngModel]="search()" (ngModelChange)="search.set($event)" name="templateSearch" placeholder="Search by subject line or template ID..." />
+    </div>
+    <div class="template-list">
+      @for (t of filteredTemplates(); track t.templateKey) {
+        <div class="template-card" [class.template-card--active]="editingKey() === t.templateKey" [class.template-card--expanded]="expandedKey() === t.templateKey">
+          <div class="template-card__header" (click)="toggleExpand(t.templateKey)">
+            <div class="template-card__meta">
+              <span class="template-card__name">{{ t.templateName }}</span>
+              <span class="template-card__subject">{{ t.subjectLine }}</span>
+            </div>
+            <div class="template-card__controls">
+              <button
+                type="button"
+                class="icon-btn icon-btn--edit"
+                title="Edit"
+                (click)="startEdit(t); $event.stopPropagation()"
+              >
+                <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M10.586 1.586a2 2 0 0 1 2.828 2.828L5.5 12.328l-3.6.9.9-3.6 7.786-8.042Z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+              <svg class="template-card__chevron" width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M4 5.5l3 3 3-3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+          </div>
+          @if (expandedKey() === t.templateKey) {
+            <div class="template-card__body">
+              <div class="template-card__content" [innerHTML]="t.detailContent"></div>
+            </div>
+          }
+        </div>
+      } @empty {
+        <div class="list-empty-note">No templates match your search.</div>
+      }
+    </div>
+  }
+</div>
+
+<app-confirm-dialog />

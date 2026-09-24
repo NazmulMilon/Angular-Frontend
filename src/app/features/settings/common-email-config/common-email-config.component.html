@@ -1,0 +1,162 @@
+<div class="page">
+  @if (isFormOpen) {
+    <!-- ══════════ Create / Edit form (legacy separate page) ══════════ -->
+    <nav class="breadcrumb">
+      <a routerLink="/settings" class="breadcrumb__link">Settings</a>
+      <span class="breadcrumb__sep">/</span>
+      <button type="button" class="breadcrumb__link breadcrumb__link--btn" (click)="cancelEdit()">Common Email Config</button>
+      <span class="breadcrumb__sep">/</span>
+      <span class="breadcrumb__current">{{ isNew() ? 'Create New' : 'Edit' }}</span>
+    </nav>
+
+    <div class="panel">
+      <div class="panel__head">{{ isNew() ? 'Email Management — Create New' : 'Email Management — Edit' }}</div>
+      <div class="panel__body">
+        <form (ngSubmit)="save()">
+          <!-- Row 1: Function | Sender + Email -->
+          <div class="grid-2">
+            <div class="form-row form-row--stack">
+              <label class="form-row__label">For Function</label>
+              <div class="form-row__control">
+                <div class="radio-group">
+                  <label class="radio" [class.radio--active]="formFunction() === 1">
+                    <input type="radio" name="fn" [value]="1" [ngModel]="formFunction()" (ngModelChange)="formFunction.set($event)" />
+                    <span>Customer Invoice</span>
+                  </label>
+                  <label class="radio" [class.radio--active]="formFunction() === 2">
+                    <input type="radio" name="fn" [value]="2" [ngModel]="formFunction()" (ngModelChange)="formFunction.set($event)" />
+                    <span>Customer Estimate</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <div class="form-row">
+                <label class="form-row__label" for="senderName">Sender Name</label>
+                <div class="form-row__control">
+                  <input id="senderName" type="text" class="field__input" [ngModel]="formSenderName()" (ngModelChange)="formSenderName.set($event)" name="senderName" required placeholder="e.g. RetailFixit Billing" />
+                </div>
+              </div>
+              <div class="form-row">
+                <label class="form-row__label" for="emailAddress">Email Address</label>
+                <div class="form-row__control">
+                  <input id="emailAddress" type="email" class="field__input" [ngModel]="formEmailAddress()" (ngModelChange)="formEmailAddress.set($event)" name="emailAddress" required placeholder="sender@example.com" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <hr class="divider" />
+
+          <!-- Row 2: SMTP block -->
+          <div class="smtp-block">
+            <div class="form-row">
+              <label class="form-row__label" for="smtpServer">SMTP Server</label>
+              <div class="form-row__control">
+                <input id="smtpServer" type="text" class="field__input" [ngModel]="formSmtpServer()" (ngModelChange)="formSmtpServer.set($event)" name="smtpServer" required placeholder="smtp.example.com" />
+              </div>
+            </div>
+            <div class="form-row">
+              <label class="form-row__label" for="smtpPort">SMTP Port</label>
+              <div class="form-row__control">
+                <input id="smtpPort" type="text" class="field__input field__input--sm" [ngModel]="formSmtpPort()" (ngModelChange)="formSmtpPort.set($event)" name="smtpPort" required placeholder="587" />
+              </div>
+            </div>
+            <div class="form-row">
+              <label class="form-row__label" for="smtpUsername">Username</label>
+              <div class="form-row__control">
+                <input id="smtpUsername" type="text" class="field__input" [ngModel]="formSmtpUsername()" (ngModelChange)="formSmtpUsername.set($event)" name="smtpUsername" required placeholder="username" />
+              </div>
+            </div>
+            <div class="form-row">
+              <label class="form-row__label" for="smtpPassword">Password</label>
+              <div class="form-row__control">
+                <div class="pw-group">
+                  <input id="smtpPassword" [type]="showPassword() ? 'text' : 'password'" class="field__input field__input--password" [ngModel]="formSmtpPassword()" (ngModelChange)="formSmtpPassword.set($event)" name="smtpPassword" required placeholder="••••••••" />
+                  <button type="button" class="toggle-pw" (click)="togglePasswordVisibility()">{{ showPassword() ? 'Hide' : 'Show' }}</button>
+                </div>
+              </div>
+            </div>
+            <div class="form-row">
+              <label class="form-row__label">SSL</label>
+              <div class="form-row__control">
+                <div class="radio-group">
+                  <label class="radio">
+                    <input type="radio" name="ssl" [value]="false" [ngModel]="formIsSmtpSsl()" (ngModelChange)="formIsSmtpSsl.set($event)" />
+                    <span>No</span>
+                  </label>
+                  <label class="radio">
+                    <input type="radio" name="ssl" [value]="true" [ngModel]="formIsSmtpSsl()" (ngModelChange)="formIsSmtpSsl.set($event)" />
+                    <span>Yes</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="panel__footer">
+        <button type="button" class="btn btn--primary" [disabled]="!canSave || saving()" (click)="save()">{{ saving() ? 'Saving…' : 'Save' }}</button>
+        <button type="button" class="btn btn--secondary" (click)="cancelEdit()">Back to List</button>
+      </div>
+    </div>
+  } @else {
+    <!-- ══════════ Grid (legacy Index) ══════════ -->
+    <nav class="breadcrumb">
+      <a routerLink="/settings" class="breadcrumb__link">Settings</a>
+      <span class="breadcrumb__sep">/</span>
+      <span class="breadcrumb__current">Common Email Config</span>
+    </nav>
+
+    <div class="page__header">
+      <div class="page__header-row">
+        <h1 class="page__title">Common Email Config</h1>
+        <button type="button" class="btn btn--primary btn--icon" (click)="startCreate()">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          Create New
+        </button>
+      </div>
+    </div>
+
+    @if (error()) {
+      <div class="error-banner">{{ error() }}</div>
+    }
+
+    <div class="panel">
+      <div class="panel__head panel__head--success">Email configuration for different functions</div>
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Email Address</th>
+              <th>Sender Name</th>
+              <th>For Function</th>
+              <th class="th--actions"></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (c of configs(); track c.id) {
+              <tr>
+                <td class="td--email">{{ c.emailAddress }}</td>
+                <td class="td--sender">{{ c.senderName }}</td>
+                <td>
+                  <span class="fn-badge" [class.fn-badge--estimate]="c.functionName === 2">{{ functionLabel(c.functionName) }}</span>
+                </td>
+                <td class="td--actions">
+                  <button type="button" class="link-btn" (click)="startEdit(c)">Edit</button>
+                  <span class="link-sep">|</span>
+                  <button type="button" class="link-btn link-btn--danger" (click)="confirmDelete(c)">Delete</button>
+                </td>
+              </tr>
+            } @empty {
+              <tr><td colspan="4" class="td--empty">{{ loading() ? 'Loading…' : 'No email configurations defined.' }}</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+</div>
+
+<app-confirm-dialog />

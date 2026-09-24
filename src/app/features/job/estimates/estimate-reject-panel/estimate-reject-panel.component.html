@@ -1,0 +1,28 @@
+<aside class="rej-panel" aria-label="Reject estimate for resubmission">
+  <header class="rej-panel__head">
+    <span class="rej-panel__title">✕ Reject Estimate for Resubmission</span>
+    <button type="button" class="rej-panel__close" (click)="onClose()" aria-label="Close">✕</button>
+  </header>
+
+  @if (errorMessage()) {
+    <div class="rej-panel__error" role="alert">{{ errorMessage() }}</div>
+  }
+
+  <div class="rej-panel__text">
+    <label class="rej-panel__text-label" for="rejectRemark-{{ estimateKey() }}">Reason for rejection (optional)</label>
+    <textarea
+      id="rejectRemark-{{ estimateKey() }}"
+      class="rej-panel__textarea"
+      rows="3"
+      [ngModel]="adminRemark()"
+      (ngModelChange)="adminRemark.set($event)"
+      placeholder="Optional note to the vendor explaining what to revise…"
+    ></textarea>
+  </div>
+
+  <div class="rej-panel__actions">
+    <button type="button" class="rej-panel__submit" [disabled]="submitting()" (click)="onSubmit()">
+      {{ submitting() ? 'Rejecting…' : 'Reject & Notify Vendor' }}
+    </button>
+  </div>
+</aside>

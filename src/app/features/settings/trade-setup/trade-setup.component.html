@@ -1,0 +1,130 @@
+<div class="page">
+  <nav class="breadcrumb">
+    <a routerLink="/settings" class="breadcrumb__link">Settings</a>
+    <span class="breadcrumb__sep">/</span>
+    <span class="breadcrumb__current">Trade Setup</span>
+  </nav>
+
+  <div class="page__header">
+    <h1 class="page__title">Trade Setup</h1>
+  </div>
+
+  @if (error()) {
+    <div class="error-banner">{{ error() }}</div>
+  }
+
+  <div class="layout">
+    <!-- ── Left: Trade Configuration ── -->
+    <div class="panel panel--form">
+      <div class="panel__head">
+        Trade Configuration
+        @if (editingTradeId() !== null) { <span class="panel__edit-tag">Editing</span> }
+      </div>
+      <div class="panel__body">
+        <div class="field">
+          <div class="field__label-row">
+            <label class="field__label" for="tCat">Trade Category</label>
+            <button type="button" class="link-btn" (click)="toggleCategories()">{{ showCategories() ? 'Hide categories' : 'Manage categories' }}</button>
+          </div>
+          <select id="tCat" class="field__select" [ngModel]="tCategoryKey()" (ngModelChange)="tCategoryKey.set($event)" name="tCat">
+            <option value="">— Select category —</option>
+            @for (c of categories(); track c.key) {
+              <option [value]="c.key">{{ c.name }}</option>
+            }
+          </select>
+        </div>
+        <div class="field">
+          <label class="field__label" for="tName">Trade Name</label>
+          <input id="tName" type="text" class="field__input" [ngModel]="tName()" (ngModelChange)="tName.set($event)" name="tName" required placeholder="e.g. Plumbing" />
+        </div>
+        <div class="field">
+          <label class="field__label" for="tLevel">Display Level</label>
+          <input id="tLevel" type="number" class="field__input" [ngModel]="tLevel()" (ngModelChange)="tLevel.set($event)" name="tLevel" required min="1" placeholder="#" />
+        </div>
+
+        <!-- Category management sub-panel -->
+        @if (showCategories()) {
+          <div class="cat-panel">
+            <div class="cat-panel__title">Trade Categories</div>
+            <div class="cat-form">
+              <input type="text" class="field__input" [ngModel]="cName()" (ngModelChange)="cName.set($event)" name="cName" placeholder="Category name" />
+              <input type="number" class="field__input field__input--sm" [ngModel]="cLevel()" (ngModelChange)="cLevel.set($event)" name="cLevel" min="1" placeholder="#" />
+              <button type="button" class="btn btn--sm btn--primary" [disabled]="!canSaveCat" (click)="saveCat()">{{ editingCatKey() === null ? 'Add' : 'Update' }}</button>
+              @if (editingCatKey() !== null) {
+                <button type="button" class="btn btn--sm btn--secondary" (click)="clearCat()">Clear</button>
+              }
+            </div>
+            <div class="cat-list">
+              @for (c of categories(); track c.key) {
+                <div class="cat-row" [class.cat-row--active]="editingCatKey() === c.key">
+                  <span class="cat-level">{{ c.level }}</span>
+                  <span class="cat-name">{{ c.name }}</span>
+                  <div class="cat-actions">
+                    <button type="button" class="mini-btn" title="Edit" (click)="selectCat(c)">
+                      <svg width="13" height="13" viewBox="0 0 15 15" fill="none"><path d="M10.586 1.586a2 2 0 0 1 2.828 2.828L5.5 12.328l-3.6.9.9-3.6 7.786-8.042Z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <button type="button" class="mini-btn mini-btn--del" title="Delete" [disabled]="catInUse(c)" (click)="deleteCat(c)">
+                      <svg width="13" height="13" viewBox="0 0 15 15" fill="none"><path d="M2.5 4.5h10M5.5 4.5V3a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v1.5m1.5 0-.5 8a1 1 0 0 1-1 1h-5a1 1 0 0 1-1-1l-.5-8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+        }
+      </div>
+      <div class="panel__footer">
+        <button type="button" class="btn btn--primary" [disabled]="!canSaveTrade" (click)="saveTrade()">{{ editingTradeId() === null ? 'Save' : 'Update' }}</button>
+        <button type="button" class="btn btn--secondary" (click)="clearTrade()">Clear</button>
+      </div>
+    </div>
+
+    <!-- ── Right: List of Trades ── -->
+    <div class="list-col">
+      <div class="list-head">
+        <h3 class="list-title">List of Trades</h3>
+        <div class="search">
+          <svg class="search__icon" width="15" height="15" viewBox="0 0 15 15" fill="none"><circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" stroke-width="1.4"/><path d="M10 10l3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+          <input type="text" class="search__input" [ngModel]="search()" (ngModelChange)="search.set($event)" name="search" placeholder="Search trades..." />
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th class="th--level">Level</th>
+              <th>Category</th>
+              <th>Name</th>
+              <th class="th--actions"></th>
+            </tr>
+          </thead>
+          <tbody>
+            @if (loading()) {
+              <tr><td colspan="4" class="td--empty">Loading trades…</td></tr>
+            } @else {
+            @for (t of filteredTrades(); track t.id) {
+              <tr [class.tr--active]="editingTradeId() === t.id">
+                <td class="td--level"><span class="level-badge">{{ t.level }}</span></td>
+                <td><span class="cat-badge">{{ categoryName(t.categoryKey) }}</span></td>
+                <td class="td--name">{{ t.name }}</td>
+                <td class="td--actions">
+                  <button type="button" class="icon-btn icon-btn--edit" title="Edit" (click)="selectTrade(t)">
+                    <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M10.586 1.586a2 2 0 0 1 2.828 2.828L5.5 12.328l-3.6.9.9-3.6 7.786-8.042Z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </button>
+                  <button type="button" class="icon-btn icon-btn--delete" title="Delete" (click)="deleteTrade(t)">
+                    <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M2.5 4.5h10M5.5 4.5V3a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v1.5m1.5 0-.5 8a1 1 0 0 1-1 1h-5a1 1 0 0 1-1-1l-.5-8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </button>
+                </td>
+              </tr>
+            } @empty {
+              <tr><td colspan="4" class="td--empty">No trades match your search.</td></tr>
+            }
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<app-confirm-dialog />

@@ -1,0 +1,93 @@
+<div class="page">
+  <nav class="breadcrumb">
+    <a routerLink="/settings" class="breadcrumb__link">Settings</a>
+    <span class="breadcrumb__sep">/</span>
+    <span class="breadcrumb__current">Time Definition</span>
+  </nav>
+
+  <div class="page__header">
+    <h1 class="page__title">Time Definition</h1>
+  </div>
+
+  @if (error()) {
+    <div class="error-banner">{{ error() }}</div>
+  }
+
+  <div class="layout">
+    <div class="panel panel--form">
+      <div class="panel__head">
+        Add New Time Definition
+        @if (editingId() !== null) { <span class="panel__edit-tag">Editing</span> }
+      </div>
+      <div class="panel__body">
+        <form (ngSubmit)="save()">
+          <div class="field">
+            <label class="field__label" for="tdDesc">Description</label>
+            <textarea id="tdDesc" class="field__textarea" rows="2" [ngModel]="formDescription()" (ngModelChange)="formDescription.set($event)" name="tdDesc" required placeholder="What this reminder is for..."></textarea>
+          </div>
+          <div class="field">
+            <label class="field__label" for="tdTime">Time (e.g. 2)</label>
+            <input id="tdTime" type="number" class="field__input" [ngModel]="formTimeLimit()" (ngModelChange)="formTimeLimit.set($event)" name="tdTime" required min="1" placeholder="#" />
+          </div>
+          <div class="field">
+            <label class="field__label">Unit</label>
+            <div class="radio-group">
+              <label class="radio" [class.radio--sel]="formTimeType() === 1">
+                <input type="radio" name="ttype" [value]="1" [ngModel]="formTimeType()" (ngModelChange)="formTimeType.set($event)" />
+                <span>Hour(s)</span>
+              </label>
+              <label class="radio" [class.radio--sel]="formTimeType() === 2">
+                <input type="radio" name="ttype" [value]="2" [ngModel]="formTimeType()" (ngModelChange)="formTimeType.set($event)" />
+                <span>Day(s)</span>
+              </label>
+              <label class="radio" [class.radio--sel]="formTimeType() === 3">
+                <input type="radio" name="ttype" [value]="3" [ngModel]="formTimeType()" (ngModelChange)="formTimeType.set($event)" />
+                <span>Minutes</span>
+              </label>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="panel__footer">
+        <button type="button" class="btn btn--primary" [disabled]="!canSave" (click)="save()">{{ editingId() === null ? 'Save' : 'Update' }}</button>
+        <button type="button" class="btn btn--secondary" (click)="clearForm()">Clear</button>
+      </div>
+    </div>
+
+    <div class="list-col">
+      <h3 class="list-title">Existing Time Definitions</h3>
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th class="th--num">ID</th>
+              <th>Description</th>
+              <th class="th--time">Time</th>
+              <th class="th--actions"></th>
+            </tr>
+          </thead>
+          <tbody>
+            @if (loading()) {
+              <tr><td colspan="4" class="td--empty">Loading time definitions…</td></tr>
+            } @else {
+            @for (row of rows(); track row.id; let idx = $index) {
+              <tr [class.tr--active]="editingId() === row.id">
+                <td class="td--num">{{ idx + 1 }}</td>
+                <td class="td--desc">{{ preview(row.description) }}</td>
+                <td class="td--time"><span class="time-badge">{{ row.timeLimit }} {{ unitLabel(row.timeType) }}</span></td>
+                <td class="td--actions">
+                  <button type="button" class="icon-btn" title="Edit" (click)="selectRow(row)">
+                    <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M10.586 1.586a2 2 0 0 1 2.828 2.828L5.5 12.328l-3.6.9.9-3.6 7.786-8.042Z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </button>
+                </td>
+              </tr>
+            } @empty {
+              <tr><td colspan="4" class="td--empty">No time definitions yet.</td></tr>
+            }
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>

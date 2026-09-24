@@ -1,0 +1,71 @@
+@if (isOpen()) {
+  <div class="modal-overlay" (click)="onOverlayClick($event)">
+    <div class="modal modal--change-request-status" role="dialog" aria-modal="true" aria-labelledby="crsModalTitle">
+      <div class="modal__header">
+        <h3 class="modal__title" id="crsModalTitle">
+          🔁 Change Request
+          @if (po()) {
+            <span class="modal__po">— PO {{ po() }}</span>
+          }
+          ·
+          @if (isCompleted()) {
+            <span class="badge b-complete">✓ CHANGE COMPLETED BY AM</span>
+          } @else {
+            <span class="badge b-amber">⏳ AWAITING ACCOUNT MANAGER</span>
+          }
+        </h3>
+        <button type="button" class="modal__close" (click)="onClose()" aria-label="Close">&times;</button>
+      </div>
+
+      <div class="modal__body">
+        @if (errorMessage()) {
+          <div class="crs-error">{{ errorMessage() }}</div>
+        }
+
+        @if (!isCompleted()) {
+          <div class="crs-status-box">
+            <b>Status:</b> Change needed by Accounting (open)
+            <br />
+            <b>Requested by:</b> {{ state().startedByName || 'Unknown' }}
+            @if (state().startedOn) {
+              · {{ state().startedOn | date: 'M/d/yyyy h:mm a' }}
+            }
+            <br />
+            <b>Reason:</b> "{{ state().reason }}"
+          </div>
+        }
+
+        <b class="crs-label">
+          @if (isCompleted()) {
+            Change history
+          } @else {
+            Notes to Accounting related to this change
+          }
+        </b>
+        <div class="crs-related-notes">
+          @if (state().notes.length === 0) {
+            <span class="muted">None yet.</span>
+          } @else {
+            @for (note of state().notes; track note.noteKey) {
+              <div class="note pink">
+                <div class="meta">
+                  {{ note.addedByName || 'Unknown' }} · {{ note.addedOn | date: 'M/d/yyyy h:mm a' }}
+                </div>
+                <div [innerHTML]="note.comment"></div>
+              </div>
+            }
+          }
+        </div>
+      </div>
+
+      <div class="modal__footer">
+        <button type="button" class="btn" (click)="onClose()">Close</button>
+        @if (isCompleted()) {
+          <button type="button" class="btn green sm" [disabled]="isAcknowledging()" (click)="acknowledge()">
+            ✓ Acknowledge &amp; clear request
+          </button>
+        }
+      </div>
+    </div>
+  </div>
+}

@@ -1,0 +1,1348 @@
+<!-- On-Site Approval Estimate Wizard Modal -->
+@if (isVisible()) {
+  <div
+    class="modal-overlay"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="on-site-estimate-title"
+    (click)="close()"
+  >
+    <div
+      class="modal-container"
+      [class.modal-container--wide]="currentStep() === 5"
+      (click)="$event.stopPropagation()"
+    >
+      
+      <!-- ══════════════════════════════════════════════════════════════
+           MODAL HEADER
+           ══════════════════════════════════════════════════════════════ -->
+      <div class="modal-header">
+        <div class="modal-header__content">
+          <h2 id="on-site-estimate-title" class="modal-title">
+            @if (isEditMode()) {
+              <span>Update / Edit on-site approval</span>
+              <span class="modal-title__badge">EDITING</span>
+            } @else {
+              <span>Provide On-Site Approval</span>
+            }
+          </h2>
+      @if (editData(); as edit) {
+           <div class="modal-subtitle">
+             <span class="modal-subtitle__label">PO:</span>
+             <span class="modal-subtitle__value">{{ edit.jobName }}</span>
+             <span class="modal-subtitle__separator">•</span>
+             <span class="modal-subtitle__label">Vendor:</span>
+             <span class="modal-subtitle__value">{{ formatVendorDisplay(edit.vendorName) }}</span>
+           </div>
+         } @else if (initData(); as init) {
+           <div class="modal-subtitle">
+             @if (init.jobPo) {
+               <span class="modal-subtitle__label">PO:</span>
+               <span class="modal-subtitle__value">{{ init.jobPo }}</span>
+               <span class="modal-subtitle__separator">•</span>
+             }
+             <span class="modal-subtitle__label">Vendor:</span>
+             <span class="modal-subtitle__value">{{ formatVendorDisplay(init.vendorName) }}</span>
+           </div>
+         }
+          @if (stepContextSubtitle()) {
+            <p class="modal-step-context">{{ stepContextSubtitle() }}</p>
+          }
+          @if (currentStep() < 5 && dneTracker(); as dne) {
+            <div class="header-dne" aria-label="DNE commitment">
+              <span class="header-dne__label">DNE</span>
+              <span class="header-dne__value">
+                {{ formatCurrency(dne.committedAmount) }} / {{ formatCurrency(dne.customerDne) }}
+                ({{ dneProgressPercent() | number:'1.0-0' }}%)
+              </span>
+            </div>
+          }
+        </div>
+        <button class="modal-close" (click)="close()" aria-label="Close modal" [disabled]="isSubmitting()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════════════════
+           STEP PROGRESS INDICATOR
+           ══════════════════════════════════════════════════════════════ -->
+      <div class="step-progress">
+        <div class="step-progress__track">
+          @for (step of [1, 2, 3, 4, 5]; track step) {
+            <div 
+              class="step-progress__step"
+              [class.step-progress__step--active]="step === currentStep()"
+              [class.step-progress__step--completed]="step < currentStep()"
+            >
+              <div class="step-progress__circle">
+                @if (step < currentStep()) {
+                  <svg viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                  </svg>
+                } @else {
+                  <span>{{ step }}</span>
+                }
+              </div>
+              <div class="step-progress__label">
+                @if (step === 1) { Trip }
+                @if (step === 2) { Materials }
+                @if (step === 3) { Labor }
+                @if (step === 4) { Uploads }
+                @if (step === 5) { Review }
+              </div>
+            </div>
+            @if (step < 5) {
+              <div 
+                class="step-progress__line"
+                [class.step-progress__line--completed]="step < currentStep()"
+              ></div>
+            }
+          }
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════════════════
+           MODAL BODY (Step Content)
+           ══════════════════════════════════════════════════════════════ -->
+      <div class="modal-body">
+
+        @if (guidanceMessage()) {
+          <div class="alert alert--info" role="status" aria-live="polite">
+            <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+              <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+            </svg>
+            <span>{{ guidanceMessage() }}</span>
+            <button type="button" class="alert__close" (click)="guidanceMessage.set('')" aria-label="Dismiss">&times;</button>
+          </div>
+        }
+        @if (successMessage()) {
+          <div class="alert alert--success" role="status" aria-live="polite">
+            <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+            </svg>
+            <span>{{ successMessage() }}</span>
+            <button type="button" class="alert__close" (click)="successMessage.set('')" aria-label="Dismiss">&times;</button>
+          </div>
+        }
+        @if (errorMessage()) {
+          <div class="alert alert--error" role="alert" aria-live="polite">
+            <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+            </svg>
+            <span>{{ errorMessage() }}</span>
+            <button type="button" class="alert__close" (click)="errorMessage.set('')" aria-label="Dismiss">&times;</button>
+          </div>
+        }
+
+        @if (currentStep() < 5 && getStepHint() && currentStep() !== 2 && currentStep() !== 3) {
+          <div class="step-hint">
+            <svg class="step-hint__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="16" x2="12" y2="12"></line>
+              <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+            <p class="step-hint__text">{{ getStepHint() }}</p>
+          </div>
+        }
+
+        <!-- ────────────────────────────────────────────────────────────
+             STEP 1: TRIP CHARGE
+             ──────────────────────────────────────────────────────────── -->
+        @if (currentStep() === 1) {
+          <div class="step-content step-content--fade">
+            <h3 class="step-title">Trip Charge</h3>
+
+            <form [formGroup]="tripForm" class="estimate-form estimate-form--compact">
+              <!-- Cost Incurred / Proposed -->
+              <div class="form-group">
+                <label class="form-label">Cost Status <span class="form-required">*</span></label>
+                <div class="radio-group radio-group--cards radio-group--cards-2col">
+                  <label class="radio-card">
+                    <input type="radio" formControlName="costIncurred" [value]="1" />
+                    <span class="radio-card__content">
+                      <span class="radio-card__title">Proposed</span>
+                      <span class="radio-card__desc">Estimated cost, not yet incurred</span>
+                    </span>
+                  </label>
+                  <label class="radio-card">
+                    <input type="radio" formControlName="costIncurred" [value]="0" />
+                    <span class="radio-card__content">
+                      <span class="radio-card__title">Incurred</span>
+                      <span class="radio-card__desc">Cost has already been incurred</span>
+                    </span>
+                  </label>
+                </div>
+              </div>
+
+              <!-- Rate Type -->
+              <div class="form-group">
+                <label class="form-label">Rate Type <span class="form-required">*</span></label>
+                <div class="radio-group radio-group--cards radio-group--cards-2col">
+                  <label class="radio-card">
+                    <input type="radio" formControlName="rateType" value="flat" />
+                    <span class="radio-card__content">
+                      <span class="radio-card__title">Flat rate</span>
+                      <span class="radio-card__desc">Standard trip charge</span>
+                    </span>
+                  </label>
+                  <label class="radio-card">
+                    <input type="radio" formControlName="rateType" value="emergency" />
+                    <span class="radio-card__content">
+                      <span class="radio-card__title">Emergency rate</span>
+                      <span class="radio-card__desc">After-hours or emergency visit</span>
+                    </span>
+                  </label>
+                </div>
+              </div>
+
+              <!-- Amount -->
+              <div class="form-group">
+                <label class="form-label" for="trip-amount">Amount <span class="form-required">*</span></label>
+                <div class="input-with-prefix">
+                  <span class="input-prefix">$</span>
+                  <input 
+                    type="number" 
+                    id="trip-amount"
+                    formControlName="amount"
+                    class="form-input"
+                    [class.form-input--invalid]="isFieldInvalid(tripForm, 'amount')"
+                    placeholder="0.00"
+                    step="0.01"
+                    min="0"
+                  />
+                </div>
+                @if (isFieldInvalid(tripForm, 'amount')) {
+                  <small class="form-error">Amount is required</small>
+                }
+              </div>
+            </form>
+
+            <!-- Current Trip Charge Display -->
+            @if (tripCharge(); as trip) {
+              <div class="current-item">
+                <h4 class="current-item__title">Current Trip Charge</h4>
+                <div class="current-item__content">
+                  <span>{{ trip.rateType === 'flat' ? 'Flat' : 'Emergency' }} Rate</span>
+                  <span>•</span>
+                  <span>{{ trip.costIncurred === 0 ? 'Incurred' : 'Proposed' }}</span>
+                  <span>•</span>
+                  <span class="current-item__amount">${{ trip.amount | number:'1.2-2' }}</span>
+                </div>
+              </div>
+            }
+          </div>
+        }
+
+        <!-- ────────────────────────────────────────────────────────────
+             STEP 2: MATERIALS
+             ──────────────────────────────────────────────────────────── -->
+        @if (currentStep() === 2) {
+          <div class="step-content step-content--fade">
+            <h4 class="form-section-title">{{ editingMaterialIndex() !== null ? 'Edit material' : 'Add material' }}</h4>
+            <form [formGroup]="materialForm" class="estimate-form estimate-form--compact">
+              <div class="form-group">
+                <label class="form-label">Cost Status <span class="form-required">*</span></label>
+                <div class="radio-group radio-group--cards radio-group--cards-2col">
+                  <label class="radio-card">
+                    <input type="radio" formControlName="costIncurred" [value]="1" />
+                    <span class="radio-card__content">
+                      <span class="radio-card__title">Proposed</span>
+                      <span class="radio-card__desc">Estimated cost, not yet incurred</span>
+                    </span>
+                  </label>
+                  <label class="radio-card">
+                    <input type="radio" formControlName="costIncurred" [value]="0" />
+                    <span class="radio-card__content">
+                      <span class="radio-card__title">Incurred</span>
+                      <span class="radio-card__desc">Cost has already been incurred</span>
+                    </span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="material-desc">Description</label>
+                <input
+                  id="material-desc"
+                  type="text"
+                  formControlName="description"
+                  class="form-input"
+                  placeholder="Additional details..."
+                />
+              </div>
+
+              <div class="form-row form-row--2">
+                <div class="form-group">
+                  <label class="form-label" for="material-qty">Quantity <span class="form-required">*</span></label>
+                  <input 
+                    type="number" 
+                    id="material-qty"
+                    formControlName="quantity"
+                    class="form-input"
+                    [class.form-input--invalid]="isFieldInvalid(materialForm, 'quantity')"
+                    placeholder="1"
+                    step="0.01"
+                    min="0.01"
+                  />
+                  @if (isFieldInvalid(materialForm, 'quantity')) {
+                    <small class="form-error">Quantity is required</small>
+                  }
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label" for="material-rate">Unit Price <span class="form-required">*</span></label>
+                  <div class="input-with-prefix">
+                    <span class="input-prefix">$</span>
+                    <input 
+                      type="number" 
+                      id="material-rate"
+                      formControlName="rate"
+                      class="form-input"
+                      [class.form-input--invalid]="isFieldInvalid(materialForm, 'rate')"
+                      placeholder="0.00"
+                      step="0.01"
+                      min="0"
+                    />
+                  </div>
+                  @if (isFieldInvalid(materialForm, 'rate')) {
+                    <small class="form-error">Unit price is required</small>
+                  }
+                </div>
+              </div>
+
+              <div class="form-actions">
+                <button 
+                  type="button" 
+                  class="btn btn--secondary"
+                  (click)="addMaterial()"
+                  [disabled]="materialForm.invalid"
+                >
+                  {{ editingMaterialIndex() !== null ? 'Update Material' : 'Add Material' }}
+                </button>
+                @if (editingMaterialIndex() !== null) {
+                  <button 
+                    type="button" 
+                    class="btn btn--outline"
+                    (click)="cancelEditMaterial()"
+                  >
+                    Cancel
+                  </button>
+                }
+              </div>
+            </form>
+
+            <div class="items-list items-list--below-form">
+              <h4 class="items-list__title">Added Materials ({{ materials().length }})</h4>
+              @if (materials().length === 0) {
+                <div class="empty-state empty-state--compact">
+                  <p class="empty-state__text">Added materials will appear here.</p>
+                </div>
+              } @else {
+                <table class="items-table">
+                  <thead>
+                    <tr>
+                      <th>Item</th>
+                      <th>Qty</th>
+                      <th>Rate</th>
+                      <th>Total</th>
+                      <th>Status</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (mat of materials(); track mat; let i = $index) {
+                      <tr>
+                        <td>
+                          <div class="item-name">Material</div>
+                          @if (mat.description) {
+                            <div class="item-desc">{{ mat.description }}</div>
+                          }
+                        </td>
+                        <td>{{ mat.quantity }}</td>
+                        <td>${{ mat.rate | number:'1.2-2' }}</td>
+                        <td class="item-total">${{ (mat.quantity * mat.rate) | number:'1.2-2' }}</td>
+                        <td>
+                          <span [class]="mat.costIncurred === 0 ? 'badge badge--success' : 'badge badge--info'">
+                            {{ mat.costIncurred === 0 ? 'Incurred' : 'Proposed' }}
+                          </span>
+                        </td>
+                        <td>
+                          <button type="button" class="btn-icon" (click)="editMaterial(i)" title="Edit">
+                            <svg viewBox="0 0 20 20" fill="currentColor">
+                              <path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/>
+                            </svg>
+                          </button>
+                          <button 
+                            type="button" 
+                            class="btn-icon"
+                            (click)="removeMaterial(i)"
+                            title="Remove"
+                          >
+                            <svg viewBox="0 0 20 20" fill="currentColor">
+                              <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                            </svg>
+                          </button>
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              }
+            </div>
+          </div>
+        }
+
+        <!-- ────────────────────────────────────────────────────────────
+             STEP 3: LABOR
+             ──────────────────────────────────────────────────────────── -->
+        @if (currentStep() === 3) {
+          <div class="step-content step-content--fade">
+            <h4 class="form-section-title">{{ editingLaborIndex() !== null ? 'Edit labor' : 'Add labor' }}</h4>
+            <form [formGroup]="laborForm" class="estimate-form estimate-form--compact">
+              <div class="form-group">
+                <label class="form-label">Cost Status <span class="form-required">*</span></label>
+                <div class="radio-group radio-group--cards radio-group--cards-2col">
+                  <label class="radio-card">
+                    <input type="radio" formControlName="costIncurred" [value]="1" />
+                    <span class="radio-card__content">
+                      <span class="radio-card__title">Proposed</span>
+                      <span class="radio-card__desc">Estimated cost, not yet incurred</span>
+                    </span>
+                  </label>
+                  <label class="radio-card">
+                    <input type="radio" formControlName="costIncurred" [value]="0" />
+                    <span class="radio-card__content">
+                      <span class="radio-card__title">Incurred</span>
+                      <span class="radio-card__desc">Cost has already been incurred</span>
+                    </span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="form-row form-row--2">
+                <div class="form-group">
+                  <label class="form-label">Labor Category <span class="form-required">*</span></label>
+                  <div class="radio-group radio-group--cards radio-group--cards-2col">
+                    <label class="radio-card">
+                      <input type="radio" formControlName="laborCategory" value="main" />
+                      <span class="radio-card__content">
+                        <span class="radio-card__title">Main tech</span>
+                        <span class="radio-card__desc">Primary technician on site</span>
+                      </span>
+                    </label>
+                    <label class="radio-card">
+                      <input type="radio" formControlName="laborCategory" value="helper" />
+                      <span class="radio-card__content">
+                        <span class="radio-card__title">Helper</span>
+                        <span class="radio-card__desc">Assisting technician</span>
+                      </span>
+                    </label>
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Rate Type <span class="form-required">*</span></label>
+                  <div class="radio-group radio-group--cards radio-group--cards-2col">
+                    <label class="radio-card">
+                      <input type="radio" formControlName="rateType" value="standard" />
+                      <span class="radio-card__content">
+                        <span class="radio-card__title">Standard</span>
+                        <span class="radio-card__desc">Regular hourly rate</span>
+                      </span>
+                    </label>
+                    <label class="radio-card">
+                      <input type="radio" formControlName="rateType" value="overtime" />
+                      <span class="radio-card__content">
+                        <span class="radio-card__title">Overtime</span>
+                        <span class="radio-card__desc">Overtime or premium rate</span>
+                      </span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-row form-row--3">
+                <div class="form-group">
+                  <label class="form-label" for="tech-count">Techs <span class="form-required">*</span></label>
+                  <input 
+                    type="number" 
+                    id="tech-count"
+                    formControlName="techCount"
+                    class="form-input"
+                    placeholder="1"
+                    min="1"
+                    step="1"
+                  />
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label" for="labor-hours">Hours <span class="form-required">*</span></label>
+                  <input 
+                    type="number" 
+                    id="labor-hours"
+                    formControlName="laborHours"
+                    class="form-input"
+                    placeholder="0.00"
+                    step="0.25"
+                    min="0.01"
+                  />
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label" for="labor-rate">Rate/hr <span class="form-required">*</span></label>
+                  <div class="input-with-prefix">
+                    <span class="input-prefix">$</span>
+                    <input 
+                      type="number" 
+                      id="labor-rate"
+                      formControlName="laborRate"
+                      class="form-input"
+                      placeholder="0.00"
+                      step="0.01"
+                      min="0"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="work-desc">Work Description <span class="form-required">*</span></label>
+                <textarea 
+                  id="work-desc"
+                  formControlName="workDescription"
+                  class="form-textarea"
+                  [class.form-input--invalid]="isFieldInvalid(laborForm, 'workDescription')"
+                  rows="2"
+                  placeholder="Describe the work performed..."
+                ></textarea>
+                @if (isFieldInvalid(laborForm, 'workDescription')) {
+                  <small class="form-error">Work description is required</small>
+                }
+              </div>
+
+              <div class="form-actions">
+                <button 
+                  type="button" 
+                  class="btn btn--secondary"
+                  (click)="addLabor()"
+                  [disabled]="laborForm.invalid"
+                >
+                  {{ editingLaborIndex() !== null ? 'Update Labor' : 'Add Labor' }}
+                </button>
+                @if (editingLaborIndex() !== null) {
+                  <button 
+                    type="button" 
+                    class="btn btn--outline"
+                    (click)="cancelEditLabor()"
+                  >
+                    Cancel
+                  </button>
+                }
+              </div>
+            </form>
+
+            <div class="items-list items-list--below-form">
+              <h4 class="items-list__title">Added Labor ({{ laborItems().length }})</h4>
+              @if (laborItems().length === 0) {
+                <div class="empty-state empty-state--compact">
+                  <p class="empty-state__text">Added labor will appear here.</p>
+                </div>
+              } @else {
+                <table class="items-table">
+                  <thead>
+                    <tr>
+                      <th>Description</th>
+                      <th>Category</th>
+                      <th>Techs</th>
+                      <th>Hours</th>
+                      <th>Rate</th>
+                      <th>Total</th>
+                      <th>Status</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (labor of laborItems(); track labor; let i = $index) {
+                      <tr>
+                        <td>
+                          <div class="item-name">
+                            {{ labor.laborCategory === 'main' ? 'Main Tech' : 'Helper' }} - 
+                            {{ labor.rateType === 'standard' ? 'Standard' : 'Overtime' }}
+                          </div>
+                          <div class="item-desc">{{ labor.workDescription }}</div>
+                        </td>
+                        <td>{{ labor.laborCategory === 'main' ? 'Main' : 'Helper' }}</td>
+                        <td>{{ labor.techCount }}</td>
+                        <td>{{ labor.laborHours }}</td>
+                        <td>${{ labor.laborRate | number:'1.2-2' }}</td>
+                        <td class="item-total">${{ (labor.techCount * labor.laborHours * labor.laborRate) | number:'1.2-2' }}</td>
+                        <td>
+                          <span [class]="labor.costIncurred === 0 ? 'badge badge--success' : 'badge badge--info'">
+                            {{ labor.costIncurred === 0 ? 'Incurred' : 'Proposed' }}
+                          </span>
+                        </td>
+                        <td>
+                          <button type="button" class="btn-icon" (click)="editLabor(i)" title="Edit">
+                            <svg viewBox="0 0 20 20" fill="currentColor">
+                              <path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/>
+                            </svg>
+                          </button>
+                          <button 
+                            type="button" 
+                            class="btn-icon"
+                            (click)="removeLabor(i)"
+                            title="Remove"
+                          >
+                            <svg viewBox="0 0 20 20" fill="currentColor">
+                              <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                            </svg>
+                          </button>
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              }
+            </div>
+          </div>
+        }
+
+        <!-- ────────────────────────────────────────────────────────────
+             STEP 4: FILE UPLOADS
+             ──────────────────────────────────────────────────────────── -->
+        @if (currentStep() === 4) {
+          <div class="step-content step-content--fade">
+
+            @if (initData(); as init) {
+              @if (init.documentTypes.length > 0) {
+                <div class="upload-sections">
+                  @for (docType of init.documentTypes; track docType.documentTypeKey) {
+                    <div class="upload-section">
+                      <h4 class="upload-section__title">{{ docType.label }}</h4>
+                      <div class="upload-dropzone">
+                        <input 
+                          type="file" 
+                          [id]="'upload-' + docType.documentTypeKey"
+                          (change)="onFileSelected($event, docType.documentTypeKey)"
+                          multiple
+                          class="upload-input"
+                        />
+                        <label [for]="'upload-' + docType.documentTypeKey" class="upload-label">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                          </svg>
+                          <span>Click to upload or drag and drop</span>
+                        </label>
+                      </div>
+                    </div>
+                  }
+                </div>
+              } @else {
+                <div class="alert alert--warning">
+                  <p><strong>No document types configured for file uploads.</strong></p>
+                  <p style="margin-top: 8px; font-size: 0.9em;">
+                    The backend API returned an empty or invalid <code>documentTypes</code> array.
+                    Please check the browser console for details, or contact your backend team to ensure
+                    the <code>/api/v1/admin/on-site-approval/initialize</code> endpoint is returning
+                    document type labels correctly.
+                  </p>
+                  <p style="margin-top: 8px; font-size: 0.85em; color: #64748b;">
+                    <strong>Debug Info:</strong><br>
+                    Job Key: {{ jobKey() }}<br>
+                    Vendor Key: {{ vendorKey() }}<br>
+                    Temp Estimate Key: {{ init.tempEstimateKey }}
+                  </p>
+                </div>
+              }
+
+              <!-- Uploaded Files List -->
+              @if (uploadedFiles().length > 0) {
+                <div class="uploaded-files">
+                  <h4 class="uploaded-files__title">Uploaded Files ({{ uploadedFiles().length }})</h4>
+                  <ul class="uploaded-files__list">
+                    @for (file of uploadedFiles(); track file.uploadKey) {
+                      <li class="uploaded-file">
+                        <a
+                          class="uploaded-file__info"
+                          [class.uploaded-file__info--linked]="file.secureUrl"
+                          [href]="file.secureUrl || null"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          [attr.title]="file.secureUrl ? 'View file' : null"
+                        >
+                          <svg class="uploaded-file__icon" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M8 4a3 3 0 00-3 3v4a5 5 0 0010 0V7a1 1 0 112 0v4a7 7 0 11-14 0V7a5 5 0 0110 0v4a3 3 0 11-6 0V7a1 1 0 012 0v4a1 1 0 102 0V7a3 3 0 00-3-3z" clip-rule="evenodd"/>
+                          </svg>
+                          <div class="uploaded-file__details">
+                            <div class="uploaded-file__name">{{ file.fileName }}</div>
+                            <div class="uploaded-file__meta">
+                              {{ file.documentTypeName }} • {{ file.uploadDate | date:'short' }}
+                            </div>
+                          </div>
+                        </a>
+                        <div class="uploaded-file__actions">
+                          @if (file.secureUrl) {
+                            <a
+                              class="uploaded-file__view"
+                              [href]="file.secureUrl"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title="View file"
+                            >
+                              <svg viewBox="0 0 20 20" fill="currentColor">
+                                <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/>
+                                <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"/>
+                              </svg>
+                            </a>
+                          }
+                          <button 
+                            type="button" 
+                            class="uploaded-file__delete"
+                            (click)="deleteFile(file.uploadKey)"
+                            title="Delete file"
+                          >
+                            <svg viewBox="0 0 20 20" fill="currentColor">
+                              <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                            </svg>
+                          </button>
+                        </div>
+                      </li>
+                    }
+                  </ul>
+                </div>
+              }
+            }
+          </div>
+        }
+
+        <!-- ────────────────────────────────────────────────────────────
+             STEP 5: REVIEW & SUBMIT
+             ──────────────────────────────────────────────────────────── -->
+        @if (currentStep() === 5) {
+          <div class="step-content step-content--fade">
+            <h3 class="step-title">Review & Submit</h3>
+            <p class="step-description">Review your estimate and choose how to proceed.</p>
+
+            <!-- Estimate Summary (hidden once a customer estimate is already loaded, e.g. re-approval flow) -->
+            @if (!customerEstimateResponse()) {
+            <div class="estimate-summary">
+              <h4 class="estimate-summary__title">Estimate Summary</h4>
+
+              @if (initData(); as init) {
+                <div class="estimate-summary__meta">
+                  <div class="estimate-summary__row">
+                    <span class="estimate-summary__value">{{ init.jobName }}</span>
+                  </div>
+                  <div class="estimate-summary__row">
+                    <span class="estimate-summary__value">{{ init.vendorName }}</span>
+                  </div>
+                  <div class="estimate-summary__row">
+                    <span class="estimate-summary__label">Customer DNE:</span>
+                    <span class="estimate-summary__value">${{ init.customerDne | number:'1.2-2' }}</span>
+                  </div>
+                  <div class="estimate-summary__row">
+                    <span class="estimate-summary__label">Vendor DNE:</span>
+                    <span class="estimate-summary__value">${{ init.vendorDne | number:'1.2-2' }}</span>
+                  </div>
+                </div>
+              }
+
+              <div class="estimate-summary__items">
+                @if (tripCharge(); as trip) {
+                  <div class="estimate-summary__item">
+                    <div class="estimate-summary__item-name">
+                      Trip Charge ({{ trip.rateType === 'flat' ? 'Flat' : 'Emergency' }})
+                    </div>
+                    <div class="estimate-summary__item-amount">${{ trip.amount | number:'1.2-2' }}</div>
+                  </div>
+                }
+
+                @for (mat of materials(); track mat) {
+                  <div class="estimate-summary__item">
+                    <div class="estimate-summary__item-name">
+                      {{ mat.itemName }} ({{ mat.quantity }} × ${{ mat.rate | number:'1.2-2' }})
+                    </div>
+                    <div class="estimate-summary__item-amount">${{ (mat.quantity * mat.rate) | number:'1.2-2' }}</div>
+                  </div>
+                }
+
+                @for (labor of laborItems(); track labor) {
+                  <div class="estimate-summary__item">
+                    <div class="estimate-summary__item-name">
+                      {{ labor.laborCategory === 'main' ? 'Main Tech' : 'Helper' }} - 
+                      {{ labor.rateType === 'standard' ? 'Standard' : 'Overtime' }}
+                      ({{ labor.techCount }} tech × {{ labor.laborHours }} hrs × ${{ labor.laborRate | number:'1.2-2' }}/hr)
+                    </div>
+                    <div class="estimate-summary__item-amount">${{ (labor.techCount * labor.laborHours * labor.laborRate) | number:'1.2-2' }}</div>
+                  </div>
+                }
+              </div>
+
+              <div class="estimate-summary__total">
+                <span class="estimate-summary__total-label">ESTIMATE TOTAL</span>
+                <span class="estimate-summary__total-amount">${{ estimateTotal() | number:'1.2-2' }}</span>
+              </div>
+
+              @if (uploadedFiles().length > 0) {
+                <div class="estimate-summary__row">
+                  <span class="estimate-summary__label">Uploaded Files:</span>
+                  <span class="estimate-summary__value">{{ uploadedFiles().length }} file(s)</span>
+                </div>
+              }
+            </div>
+            }
+
+            <!-- Submission Options (hidden once a customer estimate is already loaded, e.g. re-approval flow) -->
+            @if (!customerEstimateResponse()) {
+            <div class="submission-options">
+              <h4 class="submission-options__title">Choose how to proceed</h4>
+              <p class="submission-options__description">
+                Send this estimate to the customer for approval, or approve it directly as the vendor estimate.
+              </p>
+
+              <div class="submission-buttons submission-buttons--cards">
+                <button 
+                  type="button" 
+                  class="submission-card submission-card--primary"
+                  (click)="submitForCustomerApproval()"
+                  [disabled]="isSubmitting() || estimateTotal() === 0"
+                >
+                  <span class="submission-card__icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                      <polyline points="22,6 12,13 2,6"></polyline>
+                    </svg>
+                  </span>
+                  <span class="submission-card__content">
+                    <span class="submission-card__title">Create customer estimate for approval</span>
+                    <span class="submission-card__desc">Sends the estimate to the customer for review</span>
+                  </span>
+                  @if (isSubmitting()) {
+                    <span class="spinner spinner--sm" aria-hidden="true"></span>
+                  }
+                </button>
+
+                <button 
+                  type="button" 
+                  class="submission-card submission-card--success"
+                  (click)="approveVendorEstimateDirectly()"
+                  [disabled]="isSubmitting() || estimateTotal() === 0"
+                >
+                  <span class="submission-card__icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                      <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                    </svg>
+                  </span>
+                  <span class="submission-card__content">
+                    <span class="submission-card__title">Approve vendor estimate</span>
+                    <span class="submission-card__desc">Approves directly without customer email</span>
+                  </span>
+                  @if (isSubmitting()) {
+                    <span class="spinner spinner--sm" aria-hidden="true"></span>
+                  }
+                </button>
+              </div>
+            </div>
+            }
+          </div>
+
+          <!-- Vendor vs Customer Estimate Comparison Grid (outside step-content for full width) -->
+          @if (customerEstimateResponse()) {
+            <div class="estimate-comparison">
+              <div class="estimate-comparison__header">
+                <h3 class="estimate-comparison__title">Vendor vs Customer Estimate Comparison</h3>
+                <p class="estimate-comparison__hint">Click on any customer value (Qty, Rate, or Markup %) to edit. Changes save automatically.</p>
+              </div>
+              
+              <div class="estimate-comparison__totals">
+                <div class="total-card total-card--vendor">
+                  <div class="total-card__label">Vendor Total</div>
+                  <div class="total-card__amount">${{ customerEstimateResponse().vendorTotal.toFixed(2) }}</div>
+                </div>
+                <div class="total-card total-card--customer">
+                  <div class="total-card__label">Customer Total @if (customerMarkup() && customerMarkup()!.adminMarkupPercent) {
+                    (incl. Admin Markup)
+                  }</div>
+                  <div class="total-card__amount">@if (customerMarkup() && customerMarkup()!.adminMarkupPercent) {
+                    ${{ getCustomerTotalWithAdminMarkup().toFixed(2) }}
+                  } @else {
+                    ${{ getCustomerTotal().toFixed(2) }}
+                  }</div>
+                  @if (isSavingChanges()) {
+                    <small class="total-card__status">Saving...</small>
+                  } @else if (hasUnsavedChanges()) {
+                    <small class="total-card__status total-card__status--unsaved">Unsaved changes</small>
+                  }
+                </div>
+                <div class="total-card total-card--markup">
+                  <div class="total-card__label">Overall Markup</div>
+                  <div class="total-card__amount">
+                    @if (customerMarkup() && customerMarkup()!.adminMarkupPercent) {
+                      {{ ((getCustomerTotalWithAdminMarkup() - customerEstimateResponse().vendorTotal) / customerEstimateResponse().vendorTotal * 100).toFixed(2) }}%
+                    } @else {
+                      {{ ((getCustomerTotal() - customerEstimateResponse().vendorTotal) / customerEstimateResponse().vendorTotal * 100).toFixed(2) }}%
+                    }
+                  </div>
+                </div>
+              </div>
+
+              <div class="estimate-comparison__table-wrapper">
+                <table class="comparison-table">
+                  <colgroup>
+                    <!-- Vendor columns (5) -->
+                    <col class="col-charge-type">
+                    <col class="col-description">
+                    <col class="col-qty">
+                    <col class="col-rate">
+                    <col class="col-total">
+                    <!-- Customer columns (7) -->
+                    <col class="col-charge-type">
+                    <col class="col-description">
+                    <col class="col-qty">
+                    <col class="col-rate">
+                    <col class="col-markup">
+                    <col class="col-markup">
+                    <col class="col-total">
+                    <!-- Remark column (1) -->
+                    <col class="col-remark">
+                  </colgroup>
+                  <thead>
+                    <tr>
+                      <th colspan="5" class="comparison-table__section-header comparison-table__section-header--vendor">
+                        Vendor Estimate
+                      </th>
+                      <th colspan="7" class="comparison-table__section-header comparison-table__section-header--customer">
+                        Customer Estimate
+                      </th>
+                      <th rowspan="2" class="comparison-table__header">Remark</th>
+                    </tr>
+                    <tr>
+                      <!-- Vendor columns -->
+                      <th class="comparison-table__header">Charge Type</th>
+                      <th class="comparison-table__header">Description</th>
+                      <th class="comparison-table__header">Qty</th>
+                      <th class="comparison-table__header">Rate</th>
+                      <th class="comparison-table__header">Row Total</th>
+                      
+                      <!-- Customer columns -->
+                      <th class="comparison-table__header">Charge Type</th>
+                      <th class="comparison-table__header">Description</th>
+                      <th class="comparison-table__header">Qty</th>
+                      <th class="comparison-table__header">Customer Rate</th>
+                      <th class="comparison-table__header">Profile Markup%</th>
+                      <th class="comparison-table__header">Actual Markup%</th>
+                      <th class="comparison-table__header">Row Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (item of customerEstimateResponse().lineItems; track $index) {
+                      <tr class="comparison-table__row" [class.comparison-table__row--adjusted]="item.wasHourAdjusted" [class.comparison-table__row--custom]="item.isCustomLineItem">
+                        <!-- Vendor side (read-only) -->
+                        @if (item.isCustomLineItem) {
+                          <td class="comparison-table__cell comparison-table__cell--no-vendor" colspan="5">
+                            No vendor estimate (custom charge)
+                          </td>
+                        } @else {
+                          <td class="comparison-table__cell">{{ item.chargeType }}</td>
+                          <td class="comparison-table__cell comparison-table__cell--description">{{ item.description }}</td>
+                          <td class="comparison-table__cell comparison-table__cell--number">
+                            {{ item.vendorQty.toFixed(2) }}
+                            @if (item.lineType === 'labor' && item.techCount) {
+                              <br><small>{{ item.techCount }} tech(s)</small>
+                            }
+                          </td>
+                          <td class="comparison-table__cell comparison-table__cell--number">${{ item.vendorRate.toFixed(2) }}</td>
+                          <td class="comparison-table__cell comparison-table__cell--number comparison-table__cell--total">
+                            ${{ item.vendorAmount.toFixed(2) }}
+                          </td>
+                        }
+                        
+                        <!-- Customer side (click-to-edit) -->
+                        @if (item.isCustomLineItem) {
+                          <td class="comparison-table__cell comparison-table__cell--editable" (click)="startEditCell($index, 'chargeType')">
+                            @if (isEditingCell($index, 'chargeType')) {
+                              <select
+                                class="inline-edit-select"
+                                [value]="item.chargeTypeKey"
+                                (change)="updateCustomLineChargeType($index, $any($event.target).value)"
+                                (blur)="onCellBlur($index, 'chargeType')"
+                                autofocus
+                              >
+                                <option value="" disabled>Select type…</option>
+                                @for (opt of customChargeTypeOptions; track opt.key) {
+                                  <option [value]="opt.key">{{ opt.label }}</option>
+                                }
+                              </select>
+                            } @else {
+                              <span class="editable-value">{{ item.chargeType || 'Select charge type' }}</span>
+                            }
+                          </td>
+                          <td class="comparison-table__cell comparison-table__cell--description comparison-table__cell--editable" (click)="startEditCell($index, 'description')">
+                            @if (isEditingCell($index, 'description')) {
+                              <input
+                                type="text"
+                                class="inline-edit-input inline-edit-input--text"
+                                [value]="item.description"
+                                (input)="updateCustomLineDescription($index, $any($event.target).value)"
+                                (blur)="onCellBlur($index, 'description')"
+                                placeholder="Describe this charge"
+                                autofocus
+                              />
+                            } @else {
+                              <span class="editable-value">{{ item.description || 'Click to describe charge' }}</span>
+                            }
+                          </td>
+                        } @else {
+                          <td class="comparison-table__cell">{{ item.chargeType }}</td>
+                          <td class="comparison-table__cell comparison-table__cell--description">{{ item.description }}</td>
+                        }
+                        <td class="comparison-table__cell comparison-table__cell--number comparison-table__cell--editable" (click)="startEditCell($index, 'qty')">
+                          @if (isEditingCell($index, 'qty')) {
+                            <input 
+                              type="number" 
+                              class="inline-edit-input"
+                              [value]="item.customerQty"
+                              (input)="updateCustomerQty($index, $any($event.target).value)"
+                              (blur)="onCellBlur($index, 'qty')"
+                              step="0.01"
+                              min="0"
+                              autofocus
+                            />
+                          } @else {
+                            <span class="editable-value">{{ item.customerQty.toFixed(2) }}</span>
+                            @if (item.wasHourAdjusted) {
+                              <br><span class="badge badge--warning">Adjusted from {{ item.originalHours }}</span>
+                            }
+                          }
+                        </td>
+                        <td class="comparison-table__cell comparison-table__cell--number comparison-table__cell--editable" (click)="startEditCell($index, 'rate')">
+                          @if (isEditingCell($index, 'rate')) {
+                            <input 
+                              type="number" 
+                              class="inline-edit-input"
+                              [value]="item.customerRate"
+                              (input)="updateCustomerRate($index, $any($event.target).value)"
+                              (blur)="onCellBlur($index, 'rate')"
+                              step="0.01"
+                              min="0"
+                              autofocus
+                            />
+                          } @else {
+                            <span class="editable-value">${{ item.customerRate.toFixed(2) }}</span>
+                          }
+                        </td>
+                        <td class="comparison-table__cell comparison-table__cell--number">
+                          @if (item.profileMarkupPercent !== undefined && item.profileMarkupPercent !== null) {
+                            {{ item.profileMarkupPercent.toFixed(2) }}%
+                          } @else {
+                            —
+                          }
+                        </td>
+                        @if (item.isCustomLineItem) {
+                          <td class="comparison-table__cell comparison-table__cell--number">—</td>
+                        } @else {
+                          <td class="comparison-table__cell comparison-table__cell--number comparison-table__cell--editable" (click)="startEditCell($index, 'markup')">
+                            @if (isEditingCell($index, 'markup')) {
+                              <input 
+                                type="number" 
+                                class="inline-edit-input"
+                                [value]="item.calculatedMarkupPercent"
+                                (input)="updateMarkupPercent($index, $any($event.target).value)"
+                                (blur)="onCellBlur($index, 'markup')"
+                                step="0.1"
+                                min="0"
+                                autofocus
+                              />
+                            } @else {
+                              <span class="editable-value">{{ item.calculatedMarkupPercent.toFixed(2) }}%</span>
+                            }
+                          </td>
+                        }
+                        <td class="comparison-table__cell comparison-table__cell--number comparison-table__cell--total comparison-table__cell--customer-total">
+                          ${{ item.customerAmount.toFixed(2) }}
+                        </td>
+                        
+                        <!-- Remark -->
+                        <td class="comparison-table__cell comparison-table__cell--remark">
+                          @if (item.wasHourAdjusted) {
+                            <span class="remark remark--adjusted">Hours adjusted to meet minimum markup</span>
+                          }
+                          @if (item.isCustomLineItem) {
+                            <span class="badge badge--custom">Custom</span>
+                            <select
+                              class="cost-status-select"
+                              [value]="item.costIncurred"
+                              (change)="updateCustomLineCostIncurred($index, $any($event.target).value)"
+                              title="Is this cost already incurred or still proposed?"
+                            >
+                              <option value="0">Incurred</option>
+                              <option value="1">Proposed</option>
+                            </select>
+                            <button
+                              type="button"
+                              class="btn-remove-line"
+                              (click)="removeCustomLineItem($index)"
+                              title="Remove this custom charge"
+                            >✕ Remove</button>
+                          }
+                        </td>
+                      </tr>
+                    }
+
+                    <!-- Add Custom Charge Row -->
+                    <tr class="comparison-table__row comparison-table__row--add-charge">
+                      <td class="comparison-table__cell comparison-table__cell--add-charge" colspan="13">
+                        <button type="button" class="btn-add-charge" (click)="addCustomLineItem()">
+                          + Add Charge
+                        </button>
+                      </td>
+                    </tr>
+                    
+                    <!-- Subtotal Row (before admin markup) -->
+                    <tr class="comparison-table__row comparison-table__row--subtotal">
+                      <td colspan="4" class="comparison-table__cell comparison-table__cell--total-label">
+                        <strong>Subtotal</strong>
+                      </td>
+                      <td class="comparison-table__cell comparison-table__cell--number comparison-table__cell--total">
+                        <strong>${{ customerEstimateResponse().vendorTotal.toFixed(2) }}</strong>
+                      </td>
+                      <td colspan="5" class="comparison-table__cell comparison-table__cell--total-label">
+                        <strong>Subtotal</strong>
+                      </td>
+                      <td class="comparison-table__cell comparison-table__cell--number comparison-table__cell--highlight">
+                        <strong>{{ ((getCustomerTotal() - customerEstimateResponse().vendorTotal) / customerEstimateResponse().vendorTotal * 100).toFixed(2) }}%</strong>
+                      </td>
+                      <td class="comparison-table__cell comparison-table__cell--number comparison-table__cell--total comparison-table__cell--customer-total">
+                        <strong>${{ getCustomerTotal().toFixed(2) }}</strong>
+                      </td>
+                      <td class="comparison-table__cell"></td>
+                    </tr>
+                    
+                    <!-- Admin Markup Row (if configured) -->
+                    @if (customerMarkup() && customerMarkup()!.adminMarkupPercent) {
+                      <tr class="comparison-table__row comparison-table__row--admin-markup">
+                        <!-- Vendor side (empty) -->
+                        <td class="comparison-table__cell" colspan="5"></td>
+                        
+                        <!-- Customer side - Admin Markup -->
+                        <td class="comparison-table__cell">Admin Fee</td>
+                        <td class="comparison-table__cell comparison-table__cell--description">
+                          Admin Markup ({{ getAdminMarkupPercent().toFixed(2) }}%)
+                        </td>
+                        <td class="comparison-table__cell comparison-table__cell--number">1.00</td>
+                        <td class="comparison-table__cell comparison-table__cell--number">
+                          ${{ getAdminMarkupAmount().toFixed(2) }}
+                        </td>
+                        <td class="comparison-table__cell comparison-table__cell--number">
+                          {{ getAdminMarkupPercent().toFixed(2) }}%
+                        </td>
+                        <td class="comparison-table__cell comparison-table__cell--number">—</td>
+                        <td class="comparison-table__cell comparison-table__cell--number comparison-table__cell--total comparison-table__cell--customer-total">
+                          ${{ getAdminMarkupAmount().toFixed(2) }}
+                        </td>
+                        
+                        <!-- Remark -->
+                        <td class="comparison-table__cell comparison-table__cell--remark">
+                          <span class="remark remark--info">Applied to subtotal</span>
+                        </td>
+                      </tr>
+                    }
+                    
+                    <!-- Grand Total row -->
+                    @if (customerMarkup() && customerMarkup()!.adminMarkupPercent) {
+                      <tr class="comparison-table__row comparison-table__row--grand-total">
+                        <td colspan="4" class="comparison-table__cell comparison-table__cell--total-label">
+                          <strong>Vendor Total</strong>
+                        </td>
+                        <td class="comparison-table__cell comparison-table__cell--number comparison-table__cell--total">
+                          <strong>${{ customerEstimateResponse().vendorTotal.toFixed(2) }}</strong>
+                        </td>
+                        <td colspan="5" class="comparison-table__cell comparison-table__cell--total-label">
+                          <strong>Grand Total (with Admin Markup)</strong>
+                        </td>
+                        <td class="comparison-table__cell comparison-table__cell--number comparison-table__cell--highlight">
+                          <strong>{{ ((getCustomerTotalWithAdminMarkup() - customerEstimateResponse().vendorTotal) / customerEstimateResponse().vendorTotal * 100).toFixed(2) }}%</strong>
+                        </td>
+                        <td class="comparison-table__cell comparison-table__cell--number comparison-table__cell--total comparison-table__cell--customer-total">
+                          <strong>${{ getCustomerTotalWithAdminMarkup().toFixed(2) }}</strong>
+                        </td>
+                        <td class="comparison-table__cell"></td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="estimate-comparison__footer">
+                <div class="estimate-comparison__actions">
+                  <button 
+                    type="button" 
+                    class="btn btn--secondary btn--lg"
+                    (click)="saveCustomerEstimate()"
+                    [disabled]="isSubmitting()"
+                  >
+                    @if (isSubmitting()) {
+                      <span class="spinner spinner--sm"></span>
+                      <span>Saving...</span>
+                    } @else {
+                      <span>Save</span>
+                    }
+                  </button>
+                  
+                  <button 
+                    type="button" 
+                    class="btn btn--primary btn--lg"
+                    (click)="sendCustomerEstimateEmail()"
+                    [disabled]="isSubmitting() || hasUnsavedChanges()"
+                  >
+                    @if (isSubmitting()) {
+                      <span class="spinner spinner--sm"></span>
+                      <span>Sending...</span>
+                    } @else {
+                      <span>Save and Send Customer Estimate Email</span>
+                    }
+                  </button>
+                </div>
+              </div>
+            </div>
+          }
+        }
+
+      </div>
+
+      <!-- ══════════════════════════════════════════════════════════════
+           MODAL FOOTER (Navigation Buttons)
+           ══════════════════════════════════════════════════════════════ -->
+      <div class="modal-footer">
+        <div class="modal-footer__left">
+          @if (currentStep() > 1) {
+            <button 
+              type="button" 
+              class="btn btn--outline"
+              (click)="goBack()"
+              [disabled]="isSubmitting()"
+            >
+              <svg viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd"/>
+              </svg>
+              <span>Back</span>
+            </button>
+          }
+        </div>
+
+        <div class="modal-footer__right">
+          @if (currentStep() === 1) {
+            <button 
+              type="button" 
+              class="btn btn--outline"
+              (click)="skipTripCharge()"
+              [disabled]="isSubmitting()"
+            >
+              Skip
+            </button>
+            <button 
+              type="button" 
+              class="btn btn--primary"
+              (click)="saveTripCharge()"
+              [disabled]="isSubmitting() || tripForm.invalid"
+            >
+              @if (isSubmitting()) {
+                <span class="spinner spinner--sm" aria-hidden="true"></span>
+              }
+              <span>{{ getFooterPrimaryLabel() }}</span>
+            </button>
+          }
+
+          @if (currentStep() === 2) {
+            <button 
+              type="button" 
+              class="btn btn--outline"
+              (click)="skipMaterials()"
+              [disabled]="isSubmitting()"
+            >
+              Skip
+            </button>
+            <button 
+              type="button" 
+              class="btn btn--primary"
+              (click)="saveMaterials()"
+              [disabled]="isSubmitting() || materials().length === 0"
+              [attr.title]="materials().length === 0 ? 'Add a material or skip this step' : null"
+            >
+              @if (isSubmitting()) {
+                <span class="spinner spinner--sm" aria-hidden="true"></span>
+              }
+              <span>{{ getFooterPrimaryLabel() }}</span>
+            </button>
+          }
+
+          @if (currentStep() === 3) {
+            <button 
+              type="button" 
+              class="btn btn--outline"
+              (click)="skipLabor()"
+              [disabled]="isSubmitting()"
+            >
+              Skip
+            </button>
+            <button 
+              type="button" 
+              class="btn btn--primary"
+              (click)="saveLabor()"
+              [disabled]="isSubmitting() || laborItems().length === 0"
+              [attr.title]="laborItems().length === 0 ? 'Add a labor item or skip this step' : null"
+            >
+              @if (isSubmitting()) {
+                <span class="spinner spinner--sm" aria-hidden="true"></span>
+              }
+              <span>{{ getFooterPrimaryLabel() }}</span>
+            </button>
+          }
+
+          @if (currentStep() === 4) {
+            <button 
+              type="button" 
+              class="btn btn--outline"
+              (click)="skipUploads()"
+              [disabled]="isSubmitting()"
+            >
+              Skip
+            </button>
+            <button 
+              type="button" 
+              class="btn btn--primary"
+              (click)="saveUploads()"
+              [disabled]="isSubmitting()"
+            >
+              @if (isSubmitting()) {
+                <span class="spinner spinner--sm" aria-hidden="true"></span>
+              }
+              <span>{{ getFooterPrimaryLabel() }}</span>
+            </button>
+          }
+
+          @if (currentStep() === 5) {
+            <button 
+              type="button" 
+              class="btn btn--outline"
+              (click)="close()"
+              [disabled]="isSubmitting()"
+            >
+              Cancel
+            </button>
+          }
+        </div>
+      </div>
+
+    </div>
+  </div>
+}
+
+<!-- Additional Approval Modal -->
+<app-additional-approval-modal></app-additional-approval-modal>

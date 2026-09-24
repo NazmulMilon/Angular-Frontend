@@ -1,0 +1,111 @@
+@if (isOpen()) {
+  <div class="modal-overlay" (click)="onOverlayClick($event)">
+    <div class="modal modal--settings-thresholds" role="dialog" aria-modal="true" aria-labelledby="stModalTitle">
+      <div class="modal__header">
+        <h3 class="modal__title" id="stModalTitle">⚙ Settings &amp; thresholds</h3>
+        <button type="button" class="modal__close" (click)="onClose()" aria-label="Close">&times;</button>
+      </div>
+
+      <div class="modal__body">
+        @if (errorMessage()) {
+          <div class="st-error">{{ errorMessage() }}</div>
+        } @else if (loading()) {
+          <div class="st-loading">Loading current settings…</div>
+        } @else if (data(); as d) {
+          <table class="st-table">
+            <thead>
+              <tr>
+                <th>Setting</th>
+                <th>Value</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>General Liability missing</td>
+                <td>
+                  @if (d.glMissingOverrideAllowed) {
+                    <b>{{ d.glMissingDeductionPercent }}% deduction override</b> (whole invoice incl. materials)
+                  } @else {
+                    <b class="st-red">NO PAYMENT — no override</b>
+                  }
+                </td>
+              </tr>
+              <tr>
+                <td>General Liability expired</td>
+                <td>
+                  @if (d.glExpiredOverrideAllowed) {
+                    <b>{{ d.glExpiredDeductionPercent }}% deduction override</b> (whole invoice incl. materials)
+                  } @else {
+                    <b class="st-red">NO PAYMENT — no override</b>
+                  }
+                </td>
+              </tr>
+              <tr>
+                <td>Workers Comp missing</td>
+                <td>
+                  @if (d.wcompMissingOverrideAllowed) {
+                    <b>{{ d.wcompMissingDeductionPercent }}% deduction override</b> (whole invoice incl. materials)
+                  } @else {
+                    <b class="st-red">NO PAYMENT — no override</b>
+                  }
+                </td>
+              </tr>
+              <tr>
+                <td>Workers Comp expired</td>
+                <td>
+                  @if (d.wcompExpiredOverrideAllowed) {
+                    <b>{{ d.wcompExpiredDeductionPercent }}% deduction override</b> (whole invoice incl. materials)
+                  } @else {
+                    <b class="st-red">NO PAYMENT — no override</b>
+                  }
+                </td>
+              </tr>
+              <tr>
+                <td>Invoice-Content Agent live</td>
+                <td>
+                  {{ d.invoiceContentAgentEnabled ? 'LIVE' : 'OFF' }}
+                  <span class="muted">
+                    — when live, invoices built from vendor invoice/estimate/on-site approval can auto-send too
+                  </span>
+                </td>
+              </tr>
+              <tr>
+                <td>AI bot calls</td>
+                <td>
+                  max {{ d.aiBotCallValue }}/{{ botCallUnitLabel(d.aiBotCallDayHour) }} ·
+                  {{ formatTime(d.botCallWindowStartLocal) }} – {{ formatTime(d.botCallWindowEndLocal) }} store local
+                  · escalate after {{ d.botCallEscalateAfterBusinessDays }} business days
+                </td>
+              </tr>
+              <tr>
+                <td>After-pics for AI verification</td>
+                <td>
+                  min {{ d.minAfterPhotosRequired }} photo · auto-verify ≥{{ d.afterPhotoAutoVerifyConfidencePercent }}%
+                  · human queue {{ d.afterPhotoHumanQueueLowerBoundPercent }}–{{ d.afterPhotoAutoVerifyConfidencePercent }}%
+                </td>
+              </tr>
+              <tr>
+                <td>Hours tolerance</td>
+                <td>
+                  {{ d.hoursTolerancePercent }}% or {{ d.hoursToleranceMinHours }} tech-hr (greater) —
+                  <b>never auto-reduce when autonomy is possible</b>
+                </td>
+              </tr>
+              <tr>
+                <td>Agent graduation</td>
+                <td>
+                  {{ d.agentGraduationConsecutiveMatches }} consecutive human-confirmed matches (or
+                  ≥{{ d.agentGraduationAgreementPercent }}% over {{ d.agentGraduationSampleSize }} jobs)
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        }
+      </div>
+
+      <div class="modal__footer">
+        <button type="button" class="btn" (click)="onClose()">Close</button>
+      </div>
+    </div>
+  </div>
+}

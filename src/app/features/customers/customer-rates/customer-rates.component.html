@@ -1,0 +1,73 @@
+<div class="rates">
+  @if (listError()) { <div class="banner banner--error">{{ listError() }}</div> }
+
+  <div class="rates__toolbar">
+    <span class="rates__count">{{ charges().length }} rate{{ charges().length === 1 ? '' : 's' }}</span>
+    @if (editing() === null) {
+      <app-button variant="primary" size="sm" (clicked)="startAdd()">+ Add Rate</app-button>
+    }
+  </div>
+
+  @if (editing() !== null) {
+    <form class="rate-form" [formGroup]="form" (ngSubmit)="save()">
+      <h4 class="rate-form__title">{{ editing() === 'new' ? 'New Rate' : 'Edit Rate' }}</h4>
+      <div class="form-grid">
+        <label class="field">
+          <span class="field__label">Trade</span>
+          <app-searchable-select [options]="tradeOptions()" formControlName="tradeKey" placeholder="-- Select trade --" />
+        </label>
+        <label class="field">
+          <span class="field__label">Charge Type</span>
+          <app-searchable-select [options]="chargeTypeOptions()" formControlName="salesChargeTypeKey" placeholder="-- Select charge type --" />
+        </label>
+        <label class="field">
+          <span class="field__label">Amount</span>
+          <input type="text" class="field__input" formControlName="amount" inputmode="decimal" placeholder="0.00" />
+        </label>
+        <label class="field">
+          <span class="field__label">Description</span>
+          <input type="text" class="field__input" formControlName="description" placeholder="Description" />
+        </label>
+      </div>
+      <label class="checkbox-field"><input type="checkbox" formControlName="isActive" /><span>Active</span></label>
+      <div class="rate-form__actions">
+        @if (saveError(); as e) { <span class="seg-msg seg-msg--error">{{ e }}</span> }
+        <app-button variant="secondary" size="sm" [disabled]="saving()" (clicked)="cancel()">Cancel</app-button>
+        <app-button variant="primary" size="sm" type="submit" [loading]="saving()" [disabled]="saving()">
+          {{ editing() === 'new' ? 'Add Rate' : 'Save Rate' }}
+        </app-button>
+      </div>
+    </form>
+  }
+
+  @if (loading()) {
+    <div class="state"><span class="spinner"></span> Loading…</div>
+  } @else {
+    <div class="table-scroll">
+      <table class="cfg-table">
+        <thead><tr><th>Trade</th><th>Charge Type</th><th>Amount</th><th>Description</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+          @for (c of charges(); track c.pkey) {
+            <tr [class.row--inactive]="!c.isActive">
+              <td>{{ c.tradeName || '—' }}</td>
+              <td>{{ c.chargeTypeName || '—' }}</td>
+              <td>{{ c.amount ?? '—' }}</td>
+              <td>{{ c.description || '—' }}</td>
+              <td>{{ c.isActive ? 'Active' : 'Inactive' }}</td>
+              <td class="row-actions">
+                <button type="button" class="link-btn" [disabled]="rowBusy() === c.pkey" (click)="startEdit(c)">Edit</button>
+                @if (c.isActive) {
+                  <button type="button" class="link-btn link-btn--danger" [disabled]="rowBusy() === c.pkey" (click)="toggleActive(c)">Deactivate</button>
+                } @else {
+                  <button type="button" class="link-btn" [disabled]="rowBusy() === c.pkey" (click)="toggleActive(c)">Activate</button>
+                }
+              </td>
+            </tr>
+          } @empty {
+            <tr><td colspan="6" class="empty">No rates yet.</td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>

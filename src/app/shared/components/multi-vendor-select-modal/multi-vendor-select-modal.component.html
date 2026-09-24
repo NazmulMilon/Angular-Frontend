@@ -1,0 +1,120 @@
+@if (isVisible()) {
+  <div class="mvs-back" (click)="close()">
+    <div class="mvs-modal" (click)="$event.stopPropagation()">
+      <div class="mvs-head">
+        <h3>{{ title() }}
+          <span class="mvs-head__sub">· {{ subtitle() }}</span>
+        </h3>
+        <button type="button" class="mvs-x" (click)="close()" aria-label="Close">✕</button>
+      </div>
+
+      <div class="mvs-body">
+        @if (candidates().length === 0) {
+          <p class="mvs-empty">{{ emptyStateText() }}</p>
+        } @else {
+          <table class="mvs-table">
+            <thead>
+              <tr>
+                <th></th>
+                <th>Vendor</th>
+                <th>Est #</th>
+                <th>Date</th>
+                <th>Status</th>
+                <th class="num">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (vendor of candidates(); track vendor.vendorKey) {
+                @if (vendor.options.length === 1) {
+                  @let opt = vendor.options[0];
+                  <tr [class.mvs-row--selected]="isSelected(opt.estimateKey)">
+                    <td>
+                      <input
+                        type="checkbox"
+                        [checked]="isSelected(opt.estimateKey)"
+                        (change)="toggle(vendor.vendorKey, opt.estimateKey, $any($event.target).checked)" />
+                    </td>
+                    <td>{{ vendor.vendorName }}</td>
+                    <td>{{ opt.estimateNo }}</td>
+                    <td>{{ opt.estimateDateDisplay }}</td>
+                    <td>{{ opt.statusLabel }}</td>
+                    <td class="num">{{ formatCurrency(opt.estimateTotal) }}</td>
+                  </tr>
+                } @else {
+                  <tr class="mvs-vendor-group">
+                    <td></td>
+                    <td colspan="5"><strong>{{ vendor.vendorName }}</strong> · pick one option</td>
+                  </tr>
+                  @for (opt of vendor.options; track opt.estimateKey) {
+                    <tr [class.mvs-row--selected]="isSelected(opt.estimateKey)">
+                      <td>
+                        <input
+                          type="radio"
+                          [name]="'mvs-vendor-' + vendor.vendorKey"
+                          [checked]="isSelected(opt.estimateKey)"
+                          (change)="select(vendor.vendorKey, opt.estimateKey)" />
+                      </td>
+                      <td class="mvs-option-label">{{ opt.optionLabel ?? vendor.vendorName }}</td>
+                      <td>{{ opt.estimateNo }}</td>
+                      <td>{{ opt.estimateDateDisplay }}</td>
+                      <td>{{ opt.statusLabel }}</td>
+                      <td class="num">
+                        {{ formatCurrency(opt.estimateTotal) }}
+                        @if (opt.lineItems.length > 0) {
+                          <button
+                            type="button"
+                            class="mvs-expand-btn"
+                            (click)="toggleExpanded(opt.estimateKey)">
+                            {{ isExpanded(opt.estimateKey) ? 'Hide items ▲' : 'Show items ▼' }}
+                          </button>
+                        }
+                      </td>
+                    </tr>
+                    @if (isExpanded(opt.estimateKey)) {
+                      <tr class="mvs-lineitems-row">
+                        <td></td>
+                        <td colspan="5">
+                          <table class="mvs-lineitems">
+                            <thead>
+                              <tr>
+                                <th>Item</th>
+                                <th class="num">Qty</th>
+                                <th class="num">Rate</th>
+                                <th class="num">Total</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              @for (li of opt.lineItems; track $index) {
+                                <tr>
+                                  <td>{{ li.itemName }}</td>
+                                  <td class="num">{{ li.quantity ?? '—' }}</td>
+                                  <td class="num">{{ li.rate !== null ? formatCurrency(li.rate) : '—' }}</td>
+                                  <td class="num">{{ formatCurrency(li.rowTotal) }}</td>
+                                </tr>
+                              }
+                            </tbody>
+                          </table>
+                        </td>
+                      </tr>
+                    }
+                  }
+                }
+              }
+            </tbody>
+          </table>
+        }
+
+        @if (showValidationHint()) {
+          <p class="mvs-err">{{ validationHintText() }}</p>
+        }
+      </div>
+
+      <div class="mvs-foot">
+        <button type="button" class="mvs-btn mvs-btn--ghost" (click)="close()">Close</button>
+        <div class="mvs-foot__spacer"></div>
+        <span class="mvs-count">{{ selectedCount() }} selected</span>
+        <button type="button" class="mvs-btn mvs-btn--primary" (click)="onNext()">Next</button>
+      </div>
+    </div>
+  </div>
+}

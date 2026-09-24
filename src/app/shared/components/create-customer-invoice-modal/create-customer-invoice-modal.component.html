@@ -1,0 +1,273 @@
+<!-- ══════════════════════════════════════════════════════════════
+       CREATE CUSTOMER INVOICE (scratch / vendor invoice / vendor estimate / copy-from-estimate)
+       Ported from create-customer-estimate-modal's shell/section/grid/footer chrome — MINUS the
+       vendor-comparison row pair and minimum-markup gate/popover, since there's no vendor cost to
+       compare against or markup-gate for a customer invoice. Backend calls are unchanged.
+       ══════════════════════════════════════════════════════════════ -->
+@if (isVisible()) {
+  <div class="cci-back" (click)="close()">
+    <div class="cci-modal" (click)="$event.stopPropagation()">
+      <!-- Header -->
+      <div class="cci-head">
+        <h3>
+          Create Customer Invoice
+          @if (sourceLabel()) {
+            <span class="cci-head__sub">· {{ sourceLabel() }}</span>
+          }
+        </h3>
+        <button type="button" class="cci-x" (click)="close()" [disabled]="saving()" aria-label="Close">✕</button>
+      </div>
+
+      <!-- Terms bar -->
+      <div class="cci-terms">
+        <div class="cci-terms__spacer"></div>
+      </div>
+
+      <!-- Body -->
+      <div class="cci-body">
+        @if (loading()) {
+          <div class="cci-status cci-status--info">Loading invoice lines…</div>
+        } @else {
+          @if (errorMessage()) {
+            <div class="cci-status cci-status--error">{{ errorMessage() }}</div>
+          }
+          @if (successMessage()) {
+            <div class="cci-status cci-status--success">{{ successMessage() }}</div>
+          }
+          @if (isCopyFromEstimate()) {
+            <div class="cci-status cci-status--info">
+              This invoice is copied from the selected customer estimate exactly as-is (including any deposit).
+              The lines below are read-only.
+            </div>
+          }
+
+          <!-- Terms / work performed -->
+          <div class="cci-section">
+            <div class="cci-sechead">
+              <div class="cci-secfields">
+                <label class="cci-field">
+                  <span class="cci-field__label">Terms</span>
+                  @if (isCopyFromEstimate()) {
+                    <span class="cci-title cci-title--ro">{{ terms() || '—' }}</span>
+                  } @else {
+                    <select
+                      class="cci-title"
+                      [ngModel]="terms()"
+                      (ngModelChange)="terms.set($event)">
+                      @for (opt of termOptions(); track opt.termName) {
+                        <option [value]="opt.termName">{{ opt.termName }}</option>
+                      }
+                    </select>
+                  }
+                </label>
+                <label class="cci-field cci-field--wide">
+                  <span class="cci-field__label">Work Performed</span>
+                  @if (isCopyFromEstimate()) {
+                    <span class="cci-title cci-title--ro">{{ worksPerformed() || '—' }}</span>
+                  } @else {
+                    <textarea
+                      rows="2"
+                      class="cci-cell-text cci-cell-text--terms"
+                      placeholder="Describe the work performed…"
+                      [ngModel]="worksPerformed()"
+                      (ngModelChange)="worksPerformed.set($event)"></textarea>
+                  }
+                </label>
+              </div>
+            </div>
+
+            <div class="cci-tablewrap">
+              <table class="cci-table">
+                <colgroup>
+                  <col style="width:16%" /><col style="width:36%" /><col style="width:10%" />
+                  <col style="width:12%" /><col style="width:16%" /><col style="width:5%" />
+                </colgroup>
+                <thead>
+                  <tr>
+                    <th>Charge Type</th><th>Description</th><th class="num">Qty</th>
+                    <th class="num">Rate</th><th class="num">Row Total</th><th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @if (rows().length === 0) {
+                    <tr><td colspan="6" class="cci-empty">No line items yet.</td></tr>
+                  } @else {
+                    @for (r of rows(); track $index) {
+                      <tr class="cci-crow">
+                        <td>
+                          @if (isCopyFromEstimate()) {
+                            {{ r.chargeType || '—' }}
+                          } @else {
+                            <span>{{ r.chargeType || '—' }}</span>
+                          }
+                        </td>
+                        <td>
+                          @if (isCopyFromEstimate()) {
+                            <span class="cci-cell-ro">{{ r.description }}</span>
+                          } @else {
+                            <textarea
+                              class="cci-cell-text"
+                              [ngModel]="r.description"
+                              (ngModelChange)="editRow($index, 'description', $event)"></textarea>
+                          }
+                        </td>
+                        <td class="num">
+                          @if (isCopyFromEstimate()) {
+                            {{ r.qty }}
+                          } @else {
+                            <input
+                              class="cci-cell-input" type="number" step="0.25"
+                              [ngModel]="r.qty"
+                              (ngModelChange)="editRow($index, 'qty', $event)" />
+                          }
+                        </td>
+                        <td class="num">
+                          @if (isCopyFromEstimate()) {
+                            {{ formatCurrency(r.rate) }}
+                          } @else {
+                            <input
+                              class="cci-cell-input" type="number" step="0.01"
+                              [ngModel]="r.rate"
+                              (ngModelChange)="editRow($index, 'rate', $event)" />
+                          }
+                        </td>
+                        <td class="num">{{ formatCurrency(rowAmount(r)) }}</td>
+                        <td class="num">
+                          @if (!isCopyFromEstimate()) {
+                            <button type="button" class="cci-del" title="Delete line" (click)="requestDelete($index)">
+                              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <polyline points="3 6 5 6 21 6"></polyline>
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                <line x1="10" y1="11" x2="10" y2="17"></line>
+                                <line x1="14" y1="11" x2="14" y2="17"></line>
+                              </svg>
+                            </button>
+                          }
+                        </td>
+                      </tr>
+                    }
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Admin markup -->
+          @if (!isCopyFromEstimate()) {
+            <div class="cci-adminblock">
+              <div class="cci-blocktitle">Admin Markup</div>
+              <div class="cci-tablewrap">
+                <table class="cci-table">
+                  <colgroup>
+                    <col style="width:16%" /><col style="width:36%" /><col style="width:10%" />
+                    <col style="width:12%" /><col style="width:16%" /><col style="width:5%" />
+                  </colgroup>
+                  <tbody>
+                    @if (adminOn() && adminMarkupPercent() > 0) {
+                      <tr class="cci-adminrow">
+                        <td>Admin fee % mark-up</td>
+                        <td>
+                          <input
+                            class="cci-cell-input cci-cell-input--pct" type="number" step="0.01" min="0"
+                            [ngModel]="adminMarkupPercent()"
+                            (ngModelChange)="adminMarkupPercent.set(+$event || 0)" />%
+                        </td>
+                        <td></td><td></td>
+                        <td class="num">{{ formatCurrency(adminFee()) }}</td>
+                        <td class="num">
+                          <button type="button" class="cci-del" title="Remove admin fee from this invoice" (click)="removeAdminFee()">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                              <polyline points="3 6 5 6 21 6"></polyline>
+                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                              <line x1="10" y1="11" x2="10" y2="17"></line>
+                              <line x1="14" y1="11" x2="14" y2="17"></line>
+                            </svg>
+                          </button>
+                        </td>
+                      </tr>
+                    } @else {
+                      <tr class="cci-adminrow">
+                        <td colspan="6" class="cci-adminrow__removed">
+                          No admin fee on this invoice.
+                          <button type="button" class="cci-linkbtn" (click)="adminOn.set(true); adminMarkupPercent() || adminMarkupPercent.set(10)">
+                            + Add Admin Fee
+                          </button>
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="cci-grand">
+                <span class="cci-subfig">Subtotal: <b>{{ formatCurrency(subtotal()) }}</b></span>
+                <span class="cci-subfig">GRAND TOTAL: <b class="cci-grandval">{{ formatCurrency(grandTotal()) }}</b></span>
+              </div>
+            </div>
+          } @else {
+            <div class="cci-grand">
+              <span class="cci-subfig">GRAND TOTAL: <b class="cci-grandval">{{ formatCurrency(grandTotal()) }}</b></span>
+            </div>
+          }
+        }
+      </div>
+
+      <!-- Add more line item -->
+      @if (!loading() && !isCopyFromEstimate()) {
+        <div class="cci-addrow">
+          <span class="cci-addrow__label">Add more line Items:</span>
+          <label><input type="radio" name="cciNewType" [value]="0" [ngModel]="newCostIncurred()" (ngModelChange)="newCostIncurred.set($event)" /> Cost Incurred</label>
+          <label><input type="radio" name="cciNewType" [value]="1" [ngModel]="newCostIncurred()" (ngModelChange)="newCostIncurred.set($event)" /> Proposed</label>
+          <select [ngModel]="newChargeKey()" (ngModelChange)="newChargeKey.set($event)">
+            <option value="">Charge Type…</option>
+            @for (opt of customChargeTypeOptions; track opt.key) {
+              <option [value]="opt.key">{{ opt.label }}</option>
+            }
+          </select>
+          <label>Rate: <input type="number" placeholder="Rate" class="cci-addrow__rate" [ngModel]="newRate()" (ngModelChange)="newRate.set(+$event || 0)" /></label>
+          <label>Qty: <input type="number" placeholder="Qty" class="cci-addrow__qty" [ngModel]="newQty()" (ngModelChange)="newQty.set(+$event || 0)" /></label>
+          <button type="button" class="cci-btn cci-btn--blue" (click)="addLine()">Add more line Item</button>
+        </div>
+      }
+
+      <!-- Sending options -->
+      @if (!loading() && !isCopyFromEstimate()) {
+        <div class="cci-sendopts">
+          <label>
+            <input type="checkbox" [ngModel]="sendToPrepManager()" (ngModelChange)="sendToPrepManager.set($event)" />
+            Send for manager review
+          </label>
+        </div>
+      }
+
+      <!-- Footer -->
+      <div class="cci-foot">
+        <button type="button" class="cci-btn cci-btn--send" (click)="save()" [disabled]="loading() || saving()">
+          {{ saving() ? 'Saving…' : 'Create Invoice' }}
+        </button>
+        <button type="button" class="cci-btn cci-btn--ghost" (click)="close()" [disabled]="saving()">Cancel</button>
+        <div class="cci-foot__spacer"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Delete line-item confirmation -->
+  @if (pendingDelete() !== null) {
+    <div class="cci-back" (click)="cancelDelete()">
+      <div class="cci-modal cci-modal--sm" (click)="$event.stopPropagation()">
+        <div class="cci-head">
+          <h3>Delete line item?</h3>
+          <button type="button" class="cci-x" (click)="cancelDelete()" aria-label="Close">✕</button>
+        </div>
+        <div class="cci-body cci-body--pad">
+          Are you sure you want to delete this line item?
+        </div>
+        <div class="cci-foot">
+          <div class="cci-foot__spacer"></div>
+          <button type="button" class="cci-btn cci-btn--send" (click)="confirmDelete()">Delete</button>
+          <button type="button" class="cci-btn cci-btn--ghost" (click)="cancelDelete()">Cancel</button>
+        </div>
+      </div>
+    </div>
+  }
+}

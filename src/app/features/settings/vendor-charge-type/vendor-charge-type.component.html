@@ -1,0 +1,133 @@
+<div class="page">
+  <nav class="breadcrumb">
+    <a routerLink="/settings" class="breadcrumb__link">Settings</a>
+    <span class="breadcrumb__sep">/</span>
+    <span class="breadcrumb__current">Vendor Charge Type</span>
+  </nav>
+
+  <div class="page__header">
+    <div class="page__header-row">
+      <div>
+        <h1 class="page__title">Vendor Charge Type</h1>
+        <p class="page__subtitle">Manage charge types available on vendor bills. The display level controls the order they appear.</p>
+      </div>
+      @if (editingKey() === null) {
+        <button type="button" class="btn btn--primary btn--icon" (click)="startCreate()">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          Add Charge Type
+        </button>
+      }
+    </div>
+  </div>
+
+  @if (error()) {
+    <div class="error-banner">{{ error() }}</div>
+  }
+
+  <!-- ── Inline Form ── -->
+  @if (editingKey() !== null) {
+    <div class="form-card" [class.form-card--edit]="editingKey()! > 0">
+      <div class="form-card__badge">{{ editingKey() === 0 ? 'New Charge Type' : 'Edit Charge Type' }}</div>
+      <form (ngSubmit)="save()" #form="ngForm">
+        <div class="form-card__row">
+          <div class="field field--grow">
+            <label class="field__label" for="itemName">Charge Type Name</label>
+            <input
+              id="itemName"
+              type="text"
+              class="field__input"
+              [ngModel]="formName()"
+              (ngModelChange)="formName.set($event)"
+              name="itemName"
+              required
+              placeholder="e.g. Labor, Material, Travel"
+            />
+          </div>
+          <div class="field field--narrow">
+            <label class="field__label" for="displayLevel">Display Level</label>
+            <input
+              id="displayLevel"
+              type="number"
+              class="field__input field__input--center"
+              [ngModel]="formLevel()"
+              (ngModelChange)="formLevel.set($event)"
+              name="displayLevel"
+              required
+              min="1"
+              placeholder="#"
+            />
+          </div>
+        </div>
+        <div class="form-card__actions">
+          <button type="submit" class="btn btn--primary" [disabled]="form.invalid || saving()">
+            {{ saving() ? 'Saving…' : (editingKey() === 0 ? 'Add' : 'Update') }}
+          </button>
+          <button type="button" class="btn btn--ghost" (click)="cancelEdit()">Cancel</button>
+        </div>
+      </form>
+    </div>
+  }
+
+  <!-- ── Table ── -->
+  @if (loading()) {
+    <div class="empty"><p class="empty__text">Loading…</p></div>
+  } @else if (items().length === 0) {
+    <div class="empty">
+      <p class="empty__text">No charge types defined</p>
+      <p class="empty__hint">Click "Add Charge Type" to create one.</p>
+    </div>
+  } @else {
+    <div class="list-search">
+      <svg class="list-search__icon" width="15" height="15" viewBox="0 0 15 15" fill="none"><circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" stroke-width="1.4"/><path d="M10 10l3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+      <input type="text" class="list-search__input" [ngModel]="search()" (ngModelChange)="search.set($event)" name="chargeSearch" placeholder="Search by charge type name..." />
+    </div>
+
+    @if (filteredItems().length === 0) {
+      <div class="list-empty-note">No charge types match your search.</div>
+    } @else {
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th class="th--num">#</th>
+            <th>Charge Type Name</th>
+            <th class="th--level">Display Level</th>
+            <th class="th--actions"></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of filteredItems(); track item.itemKey; let idx = $index) {
+            <tr [class.tr--active]="editingKey() === item.itemKey">
+              <td class="td--num">{{ idx + 1 }}</td>
+              <td class="td--name">{{ item.itemName }}</td>
+              <td class="td--level">
+                <span class="level-badge">{{ item.displayLevel }}</span>
+              </td>
+              <td class="td--actions">
+                <button
+                  type="button"
+                  class="icon-btn icon-btn--edit"
+                  title="Edit"
+                  (click)="startEdit(item)"
+                >
+                  <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M10.586 1.586a2 2 0 0 1 2.828 2.828L5.5 12.328l-3.6.9.9-3.6 7.786-8.042Z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+                <button
+                  type="button"
+                  class="icon-btn icon-btn--delete"
+                  title="Delete"
+                  (click)="confirmDelete(item)"
+                >
+                  <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M2.5 4.5h10M5.5 4.5V3a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v1.5m1.5 0-.5 8a1 1 0 0 1-1 1h-5a1 1 0 0 1-1-1l-.5-8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    }
+  }
+</div>
+
+<app-confirm-dialog />

@@ -1,0 +1,34 @@
+@if (isVisible()) {
+  <div class="cio-modal-overlay" (click)="close()">
+    <div class="cio-modal" role="dialog" aria-labelledby="resub-title" (click)="$event.stopPropagation()">
+      <header class="cio-modal__header">
+        <h3 id="resub-title">Reopen Invoice #{{ row()?.invoiceNo || '' }} for Resubmission</h3>
+        <button type="button" class="cio-modal__close" (click)="close()" aria-label="Close">&times;</button>
+      </header>
+
+      <div class="cio-modal__body">
+        <p class="cio-help">
+          This clears the invoice's sent/prepped status so it can be edited and re-sent.
+          <strong>Note:</strong> legacy ProjectRCS has no equivalent action for customer invoices — this is a
+          native-only workflow.
+        </p>
+
+        @if (errorMessage()) {
+          <p class="cio-form-error" role="alert">{{ errorMessage() }}</p>
+        }
+
+        <div class="cio-form-row">
+          <label class="cio-form-label" for="resubmitRemark">Remark (optional)</label>
+          <textarea id="resubmitRemark" class="cio-textarea" [ngModel]="resubmitRemark()" (ngModelChange)="resubmitRemark.set($event)"></textarea>
+        </div>
+      </div>
+
+      <footer class="cio-modal__footer">
+        <button type="button" class="cio-btn cio-btn--outline" (click)="close()" [disabled]="saving()">Cancel</button>
+        <button type="button" class="cio-btn cio-btn--primary" [disabled]="saving()" (click)="confirm()">
+          {{ saving() ? 'Saving…' : 'Reopen for Resubmission' }}
+        </button>
+      </footer>
+    </div>
+  </div>
+}

@@ -1,0 +1,87 @@
+<div class="page">
+  <nav class="breadcrumb">
+    <a routerLink="/settings" class="breadcrumb__link">Settings</a>
+    <span class="breadcrumb__sep">/</span>
+    <span class="breadcrumb__current">Profile Completion Emails</span>
+  </nav>
+
+  <div class="page__header">
+    <h1 class="page__title">Automated Profile Completion Emails</h1>
+    <p class="page__subtitle">Track automated emails sent to vendors requesting they complete their profile information.</p>
+  </div>
+
+  @if (error()) {
+    <div class="error-banner">{{ error() }}</div>
+  }
+  @if (loading()) {
+    <p class="page__subtitle" style="margin-bottom:16px;">Loading…</p>
+  }
+
+  <!-- ── Tab bar ── -->
+  <div class="tabs" role="tablist">
+    @for (tab of tabs; track tab.key) {
+      <button
+        type="button"
+        class="tab"
+        [class.tab--active]="activeTab() === tab.key"
+        [attr.data-accent]="tab.accent"
+        (click)="setTab(tab.key)"
+      >
+        <span class="tab__dot"></span>
+        <span class="tab__label">{{ tab.label }}</span>
+        <span class="tab__count">{{ countFor(tab.key) }}</span>
+      </button>
+    }
+  </div>
+
+  <!-- ── Active tab panel ── -->
+  <div class="panel">
+    <div class="panel__caption" [attr.data-accent]="activeTabDef().accent">
+      {{ activeTabDef().description }}
+    </div>
+
+    @if (filteredRecords().length === 0) {
+      <div class="empty">
+        <div class="empty__icon">📭</div>
+        <p class="empty__text">No vendors in this category</p>
+      </div>
+    } @else {
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th class="th--num">#</th>
+              <th>Vendor</th>
+              <th>Contact Name</th>
+              <th>Email</th>
+              <th>Remarks</th>
+              <th class="th--actions"></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of filteredRecords(); track row.detailKey; let idx = $index) {
+              <tr>
+                <td class="td--num">{{ idx + 1 }}</td>
+                <td class="td--vendor">{{ row.vendorName }}</td>
+                <td>{{ row.contactName || '—' }}</td>
+                <td class="td--email">{{ row.contactEmail || '—' }}</td>
+                <td class="td--remarks">{{ row.remarks || '—' }}</td>
+                <td class="td--actions">
+                  <a
+                    class="profile-btn"
+                    [href]="vendorProfileUrl(row.vendorKey)"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M7 8.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5ZM2.5 12a4.5 4.5 0 0 1 9 0" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+                    Profile
+                  </a>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </div>
+</div>

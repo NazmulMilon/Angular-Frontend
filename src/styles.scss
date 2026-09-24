@@ -1,0 +1,419 @@
+/**
+ * Global application styles — RFI Admin Portal v2
+ * Design system tokens and base reset.
+ */
+
+/* =========================================================
+   CSS Custom Properties (Design Tokens)
+   ========================================================= */
+
+:root {
+  /* Colors */
+  --primary-color: #3b82f6;
+  --primary-hover: #2563eb;
+  --primary-light: #dbeafe;
+
+  /* Surfaces */
+  --bg-color: #f8fafc;
+  --surface-color: #ffffff;
+  --surface-alt: #f8fafc;
+  --surface-hover: #f1f5f9;
+
+  /* Text */
+  --text-primary: #1e293b;
+  --text-secondary: #64748b;
+  --text-muted: #94a3b8;
+
+  /* Borders */
+  --border-color: #e2e8f0;
+  --border-light: #f1f5f9;
+  --border-hover: #cbd5e1;
+
+  /* Grid rows */
+  --row-hover: #f8fafc;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07);
+
+  /* Radius */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+
+  /* Fonts */
+  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    Helvetica, Arial, sans-serif;
+}
+
+/* =========================================================
+   Base Reset
+   ========================================================= */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: var(--font-family);
+  background: var(--bg-color);
+  color: var(--text-primary);
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+/* =========================================================
+   Typography
+   ========================================================= */
+
+h1, h2, h3, h4, h5, h6 {
+  line-height: 1.3;
+  font-weight: 700;
+}
+
+h1 { font-size: 1.75rem; }
+h2 { font-size: 1.5rem; }
+h3 { font-size: 1.2rem; }
+h4 { font-size: 1.05rem; }
+
+a {
+  color: var(--primary-color);
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+/* =========================================================
+   Scrollbar Styling
+   ========================================================= */
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--surface-alt);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+
+  &:hover {
+    background: var(--text-muted);
+  }
+}
+
+/* =========================================================
+   Selection
+   ========================================================= */
+
+::selection {
+  background: var(--primary-light);
+  color: var(--text-primary);
+}
+
+/* =========================================================
+   Global Button Styles
+   Common button styling for consistent look across the app.
+   Matches the "Send & Select W/O" button in data-grid exactly.
+   ========================================================= */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color, #e2e8f0);
+  background: #fff;
+  font-family: var(--font-family);
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  text-decoration: none;
+  outline: none;
+  color: var(--text-primary, #334155);
+
+  &:hover:not(:disabled) {
+    background: var(--surface-alt, #f1f5f9);
+    border-color: var(--border-hover, #cbd5e1);
+  }
+
+  &:focus-visible {
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.3);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+/* Button Sizes */
+.btn--sm {
+  padding: 3px 8px;
+  font-size: 0.7rem;
+}
+
+.btn--md {
+  padding: 4px 10px;
+  font-size: 0.78rem;
+}
+
+.btn--lg {
+  padding: 6px 14px;
+  font-size: 0.85rem;
+}
+
+/* Primary - Indigo (matches "Send & Select W/O" button exactly) */
+.btn--primary {
+  background: var(--primary-color, #6366f1);
+  color: #fff;
+  border-color: var(--primary-color, #6366f1);
+
+  &:hover:not(:disabled) {
+    background: var(--primary-hover, #4f46e5);
+    border-color: var(--primary-hover, #4f46e5);
+  }
+
+  &:active:not(:disabled) {
+    background: #4338ca;
+    border-color: #4338ca;
+  }
+}
+
+/* Secondary - Light gray */
+.btn--secondary {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+
+  &:hover:not(:disabled) {
+    background: #e2e8f0;
+    border-color: #cbd5e1;
+  }
+
+  &:active:not(:disabled) {
+    background: #cbd5e1;
+  }
+}
+
+/* Danger - Red */
+.btn--danger {
+  color: #dc2626;
+  border-color: #fecaca;
+  background: #fff;
+
+  &:hover:not(:disabled) {
+    background: #fef2f2;
+    border-color: #dc2626;
+  }
+
+  &:active:not(:disabled) {
+    background: #fee2e2;
+  }
+}
+
+/* Success - Green */
+.btn--success {
+  color: #16a34a;
+  border-color: #bbf7d0;
+  background: #fff;
+
+  &:hover:not(:disabled) {
+    background: #f0fdf4;
+    border-color: #16a34a;
+  }
+
+  &:active:not(:disabled) {
+    background: #dcfce7;
+  }
+}
+
+/* Warning - Orange/Amber */
+.btn--warning {
+  color: #d97706;
+  border-color: #fde68a;
+  background: #fff;
+
+  &:hover:not(:disabled) {
+    background: #fffbeb;
+    border-color: #d97706;
+  }
+
+  &:active:not(:disabled) {
+    background: #fef3c7;
+  }
+}
+
+/* Outline - Bordered with transparent background */
+.btn--outline {
+  background: transparent;
+  color: var(--primary-color, #6366f1);
+  border: 1px solid var(--primary-color, #6366f1);
+
+  &:hover:not(:disabled) {
+    background: rgba(99, 102, 241, 0.08);
+  }
+
+  &:active:not(:disabled) {
+    background: rgba(99, 102, 241, 0.12);
+  }
+}
+
+/* Ghost - No border, minimal styling */
+.btn--ghost {
+  background: transparent;
+  color: #64748b;
+  border-color: transparent;
+
+  &:hover:not(:disabled) {
+    background: #f1f5f9;
+    color: #334155;
+  }
+
+  &:active:not(:disabled) {
+    background: #e2e8f0;
+  }
+}
+
+/* Full width button */
+.btn--full-width {
+  width: 100%;
+}
+
+/* Fixed width buttons */
+.btn--w-50 {
+  width: 50px;
+}
+
+.btn--w-60 {
+  width: 60px;
+}
+
+.btn--w-70 {
+  width: 70px;
+}
+
+.btn--w-80 {
+  width: 80px;
+}
+
+/* Button alignment */
+.btn--left {
+  justify-content: flex-start;
+}
+
+/* Button with icon */
+.btn__icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+/* Loading state */
+.btn--loading {
+  position: relative;
+  color: transparent;
+
+  &::after {
+    content: '';
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    border: 2px solid currentColor;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: btn-spin 0.6s linear infinite;
+  }
+}
+
+@keyframes btn-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* =========================================================
+   Global Responsive Styles
+   ========================================================= */
+
+/* Prevent body overflow on mobile */
+html, body {
+  overflow-x: hidden;
+  max-width: 100%;
+}
+
+/* Mobile-specific adjustments */
+@media (max-width: 768px) {
+  html {
+    font-size: 15px;
+  }
+
+  h1 { font-size: 1.5rem; }
+  h2 { font-size: 1.3rem; }
+  h3 { font-size: 1.1rem; }
+  h4 { font-size: 1rem; }
+
+  .btn {
+    padding: 8px 12px;
+    font-size: 0.82rem;
+  }
+
+  .btn--sm {
+    padding: 6px 10px;
+    font-size: 0.75rem;
+  }
+
+  /* Improved touch targets for mobile */
+  input, select, textarea, button {
+    min-height: 44px;
+  }
+
+  input[type="radio"],
+  input[type="checkbox"] {
+    min-height: auto;
+    width: 20px;
+    height: 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  html {
+    font-size: 14px;
+  }
+
+  .btn {
+    padding: 10px 14px;
+    font-size: 0.85rem;
+  }
+}
+
+/* Scrollbar styling for tables on mobile */
+@media (max-width: 768px) {
+  ::-webkit-scrollbar {
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--text-muted);
+    border-radius: 3px;
+  }
+}

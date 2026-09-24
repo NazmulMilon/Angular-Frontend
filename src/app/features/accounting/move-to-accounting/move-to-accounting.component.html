@@ -1,0 +1,656 @@
+<!-- ============================================================
+     V2 · Complete → Move to Accounting — page shell
+     Structure mirrors complete-screen-v2.html: .topbar, #tabbar, .app > .joblist + .main
+     ============================================================ -->
+
+<div class="topbar">
+  <div class="brand">retail<b>fix</b>it<small>NATIONWIDE REPAIR &amp; MAINTENANCE</small></div>
+  <div class="screen-title">
+    V2 · Complete → Move to Accounting
+    <span>Account Manager processing of jobs checked-out "Complete"</span>
+  </div>
+  <div class="spacer"></div>
+  <div class="proto-tag">RFI Accounting V2 · refs RFI-25 / RFI-30 / RFI-31</div>
+</div>
+
+<div class="tabbar">
+  <span
+    class="tabpill"
+    [class.active]="activeTab() === 'complete'"
+    (click)="switchTab('complete')"
+  >
+    1 · Invoice the Customer
+    <span class="badge" [class.b-gray]="activeTab() === 'complete'" [class.b-blue]="activeTab() !== 'complete'">
+      {{ invoiceCustomerCount() }}
+    </span>
+  </span>
+
+  <span class="tabpill" [class.active]="activeTab() === 'bills'" (click)="switchTab('bills')">
+    2 · Unapproved Vendor Bills
+    <span class="badge" [class.b-gray]="activeTab() === 'bills'" [class.b-blue]="activeTab() !== 'bills'">
+      {{ billsCount() }}
+    </span>
+  </span>
+
+  <span class="tabpill" [class.active]="activeTab() === 'pr'" (click)="switchTab('pr')">
+    3 · Payables &amp; Receivables
+    <span class="badge" [class.b-gray]="activeTab() === 'pr'" [class.b-blue]="activeTab() !== 'pr'">
+      {{ prCount() }}
+    </span>
+  </span>
+
+  @for (tab of remainingPlaceholderTabs; track tab) {
+    <span
+      class="tabpill"
+      [class.active]="activeTab() === tab"
+      (click)="switchTab(tab)"
+    >
+      {{ tabLabels[tab] }}
+      <span class="badge" [class.b-gray]="activeTab() === tab" [class.b-blue]="activeTab() !== tab">0</span>
+    </span>
+  }
+
+  <span class="tabpill disabled" title="Spec coming from Lance — deposits handled here (legacy Deposit tab)">
+    Deposit <span class="badge b-gray">SPEC COMING</span>
+  </span>
+
+  <span class="qbo-note">QuickBooks Online connected via API · payments flow QBO → RFI (Melodi)</span>
+</div>
+
+<div class="app">
+  <aside class="joblist">
+    @if (activeTab() === 'complete') {
+      <div class="joblist-head">
+        <h2>
+          Jobs in "Complete" Status
+          @if (jobRoutingReturnedCount() > 0) {
+            <span
+              class="routing-returned-callout"
+              title="{{ jobRoutingReturnedCount() }} job(s) back from Service, awaiting acknowledgement"
+            >
+              {{ jobRoutingReturnedCount() }}
+            </span>
+          }
+        </h2>
+        <div class="cnt">{{ invoiceCustomerFilteredCount() }} job(s)</div>
+        <input
+          [ngModel]="searchValue()"
+          (ngModelChange)="onSearchInput($event)"
+          placeholder="🔍 Search PO / customer / location / vendor"
+        />
+      </div>
+
+      @for (job of invoiceCustomerJobs(); track job.jobKey) {
+        <div
+          class="jobcard"
+          [class.sel]="job.jobKey === selectedJobKey()"
+          [class.routing-with-service]="jobRoutingStatusByJobKey()[job.jobKey]?.status === 'with-service'"
+          [class.routing-returned]="jobRoutingStatusByJobKey()[job.jobKey]?.status === 'returned'"
+          (click)="selectJob(job.jobKey)"
+        >
+          <div class="row1">
+            <span class="po">PO {{ job.po }}</span>
+            <span class="badge b-complete">COMPLETE</span>
+          </div>
+          <div class="cust">{{ job.customerName }}</div>
+          <div class="loc">{{ job.locationName }}</div>
+          <div class="row2">
+            <span class="dne">CUST DNE <b>{{ job.revCustomerDne | currency }}</b></span>
+            <span class="dne">{{ job.vendorCount }} vendor(s)</span>
+          </div>
+          @if (jobRoutingStatusByJobKey()[job.jobKey]?.status === 'with-service') {
+            <div class="routing-flag routing-flag--with-service">
+              with {{ jobRoutingStatusByJobKey()[job.jobKey]?.withPersonName || 'Service' }} —
+              sent {{ timeAgo(jobRoutingStatusByJobKey()[job.jobKey]?.sentOn) }}
+            </div>
+          }
+          @if (jobRoutingStatusByJobKey()[job.jobKey]?.status === 'returned') {
+            <div class="routing-flag routing-flag--returned" (click)="acknowledgeJobRouting(job.jobKey, $event)">
+              <span class="routing-flag__dot"></span>
+              Back from Service — tap to acknowledge
+            </div>
+          }
+        </div>
+      }
+
+      @if (!loadingJobs() && !invoiceCustomerJobs().length) {
+        <div class="empty-list">Nothing here yet.</div>
+      }
+      @if (loadError()) {
+        <div class="empty-list" style="color: var(--red)">{{ loadError() }}</div>
+      }
+      @if (loadingJobs()) {
+        <div class="empty-list">Loading…</div>
+      }
+      @if (hasMoreJobs() && !loadingJobs()) {
+        <button class="show-more" (click)="showMore()">Show more</button>
+      }
+    } @else if (activeTab() === 'bills') {
+      <div class="joblist-head">
+        <h2>
+          Unapproved Vendor Bills
+          @if (jobRoutingReturnedCount() > 0) {
+            <span
+              class="routing-returned-callout"
+              title="{{ jobRoutingReturnedCount() }} job(s) back from Service, awaiting acknowledgement"
+            >
+              {{ jobRoutingReturnedCount() }}
+            </span>
+          }
+        </h2>
+        <div class="cnt">{{ billsFilteredCount() }} job(s)</div>
+      </div>
+
+      @for (job of billsJobs(); track job.jobKey) {
+        <div
+          class="jobcard"
+          [class.sel]="job.jobKey === selectedJobKey()"
+          [class.routing-with-service]="jobRoutingStatusByJobKey()[job.jobKey]?.status === 'with-service'"
+          [class.routing-returned]="jobRoutingStatusByJobKey()[job.jobKey]?.status === 'returned'"
+          (click)="selectJob(job.jobKey)"
+        >
+          <div class="row1">
+            <span class="po">PO {{ job.po }}</span>
+            <span class="badge b-amber">BILLS HELD</span>
+          </div>
+          <div class="cust">{{ job.customerName }}</div>
+          <div class="loc">{{ job.locationName }}</div>
+          <div class="row2">
+            <span class="dne">CUST DNE <b>{{ job.revCustomerDne | currency }}</b></span>
+            <span class="dne">{{ job.vendorCount }} vendor(s)</span>
+          </div>
+          <div class="row2">
+            <span class="dne">{{ job.heldBillCount }} bill(s) held</span>
+          </div>
+          @if (jobRoutingStatusByJobKey()[job.jobKey]?.status === 'with-service') {
+            <div class="routing-flag routing-flag--with-service">
+              with {{ jobRoutingStatusByJobKey()[job.jobKey]?.withPersonName || 'Service' }} —
+              sent {{ timeAgo(jobRoutingStatusByJobKey()[job.jobKey]?.sentOn) }}
+            </div>
+          }
+          @if (jobRoutingStatusByJobKey()[job.jobKey]?.status === 'returned') {
+            <div class="routing-flag routing-flag--returned" (click)="acknowledgeJobRouting(job.jobKey, $event)">
+              <span class="routing-flag__dot"></span>
+              Back from Service — tap to acknowledge
+            </div>
+          }
+        </div>
+      }
+
+      @if (!billsLoading() && !billsJobs().length) {
+        <div class="empty-list">Nothing here yet.</div>
+      }
+      @if (billsLoadError()) {
+        <div class="empty-list" style="color: var(--red)">{{ billsLoadError() }}</div>
+      }
+      @if (billsLoading()) {
+        <div class="empty-list">Loading…</div>
+      }
+      @if (hasMoreBillsJobs() && !billsLoading()) {
+        <button class="show-more" (click)="showMoreBills()">Show more</button>
+      }
+    } @else if (activeTab() === 'pr') {
+      <div class="joblist-head">
+        <h2>
+          Payables &amp; Receivables
+          @if (jobRoutingReturnedCount() > 0) {
+            <span
+              class="routing-returned-callout"
+              title="{{ jobRoutingReturnedCount() }} job(s) back from Service, awaiting acknowledgement"
+            >
+              {{ jobRoutingReturnedCount() }}
+            </span>
+          }
+        </h2>
+        <div class="cnt">{{ prFilteredCount() }} job(s)</div>
+      </div>
+
+      @for (job of prJobs(); track job.jobKey) {
+        <div
+          class="jobcard"
+          [class.sel]="job.jobKey === selectedJobKey()"
+          [class.routing-with-service]="jobRoutingStatusByJobKey()[job.jobKey]?.status === 'with-service'"
+          [class.routing-returned]="jobRoutingStatusByJobKey()[job.jobKey]?.status === 'returned'"
+          (click)="selectJob(job.jobKey)"
+        >
+          <div class="row1">
+            <span class="po">PO {{ job.po }}</span>
+            <span class="badge b-blue">P&amp;R</span>
+          </div>
+          <div class="cust">{{ job.customerName }}</div>
+          <div class="loc">{{ job.locationName }}</div>
+          <div class="row2">
+            <span class="dne">CUST DNE <b>{{ job.revCustomerDne | currency }}</b></span>
+            <span class="dne">{{ job.vendorCount }} vendor(s)</span>
+          </div>
+          <div class="row2">
+            <span class="dne">Customer {{ job.customerPaid ? 'PAID ✓' : 'payment pending' }}</span>
+          </div>
+          @if (jobRoutingStatusByJobKey()[job.jobKey]?.status === 'with-service') {
+            <div class="routing-flag routing-flag--with-service">
+              with {{ jobRoutingStatusByJobKey()[job.jobKey]?.withPersonName || 'Service' }} —
+              sent {{ timeAgo(jobRoutingStatusByJobKey()[job.jobKey]?.sentOn) }}
+            </div>
+          }
+          @if (jobRoutingStatusByJobKey()[job.jobKey]?.status === 'returned') {
+            <div class="routing-flag routing-flag--returned" (click)="acknowledgeJobRouting(job.jobKey, $event)">
+              <span class="routing-flag__dot"></span>
+              Back from Service — tap to acknowledge
+            </div>
+          }
+        </div>
+      }
+
+      @if (!prLoading() && !prJobs().length) {
+        <div class="empty-list">Nothing here yet.</div>
+      }
+      @if (prLoadError()) {
+        <div class="empty-list" style="color: var(--red)">{{ prLoadError() }}</div>
+      }
+      @if (prLoading()) {
+        <div class="empty-list">Loading…</div>
+      }
+      @if (hasMorePrJobs() && !prLoading()) {
+        <button class="show-more" (click)="showMorePr()">Show more</button>
+      }
+    } @else {
+      <div class="joblist-head">
+        <h2>{{ tabLabels[activeTab()] }}</h2>
+        <div class="cnt">0 job(s)</div>
+      </div>
+      <div class="empty-list">Nothing here yet.</div>
+    }
+  </aside>
+
+  <main class="main">
+    @if (activeTab() === 'complete' || activeTab() === 'bills' || activeTab() === 'pr') {
+      @if (selectedJobKey(); as jobKey) {
+        <app-accounting-job-details [jobKey]="jobKey" [defaultOpen]="true" />
+
+        <!-- ================================================================
+             JOB-LEVEL action row — complete-screen-v2.html commonBarHTML().
+             "Job Notes / Activity", "Notes To Accounting", and "View All Job
+             Attachments" are wired up; only "Send Change Request to Account
+             Manager" remains a disabled placeholder.
+             ================================================================ -->
+        <div class="panel">
+          <div class="common-bar">
+            <span class="lbl">Job-level:</span>
+            <button type="button" class="btn sm" (click)="openNotesModal()">
+              📋 Job Notes / Activity
+              @if (selectedJobNotesCount(); as cnt) {
+                <span class="muted">({{ cnt }})</span>
+              }
+            </button>
+            <button type="button" class="btn sm ghost-pink" (click)="openAccountingNotesModal()">
+              🏷 Notes To Accounting
+              @if (selectedAccountingNotesCount(); as acctCnt) {
+                <span class="muted">({{ acctCnt }})</span>
+              }
+            </button>
+            <button type="button" class="btn sm" (click)="openAttachmentsModal()">
+              📎 View All Job Attachments
+              @if (selectedAttachmentsCount(); as attCnt) {
+                <span class="muted">({{ attCnt }})</span>
+              }
+            </button>
+            <button
+              type="button"
+              class="btn sm"
+              [class.ghost-amber]="selectedChangeRequestState().status === 'awaiting'"
+              [class.ghost-green]="selectedChangeRequestState().status === 'completed'"
+              [disabled]="selectedChangeRequestState().status === 'none' && !selectedChangeRequestState().hasEligibleInvoice"
+              (click)="openChangeRequestModal()"
+            >
+              @switch (selectedChangeRequestState().status) {
+                @case ('awaiting') {
+                  🔁 Change Request — ⏳ AWAITING AM <span class="badge b-amber">CHANGE NEEDED BY ACCOUNTING</span>
+                }
+                @case ('completed') {
+                  🔁 Change Request — ✓ CHANGE COMPLETED BY AM
+                }
+                @default {
+                  🔁 Send Change Request to Account Manager
+                }
+              }
+            </button>
+          </div>
+        </div>
+
+        <!-- ================================================================
+             JOB-LEVEL bar — complete-screen-v2.html smVerifyBarHTML().
+             Read-only: the email is sent from legacy Admin Portal V1 (right
+             after the customer invoice is emailed); the response is captured
+             on RCS_app's anonymous landing page reached from that email.
+             ================================================================ -->
+        <div class="panel" style="margin-bottom: 12px">
+          <div class="sec-head">
+            <span class="n" style="background: var(--green)">✉</span>
+            <h3>Store Manager Verification — Email</h3>
+            <span class="sub">
+              Job-level (covers ALL vendors). Auto-sent the moment the job lands in Complete when an address is on
+              file (Location Profile → main tab). The email lists the full scope from the RFI estimate / on-site
+              approval(s) — or the work requested when none exist — plus a one-click landing page: "Yes — complete
+              &amp; satisfactory", comments, 5-star survey.
+            </span>
+          </div>
+          <div class="common-bar">
+            @if (selectedStoreManagerVerificationState().sent) {
+              <span class="badge b-complete">
+                ✓ SENT to {{ selectedStoreManagerVerificationState().sentTo || '(no address on file)' }}
+                @if (selectedStoreManagerVerificationState().sentAt) {
+                  · {{ selectedStoreManagerVerificationState().sentAt | date: 'M/d/yy h:mm a' }}
+                }
+                · {{ selectedStoreManagerVerificationState().sentCount }} time(s)
+              </span>
+              @if (selectedStoreManagerVerificationState().responded) {
+                <span class="badge b-complete">✓ SM RESPONDED</span>
+              }
+            } @else {
+              <span class="badge b-amber">⚠ NOT SENT</span>
+            }
+            <button type="button" class="btn sm" (click)="openStoreManagerVerificationModal()">
+              🔗 Open landing page (simulate SM response)
+            </button>
+            <button type="button" class="btn sm ghost-blue" (click)="openEmailPreviewModal()">
+              👁 View email (full scope)
+            </button>
+            <span class="smv-send-row">
+              <input
+                type="email"
+                class="smv-send-row__input"
+                placeholder="storemanager@customer.com"
+                [value]="smEmailInput()"
+                (input)="onSmEmailInput($any($event.target).value)"
+              />
+              <button
+                type="button"
+                class="btn sm ghost-blue"
+                [disabled]="smEmailSending()"
+                (click)="sendVerificationEmail()"
+              >
+                📧 {{ smEmailSending() ? 'Sending…' : selectedStoreManagerVerificationState().sent ? 'Send again' : 'Send verification email' }}
+              </button>
+            </span>
+            @if (smEmailSendError()) {
+              <span class="smv-send-error">{{ smEmailSendError() }}</span>
+            }
+          </div>
+        </div>
+
+        <div class="readiness-row">
+          <b class="readiness-title">⚖ Readiness — what is ready, what is blocking</b>
+          <button type="button" class="btn sm" (click)="openSettingsThresholdsModal()">
+            ⚙ Settings &amp; thresholds
+          </button>
+        </div>
+
+        <div class="eq-cards-row">
+          @if (eq1Readiness(); as eq1) {
+            <div class="eq1-card" [class.eq1-card--blocked]="eq1.level === 'blocked'">
+              <div class="eq1-card__head">
+                <b>EQ1 · Customer invoice → QB + send</b>
+                <span class="badge" [class.b-red]="eq1.level === 'blocked'" [class.b-green]="eq1.level === 'ready'">
+                  {{ eq1.level === 'blocked' ? 'BLOCKED' : 'READY' }}
+                </span>
+              </div>
+              @if (!eq1.hasInvoice) {
+                <div class="eq1-line eq1-line--blocker">No active customer invoice on this job yet.</div>
+              } @else {
+                @for (b of eq1.blockers; track b) {
+                  <div class="eq1-line eq1-line--blocker">{{ b }}</div>
+                }
+                @for (g of eq1.green; track g) {
+                  <div class="eq1-line eq1-line--green">{{ g }}</div>
+                }
+                @for (o of eq1.open; track o) {
+                  <div class="eq1-line eq1-line--info">• {{ o }}</div>
+                }
+              }
+            </div>
+          } @else if (eq1Loading()) {
+            <div class="eq1-card eq1-card--loading">Loading readiness…</div>
+          }
+
+          @for (bill of vendorPayableNotificationSvc.cards(); track bill.vendorKey) {
+            <div
+              class="eq1-card"
+              [class.eq1-card--blocked]="bill.level === 'blocked'"
+              [class.eq1-card--done]="bill.level === 'done'"
+              [class.eq1-card--removed]="bill.level === 'removed'"
+            >
+              <div class="eq1-card__head">
+                <b>EQ2 · Vendor bill — {{ bill.vendorName || 'Vendor' }}</b>
+                <span
+                  class="badge"
+                  [class.b-red]="bill.level === 'blocked' || bill.level === 'removed'"
+                  [class.b-green]="bill.level === 'ready'"
+                  [class.b-gray]="bill.level === 'done'"
+                >
+                  {{ bill.level === 'blocked' ? 'BLOCKED' : bill.level === 'done' ? 'DONE' : bill.level === 'removed' ? 'NON-PAYABLE' : 'READY' }}
+                </span>
+              </div>
+              @if (bill.level === 'removed') {
+                <div class="eq1-line eq1-line--blocker">✕ Vendor set Non-Payable — not part of this job's payables.</div>
+              }
+              @for (b of bill.blockers; track b) {
+                <div class="eq1-line eq1-line--blocker">{{ b }}</div>
+              }
+              @for (g of bill.green; track g) {
+                <div class="eq1-line eq1-line--green">{{ g }}</div>
+              }
+              @for (o of bill.open; track o) {
+                <div class="eq1-line eq1-line--info">• {{ o }}</div>
+              }
+            </div>
+          }
+          @if (vendorPayableNotificationSvc.loading() && vendorPayableNotificationSvc.cards().length === 0) {
+            <div class="eq1-card eq1-card--loading">Loading vendor bill readiness…</div>
+          }
+        </div>
+
+        <div class="panel" style="margin-bottom: 12px">
+          <div class="sec-head">
+            <span class="n">1</span>
+            <h3>Approve Vendor(s) Payables</h3>
+            <span class="sub">
+              Verify job completion &amp; approve what each vendor may charge — or remove them as not payable.
+              Approving here approves vendor cost up to the amount shown; it does <b>not</b> approve a missing
+              invoice. Accounting performs final verifications (insurance, missing sign-off/pics) before payables
+              entry.
+            </span>
+          </div>
+          <div class="vp-cards-row">
+            @for (bill of vendorPayableNotificationSvc.cards(); track bill.vendorKey) {
+              <app-vendor-payable-card
+                [jobKey]="selectedJobKey()!"
+                [card]="bill"
+                (viewProfile)="openVendorProfileModal($event)"
+                (viewEstimate)="openViewEstimateModal($event)"
+                (addNote)="openAddVendorBillNoteModal($event)"
+                (openInvoiceEdit)="openInvoiceEditModal($event)"
+                (logCompletionCall)="openCompletionCallModal()"
+                (viewCompletionPhotos)="openCompletionPhotoModal($event)"
+                (viewSignOff)="openSignOffModal($event)"
+                (viewHoursRecon)="openHoursReconModal($event)"
+                (viewInsurance)="openInsuranceModal($event)"
+                (openInsuranceOverrideConfirm)="openInsuranceOverrideConfirmModal($event)"
+                (openSendBackToService)="openSendBackToServiceModal()"
+                [sendBackToServiceStatus]="selectedSendBackToServiceState().status"
+              />
+            }
+            @if (vendorPayableNotificationSvc.loading() && vendorPayableNotificationSvc.cards().length === 0) {
+              <div class="eq1-card eq1-card--loading">Loading vendor bill readiness…</div>
+            }
+            @if (!vendorPayableNotificationSvc.loading() && vendorPayableNotificationSvc.cards().length === 0) {
+              <div class="muted" style="padding: 4px 0">No vendors assigned to this job.</div>
+            }
+          </div>
+        </div>
+
+        <app-invoice-customer-card
+          [jobKey]="selectedJobKey()!"
+          (viewVendorInvoice)="onViewVendorInvoiceFromInvoiceCustomerCard($event)"
+          (cardChanged)="finalizePanel.onInvoiceCustomerCardChanged(); onInvoiceCustomerCardChanged()"
+        />
+
+        <app-accounting-finalize-panel
+          #finalizePanel
+          [jobKey]="selectedJobKey()!"
+          (finalized)="onJobFinalized()"
+        />
+
+        <div class="next-phase-note">
+          The rest of this screen (completion stepper, AI-agents banner) is the next phase of this build.
+        </div>
+      } @else {
+        <div class="empty-main">Select a job from the list</div>
+      }
+    } @else {
+      <div class="empty-main">{{ tabLabels[activeTab()] }} — coming next.</div>
+    }
+    <app-job-notes-activity-modal
+      [isOpen]="notesModalOpen()"
+      [jobKey]="selectedJobKey()"
+      [po]="selectedJobPo()"
+      (closed)="closeNotesModal()"
+    />
+    <app-notes-to-accounting-modal
+      [isOpen]="accountingNotesModalOpen()"
+      [jobKey]="selectedJobKey()"
+      [po]="selectedJobPo()"
+      (closed)="closeAccountingNotesModal()"
+      (countChanged)="onAccountingNotesCountChanged($event)"
+    />
+    <app-job-attachments-modal
+      [isOpen]="attachmentsModalOpen()"
+      [jobKey]="selectedJobKey()"
+      [po]="selectedJobPo()"
+      (closed)="closeAttachmentsModal()"
+    />
+    <app-send-change-request-modal
+      [isOpen]="sendChangeRequestModalOpen()"
+      [jobKey]="selectedJobKey()"
+      [po]="selectedJobPo()"
+      (closed)="closeSendChangeRequestModal()"
+      (sent)="onChangeRequestUpdated()"
+    />
+    <app-change-request-status-modal
+      [isOpen]="changeRequestStatusModalOpen()"
+      [jobKey]="selectedJobKey()"
+      [po]="selectedJobPo()"
+      [state]="selectedChangeRequestState()"
+      (closed)="closeChangeRequestStatusModal()"
+      (acknowledged)="onChangeRequestUpdated()"
+    />
+    <app-settings-thresholds-modal
+      [isOpen]="settingsThresholdsModalOpen()"
+      (closed)="closeSettingsThresholdsModal()"
+    />
+    <app-store-manager-verification-modal
+      [isOpen]="storeManagerVerificationModalOpen()"
+      [jobKey]="selectedJobKey()"
+      [po]="selectedJobPo()"
+      [state]="selectedStoreManagerVerificationState()"
+      (closed)="closeStoreManagerVerificationModal()"
+      (submitted)="onStoreManagerVerificationSubmitted()"
+    />
+    <app-store-manager-email-preview-modal
+      [isOpen]="emailPreviewModalOpen()"
+      [jobKey]="selectedJobKey()"
+      [po]="selectedJobPo()"
+      [toEmail]="smEmailInput()"
+      (closed)="closeEmailPreviewModal()"
+    />
+    <app-vendor-profile-modal
+      [isOpen]="vendorProfileModalOpen()"
+      [jobKey]="selectedJobKey()"
+      [vendorKey]="selectedVendorProfileKey()"
+      (closed)="closeVendorProfileModal()"
+    />
+    <app-view-vendor-estimate-modal
+      [isOpen]="viewEstimateModalOpen()"
+      [jobKey]="selectedJobKey()"
+      [vendorKey]="selectedViewEstimateVendorKey()"
+      (closed)="closeViewEstimateModal()"
+    />
+    <app-add-vendor-bill-note-modal
+      [isOpen]="addVendorBillNoteModalOpen()"
+      [jobKey]="selectedJobKey()"
+      [vendorKey]="selectedAddNoteVendorKey()"
+      [vendorName]="selectedAddNoteVendorName()"
+      (closed)="closeAddVendorBillNoteModal()"
+    />
+    <app-insurance-override-confirm-modal
+      [isOpen]="insuranceOverrideConfirmModalOpen()"
+      [jobKey]="selectedJobKey()"
+      [vendorKey]="selectedInsuranceOverrideVendorKey()"
+      [vendorName]="selectedInsuranceOverrideVendorName()"
+      [problems]="selectedInsuranceOverrideProblems()"
+      (closed)="closeInsuranceOverrideConfirmModal()"
+    />
+    <app-send-back-to-service-modal
+      [isOpen]="sendBackToServiceModalOpen()"
+      [jobKey]="selectedJobKey()"
+      [po]="selectedJobPo()"
+      (closed)="closeSendBackToServiceModal()"
+      (sent)="onSendBackToServiceUpdated()"
+    />
+    <app-send-back-to-service-status-modal
+      [isOpen]="sendBackToServiceStatusModalOpen()"
+      [jobKey]="selectedJobKey()"
+      [po]="selectedJobPo()"
+      [state]="selectedSendBackToServiceState()"
+      (closed)="closeSendBackToServiceStatusModal()"
+      (acknowledged)="onSendBackToServiceUpdated()"
+    />
+    <app-vendor-invoice-edit-modal
+      [isOpen]="invoiceEditModalOpen()"
+      [jobKey]="selectedJobKey()"
+      [vendorKey]="selectedInvoiceEditVendorKey()"
+      (closed)="closeInvoiceEditModal()"
+    />
+    <app-completion-photo-modal
+      [isOpen]="completionPhotoModalOpen()"
+      [jobKey]="selectedJobKey()"
+      [vendorKey]="selectedCompletionPhotoVendorKey()"
+      [vendorName]="selectedCompletionPhotoVendorName()"
+      (closed)="closeCompletionPhotoModal()"
+      (changed)="onCompletionPhotosChanged()"
+    />
+    <app-signoff-modal
+      [isOpen]="signOffModalOpen()"
+      [jobKey]="selectedJobKey()"
+      [vendorKey]="selectedSignOffVendorKey()"
+      [vendorName]="selectedSignOffVendorName()"
+      (closed)="closeSignOffModal()"
+      (changed)="onSignOffChanged()"
+    />
+    <app-hours-recon-modal
+      [isOpen]="hoursReconModalOpen()"
+      [jobKey]="selectedJobKey()"
+      [vendorKey]="selectedHoursReconVendorKey()"
+      [vendorName]="selectedHoursReconVendorName()"
+      (closed)="closeHoursReconModal()"
+      (changed)="onHoursReconChanged()"
+    />
+    <app-insurance-validation-modal
+      [isOpen]="insuranceModalOpen()"
+      [jobKey]="selectedJobKey()"
+      [vendorKey]="selectedInsuranceVendorKey()"
+      [vendorName]="selectedInsuranceVendorName()"
+      (closed)="closeInsuranceModal()"
+      (changed)="onInsuranceChanged()"
+    />
+    <app-completion-call-modal
+      [isOpen]="completionCallModalOpen()"
+      [jobKey]="selectedJobKey()"
+      [po]="selectedJobPo()"
+      [locationName]="selectedLocationName()"
+      [locContactName]="selectedLocationContactName()"
+      [locPhone]="selectedLocationPhone()"
+      (closed)="closeCompletionCallModal()"
+      (logged)="onCompletionCallLogged()"
+    />
+  </main>
+</div>

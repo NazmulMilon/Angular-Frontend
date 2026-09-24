@@ -1,0 +1,136 @@
+<div class="page">
+  <nav class="breadcrumb">
+    <a routerLink="/settings" class="breadcrumb__link">Settings</a>
+    <span class="breadcrumb__sep">/</span>
+    <span class="breadcrumb__current">Company Info</span>
+  </nav>
+
+  <div class="page__header">
+    <h1 class="page__title">Company Info</h1>
+    <p class="page__subtitle">Edit your company profile — details, contact information, and logo.</p>
+  </div>
+
+  @if (error()) {
+    <div class="error-banner">{{ error() }}</div>
+  }
+
+  @if (loading()) {
+    <div class="loading-note">Loading company info…</div>
+  } @else {
+  <div class="panel">
+    <div class="panel__body">
+      <form (ngSubmit)="save()">
+        <div class="cols">
+          <!-- ── Left column ── -->
+          <div class="col">
+            <div class="field">
+              <label class="field__label">Logo</label>
+              <div class="logo-upload">
+                <div class="logo-preview">
+                  @if (logoPreview()) {
+                    <img class="logo-preview__img" [src]="logoPreview()" alt="Company logo" />
+                  } @else {
+                    <span class="logo-preview__placeholder">No logo selected</span>
+                  }
+                </div>
+                <label class="file-btn">
+                  Choose File
+                  <input type="file" accept="image/*" (change)="onLogoSelected($event)" hidden />
+                </label>
+                @if (logoName()) { <span class="logo-preview__name">{{ logoName() }}</span> }
+              </div>
+            </div>
+
+            <div class="field">
+              <label class="field__label" for="cid">ID</label>
+              <input id="cid" type="text" class="field__input" [ngModel]="companyId()" (ngModelChange)="companyId.set($event)" name="cid" />
+            </div>
+            <div class="field">
+              <label class="field__label" for="cname">Name</label>
+              <input id="cname" type="text" class="field__input" [ngModel]="companyName()" (ngModelChange)="companyName.set($event)" name="cname" required />
+            </div>
+            <div class="field">
+              <label class="field__label" for="addr">Address</label>
+              <input id="addr" type="text" class="field__input" [ngModel]="companyAddress()" (ngModelChange)="companyAddress.set($event)" name="addr" />
+            </div>
+            <div class="field">
+              <label class="field__label" for="state">State</label>
+              <select id="state" class="field__input" [ngModel]="stateCode()" (ngModelChange)="onStateChange($event)" name="state">
+                <option [ngValue]="null">— Select state —</option>
+                @for (s of states(); track s.pkey) {
+                  <option [ngValue]="s.pkey">{{ s.name }}</option>
+                }
+              </select>
+            </div>
+            <div class="field">
+              <label class="field__label" for="city">City</label>
+              <select id="city" class="field__input" [ngModel]="cityKey()" (ngModelChange)="onCityChange($event)" name="city" [disabled]="stateCode() === null">
+                <option [ngValue]="null">— Select city —</option>
+                @for (c of cities(); track c.cityKey) {
+                  <option [ngValue]="c.cityKey">{{ c.name }}</option>
+                }
+              </select>
+            </div>
+            <div class="field">
+              <label class="field__label" for="zip">Zipcode</label>
+              <select id="zip" class="field__input" [ngModel]="zipKey()" (ngModelChange)="onZipChange($event)" name="zip" [disabled]="cityKey() === null">
+                <option [ngValue]="null">— Select zip —</option>
+                @for (z of zips(); track z.zipKey) {
+                  <option [ngValue]="z.zipKey">{{ z.zip }}</option>
+                }
+              </select>
+            </div>
+            <div class="field">
+              <label class="field__label" for="phone">Phone #</label>
+              <input id="phone" type="text" class="field__input" [ngModel]="companyPhone()" (ngModelChange)="companyPhone.set($event)" name="phone" />
+            </div>
+            <div class="field">
+              <label class="field__label" for="mobile">Mobile #</label>
+              <input id="mobile" type="text" class="field__input" [ngModel]="companyMobile()" (ngModelChange)="companyMobile.set($event)" name="mobile" />
+            </div>
+          </div>
+
+          <!-- ── Right column ── -->
+          <div class="col">
+            <div class="field">
+              <label class="field__label" for="email">Email Address</label>
+              <input id="email" type="email" class="field__input" [ngModel]="companyEmail()" (ngModelChange)="companyEmail.set($event)" name="email" />
+            </div>
+            <div class="field">
+              <label class="field__label" for="website">Website</label>
+              <input id="website" type="text" class="field__input" [ngModel]="companyWebsite()" (ngModelChange)="companyWebsite.set($event)" name="website" />
+            </div>
+            <div class="field">
+              <label class="field__label" for="fax">Fax</label>
+              <input id="fax" type="text" class="field__input" [ngModel]="companyFax()" (ngModelChange)="companyFax.set($event)" name="fax" />
+            </div>
+            <div class="field">
+              <label class="field__label" for="contactPerson">Contact Person</label>
+              <input id="contactPerson" type="text" class="field__input" [ngModel]="contactPersonName()" (ngModelChange)="contactPersonName.set($event)" name="contactPerson" />
+            </div>
+            <div class="field">
+              <label class="field__label" for="title">Title</label>
+              <input id="title" type="text" class="field__input" [ngModel]="title()" (ngModelChange)="title.set($event)" name="title" />
+            </div>
+            <div class="field">
+              <label class="field__label" for="contactNo">Contact #</label>
+              <input id="contactNo" type="text" class="field__input" [ngModel]="contactPersonNo()" (ngModelChange)="contactPersonNo.set($event)" name="contactNo" />
+            </div>
+            <div class="field">
+              <label class="field__label" for="contactEmail">Email</label>
+              <input id="contactEmail" type="email" class="field__input" [ngModel]="contactEmail()" (ngModelChange)="contactEmail.set($event)" name="contactEmail" />
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
+    <div class="panel__footer">
+      <button type="button" class="btn btn--primary" [disabled]="!canSave" (click)="save()">{{ saving() ? 'Saving…' : 'Save' }}</button>
+      <a routerLink="/settings" class="btn btn--secondary">Cancel</a>
+      @if (saved()) {
+        <span class="save-flash">Saved successfully</span>
+      }
+    </div>
+  </div>
+  }
+</div>

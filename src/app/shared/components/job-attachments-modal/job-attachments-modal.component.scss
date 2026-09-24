@@ -1,0 +1,656 @@
+/* ============================================================
+   Modal chrome for the "📎 View All Job Attachments" popup.
+   Spec source: complete-screen-v2.html — .modal / .modal-head / .modal-body / .modal-foot
+   (DEFAULT modal width, 860px — showAllAttachments()'s openModal() call sets no custom
+   maxWidth), plus the section-local styles inlined in showAllAttachments() itself: the
+   two-column "Add a File" grid, the tan/gold section bar, and table.grid / .btn / .muted.
+   Colors/typography here are the prototype's own CSS custom properties, copied as literal
+   values (this component does not depend on the prototype's global stylesheet).
+   ============================================================ */
+
+@keyframes jamFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes jamScaleIn {
+  from { transform: scale(0.97); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(3px);
+  padding: 40px 20px;
+  overflow-y: auto;
+  animation: jamFadeIn 0.2s ease;
+}
+
+.modal {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  animation: jamScaleIn 0.25s ease;
+  font-family: 'Segoe UI', system-ui, -apple-system, Arial, sans-serif;
+}
+
+/* Spec default: .modal{max-width:860px} — NOT overridden for showAllAttachments(). */
+.modal--attachments {
+  width: 100%;
+  max-width: 860px;
+}
+
+.modal__header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 16px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.modal__title {
+  font-size: 14px;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.modal__po {
+  font-weight: 400;
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.modal__close {
+  margin-left: auto;
+  background: none;
+  border: none;
+  font-size: 18px;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  line-height: 1;
+
+  &:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+  }
+}
+
+/* Spec: .modal-body{padding:16px;max-height:70vh;overflow-y:auto} */
+.modal__body {
+  padding: 16px;
+  max-height: 70vh;
+  overflow-y: auto;
+  font-family: 'Segoe UI', system-ui, -apple-system, Arial, sans-serif;
+}
+
+.modal__footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.jam-error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  border-radius: 8px;
+  padding: 8px 11px;
+  font-size: 12px;
+  margin-bottom: 10px;
+}
+
+.jam-success {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #15803d;
+  border-radius: 8px;
+  padding: 8px 11px;
+  font-size: 12px;
+  margin-bottom: 10px;
+}
+
+/* ------------------------------------------------------------
+   Add a File — spec: two-column grid, border:1px solid var(--line);
+   border-radius:9px; padding:12px; background:#fafbfc
+   ------------------------------------------------------------ */
+.jam-add-file {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 9px;
+  padding: 12px;
+  background: #fafbfc;
+}
+
+.jam-field-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #2563eb;
+  letter-spacing: 0.4px;
+  margin-bottom: 4px;
+}
+
+.jam-select,
+.jam-input {
+  width: 100%;
+  padding: 7px 9px;
+  border: 1px solid #e2e8f0;
+  border-radius: 7px;
+  font-family: inherit;
+  font-size: 12px;
+  background: #fff;
+  box-sizing: border-box;
+}
+
+.jam-save-btn {
+  margin-top: 12px;
+}
+
+.jam-drop-label {
+  font-size: 12.5px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.jam-drop {
+  border: 1.5px dashed #e2e8f0;
+  border-radius: 8px;
+  min-height: 96px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  background: #fff;
+  color: #94a3b8;
+  font-size: 12px;
+  padding: 10px;
+  text-align: center;
+
+  &.active {
+    border-color: #2563eb;
+    background: #eff6ff;
+  }
+}
+
+.jam-pending-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+}
+
+.jam-pending-chip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: #0f172a;
+}
+
+.jam-pending-remove {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  padding: 0 2px;
+
+  &:hover {
+    color: #b91c1c;
+  }
+}
+
+/* ------------------------------------------------------------
+   Section bar — spec: background:#fdf6e3;border:1px solid #f0e6c8;
+   border-radius:8px;padding:9px 12px;text-align:center;font-weight:700;
+   letter-spacing:1px;color:#8a6d3b;font-size:12px;margin:14px 0 8px
+   ------------------------------------------------------------ */
+.jam-sec-bar {
+  background: #fdf6e3;
+  border: 1px solid #f0e6c8;
+  border-radius: 8px;
+  padding: 9px 12px;
+  text-align: center;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: #8a6d3b;
+  font-size: 12px;
+  margin: 14px 0 8px;
+}
+
+/* ------------------------------------------------------------
+   Tables — spec: table.grid{width:100%;border-collapse:collapse;font-size:11.5px}
+   ------------------------------------------------------------ */
+.jam-table-wrap {
+  overflow-x: auto;
+}
+
+table.grid {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11.5px;
+
+  th {
+    background: #f8fafc;
+    text-align: left;
+    padding: 7px 9px;
+    border: 1px solid #e2e8f0;
+    font-size: 10px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: #475569;
+    white-space: nowrap;
+  }
+
+  td {
+    padding: 7px 9px;
+    border: 1px solid #e2e8f0;
+    vertical-align: top;
+  }
+}
+
+.jam-muted {
+  color: #94a3b8;
+}
+
+.jam-center {
+  text-align: center;
+}
+
+.jam-link {
+  color: #2563eb;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+/* ------------------------------------------------------------
+   Delete confirm — small inline overlay, no separate component needed.
+   ------------------------------------------------------------ */
+.jam-confirm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10001;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.jam-confirm {
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  padding: 16px;
+  width: 320px;
+  max-width: 90vw;
+}
+
+.jam-confirm__text {
+  font-size: 12.5px;
+  color: #0f172a;
+  margin-bottom: 14px;
+}
+
+.jam-confirm__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* ------------------------------------------------------------
+   Buttons — spec: .btn / .btn.primary / .btn.sm
+   Scoped locally (not the global .btn/.btn--secondary), same rationale as the
+   Notes To Accounting popup: this modal reuses the spec's own button treatment.
+   ------------------------------------------------------------ */
+.btn {
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 6px 11px;
+  border-radius: 7px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  color: #0f172a;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+
+  &:hover:not(:disabled) {
+    background: #f1f5f9;
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+}
+
+.btn.sm {
+  padding: 4.5px 9px;
+  font-size: 11px;
+  border-radius: 6px;
+}
+
+.btn.primary {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #fff;
+
+  &:hover:not(:disabled) {
+    background: #1d4ed8;
+  }
+}
+
+.jam-btn-danger {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #b91c1c;
+
+  &:hover:not(:disabled) {
+    background: #fee2e2;
+  }
+}
+
+/* ------------------------------------------------------------
+   Doc-type-driven confirm sub-modals — Approve Estimate on Behalf,
+   Change Job Status, Send Estimate to Vendor. Stacked above the main
+   .modal-overlay (same fixed-overlay pattern as .jam-confirm-overlay),
+   with their own jam-submodal-* chrome adapted from job-details-accordion's
+   jd-files-modal* classes (renamed to avoid collision with the jd- prefix).
+   ------------------------------------------------------------ */
+.jam-submodal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10002;
+  background: rgba(15, 23, 42, 0.5);
+}
+
+.jam-submodal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 10003;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  width: 100%;
+  max-width: 520px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  font-family: 'Segoe UI', system-ui, -apple-system, Arial, sans-serif;
+  animation: jamScaleIn 0.2s ease;
+}
+
+.jam-submodal--narrow {
+  max-width: 460px;
+}
+
+.jam-submodal__header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 16px;
+  border-bottom: 1px solid #e2e8f0;
+
+  h2 {
+    font-size: 14px;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 0;
+  }
+}
+
+.jam-submodal__close {
+  margin-left: auto;
+  background: none;
+  border: none;
+  font-size: 18px;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  line-height: 1;
+
+  &:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+  }
+}
+
+.jam-submodal__body {
+  padding: 16px;
+  overflow-y: auto;
+  font-size: 12.5px;
+  color: #0f172a;
+}
+
+.jam-submodal__footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid #e2e8f0;
+}
+
+/* Approve Customer Estimate on Behalf */
+.jam-approve-est__intro {
+  margin: 0 0 10px;
+}
+
+.jam-approve-est__dne {
+  margin-bottom: 12px;
+  font-size: 12.5px;
+}
+
+.jam-approve-est__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.jam-approve-est__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 9px 11px;
+}
+
+.jam-approve-est__info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.jam-approve-est__name {
+  font-weight: 600;
+}
+
+.jam-approve-est__total {
+  color: #475569;
+  font-size: 11.5px;
+}
+
+/* Change Job Status confirm */
+.jam-status-change__prompt {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* Send Estimate to Vendor */
+.jam-send-estimate-modal {
+  max-width: 620px;
+}
+
+.jam-send-estimate__note {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+  padding: 9px 11px;
+  font-size: 11.5px;
+  margin-bottom: 12px;
+}
+
+.jam-send-estimate__note-or {
+  font-weight: 700;
+  margin: 2px 0;
+}
+
+.jam-send-estimate__note-green {
+  color: #15803d;
+  font-weight: 700;
+}
+
+.jam-send-estimate__note-orange {
+  color: #c2410c;
+  font-weight: 700;
+}
+
+.jam-send-estimate__vendors {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.jam-send-estimate__vendor {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 9px 11px;
+}
+
+.jam-send-estimate__vendor-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.jam-send-estimate__default-tag {
+  color: #2563eb;
+  font-size: 10.5px;
+  font-weight: 700;
+}
+
+.jam-send-estimate__contacts {
+  margin-top: 6px;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.jam-send-estimate__contact {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: 11.5px;
+}
+
+.jam-send-estimate__contact-email {
+  color: #64748b;
+}
+
+.jam-send-estimate__no-contacts {
+  margin-top: 6px;
+  padding-left: 20px;
+  color: #94a3b8;
+  font-size: 11.5px;
+}
+
+.jam-send-estimate__field-hint {
+  font-weight: 400;
+  color: #94a3b8;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.jam-field {
+  margin-top: 10px;
+}
+
+.jam-textarea {
+  resize: vertical;
+}
+
+.jam-send-estimate__footer {
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
+
+.jam-send-estimate__actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.jam-send-estimate__btn--green {
+  background: #16a34a;
+  border-color: #16a34a;
+  color: #fff;
+
+  &:hover:not(:disabled) {
+    background: #15803d;
+  }
+}
+
+.jam-send-estimate__btn--orange {
+  background: #ea580c;
+  border-color: #ea580c;
+  color: #fff;
+
+  &:hover:not(:disabled) {
+    background: #c2410c;
+  }
+}
+
+@media (max-width: 768px) {
+  .modal--attachments {
+    width: 100vw;
+    max-width: 100vw;
+    height: 100vh;
+    max-height: 100vh;
+    border-radius: 0;
+  }
+
+  .modal__body {
+    max-height: none;
+    flex: 1;
+  }
+
+  .jam-add-file {
+    grid-template-columns: 1fr;
+  }
+}

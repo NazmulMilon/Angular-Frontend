@@ -1,0 +1,141 @@
+<div class="page">
+  <nav class="breadcrumb">
+    <a routerLink="/settings" class="breadcrumb__link">Settings</a>
+    <span class="breadcrumb__sep">/</span>
+    <span class="breadcrumb__current">Vendor Email Configuration</span>
+  </nav>
+
+  <div class="page__header">
+    <h1 class="page__title">Vendor Email Configuration</h1>
+    <p class="page__subtitle">Configure the SMTP settings used for sending vendor-related emails.</p>
+  </div>
+
+  <div class="card">
+    @if (loading()) {
+      <p class="state-msg">Loading…</p>
+    } @else {
+      @if (error()) {
+        <div class="error-banner">{{ error() }}</div>
+      }
+      <form (ngSubmit)="save()" #form="ngForm">
+      <div class="form-grid">
+        <div class="field">
+          <label class="field__label" for="emailAddress">Email Address</label>
+          <input
+            id="emailAddress"
+            type="email"
+            class="field__input"
+            [ngModel]="emailAddress()"
+            (ngModelChange)="emailAddress.set($event)"
+            name="emailAddress"
+            required
+            placeholder="sender@example.com"
+          />
+        </div>
+
+        <div class="field">
+          <label class="field__label" for="smtpServer">SMTP Server</label>
+          <input
+            id="smtpServer"
+            type="text"
+            class="field__input"
+            [ngModel]="smtpServer()"
+            (ngModelChange)="smtpServer.set($event)"
+            name="smtpServer"
+            required
+            placeholder="smtp.example.com"
+          />
+        </div>
+
+        <div class="field">
+          <label class="field__label" for="smtpPort">SMTP Port</label>
+          <input
+            id="smtpPort"
+            type="text"
+            class="field__input"
+            [ngModel]="smtpPort()"
+            (ngModelChange)="smtpPort.set($event)"
+            name="smtpPort"
+            required
+            placeholder="587"
+          />
+        </div>
+
+        <div class="field">
+          <label class="field__label" for="smtpUsername">SMTP Username</label>
+          <input
+            id="smtpUsername"
+            type="text"
+            class="field__input"
+            [ngModel]="smtpUsername()"
+            (ngModelChange)="smtpUsername.set($event)"
+            name="smtpUsername"
+            required
+            placeholder="username"
+          />
+        </div>
+
+        <div class="field">
+          <label class="field__label" for="smtpPassword">SMTP Password</label>
+          <div class="field__password-group">
+            <input
+              id="smtpPassword"
+              [type]="showPassword() ? 'text' : 'password'"
+              class="field__input field__input--password"
+              [ngModel]="smtpPassword()"
+              (ngModelChange)="smtpPassword.set($event)"
+              name="smtpPassword"
+              required
+              placeholder="••••••••"
+            />
+            <button
+              type="button"
+              class="field__toggle-pw"
+              (click)="togglePasswordVisibility()"
+              [title]="showPassword() ? 'Hide password' : 'Show password'"
+            >
+              {{ showPassword() ? 'Hide' : 'Show' }}
+            </button>
+          </div>
+        </div>
+
+        <div class="field">
+          <label class="field__label">Use SSL</label>
+          <div class="field__radio-group">
+            <label class="radio">
+              <input
+                type="radio"
+                name="isSmtpSsl"
+                [value]="true"
+                [ngModel]="isSmtpSsl()"
+                (ngModelChange)="isSmtpSsl.set($event)"
+              />
+              <span class="radio__label">Yes</span>
+            </label>
+            <label class="radio">
+              <input
+                type="radio"
+                name="isSmtpSsl"
+                [value]="false"
+                [ngModel]="isSmtpSsl()"
+                (ngModelChange)="isSmtpSsl.set($event)"
+              />
+              <span class="radio__label">No</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="card__actions">
+        <button type="submit" class="btn btn--primary" [disabled]="form.invalid || saving()">
+          {{ saving() ? 'Saving...' : 'Save' }}
+        </button>
+        <a routerLink="/settings" class="btn btn--secondary">Back</a>
+        @if (saved()) {
+          <span class="save-confirmation">Saved successfully</span>
+        }
+      </div>
+      </form>
+    }
+  </div>
+</div>

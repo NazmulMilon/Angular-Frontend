@@ -1,0 +1,261 @@
+/* Send Customer Estimate modal — mirrors the .cce-* dialog conventions used by the
+   create-customer-estimate modal so the two read as one family. */
+
+.sce-back {
+  position: fixed;
+  inset: 0;
+  /* Above the estimate modal (z-index 10000), since this opens on top of it. */
+  z-index: 10010;
+  background: var(--vb-overlay);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px;
+}
+
+.sce-modal {
+  background: var(--vb-card);
+  border-radius: 10px;
+  box-shadow: var(--vb-shadow-lg);
+  width: min(560px, 100%);
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.sce-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--vb-line);
+
+  h3 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+  }
+
+  &__sub {
+    font-weight: 400;
+    color: var(--vb-muted);
+    margin-left: 6px;
+    font-size: 13px;
+  }
+}
+
+.sce-x {
+  margin-left: auto;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 15px;
+  line-height: 1;
+  color: var(--vb-muted);
+  padding: 4px 6px;
+  border-radius: 6px;
+
+  &:hover { background: rgba(0, 0, 0, 0.05); }
+}
+
+.sce-body {
+  padding: 12px 16px;
+  overflow-y: auto;
+}
+
+.sce-status {
+  font-size: 12px;
+  color: var(--vb-muted);
+  padding: 6px 0;
+}
+
+.sce-alert {
+  font-size: 12px;
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin-bottom: 10px;
+
+  &--error {
+    color: #b91c1c;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+  }
+}
+
+.sce-group {
+  margin-bottom: 12px;
+
+  &__head {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--vb-muted);
+    margin-bottom: 4px;
+  }
+}
+
+.sce-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+
+  &:hover { background: rgba(0, 0, 0, 0.03); }
+
+  &--disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  &__name { font-weight: 500; }
+
+  &__title {
+    font-weight: 400;
+    color: var(--vb-muted);
+  }
+
+  &__email {
+    color: var(--vb-muted);
+    font-size: 12px;
+    margin-left: auto;
+  }
+
+  &__badge {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    background: #e0f2fe;
+    color: #0369a1;
+    border-radius: 999px;
+    padding: 2px 8px;
+    white-space: nowrap;
+  }
+
+  /* Preview link. Sits inside the row's <label>, so the click handler stops propagation
+     to avoid toggling the checkbox. */
+  &__view {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--vb-primary);
+    text-decoration: none;
+    padding: 2px 6px;
+    border-radius: 4px;
+    white-space: nowrap;
+
+    &:hover {
+      text-decoration: underline;
+      background: rgba(0, 0, 0, 0.04);
+    }
+  }
+}
+
+.sce-results {
+  margin-top: 10px;
+  border-top: 1px dashed var(--vb-line);
+  padding-top: 8px;
+}
+
+.sce-result {
+  font-size: 12px;
+  color: #15803d;
+  padding: 2px 0;
+
+  &--failed { color: #b91c1c; }
+}
+
+.sce-foot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--vb-line);
+  background: var(--vb-bg-soft);
+
+  &__spacer { flex: 1; }
+}
+
+.sce-btn {
+  border-radius: 7px;
+  border: 1px solid var(--vb-line-strong);
+  background: var(--vb-card);
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  &--send {
+    background: var(--vb-primary);
+    border-color: var(--vb-primary);
+    color: #fff;
+  }
+
+  &--ghost {
+    background: transparent;
+    color: var(--vb-muted);
+  }
+}
+
+/* ── Attachments (collapsed by default) ───────────────────────── */
+.sce-attach {
+  margin-top: 10px;
+  border-top: 1px solid var(--vb-line);
+  padding-top: 8px;
+
+  &__toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    background: none;
+    border: none;
+    padding: 4px 0;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--vb-text);
+    text-align: left;
+
+    &:hover { color: var(--vb-primary); }
+  }
+
+  &__caret {
+    display: inline-block;
+    transition: transform 0.15s ease;
+    font-size: 10px;
+    color: var(--vb-muted);
+
+    &--open { transform: rotate(90deg); }
+  }
+
+  &__count {
+    margin-left: auto;
+    font-weight: 500;
+    font-size: 11px;
+    color: var(--vb-primary);
+  }
+
+  &__hint {
+    margin-left: auto;
+    font-weight: 400;
+    font-size: 11px;
+    color: var(--vb-muted);
+  }
+
+  &__body { padding-top: 6px; }
+
+  &__note {
+    font-size: 11px;
+    color: var(--vb-muted);
+    margin-bottom: 8px;
+    font-style: italic;
+  }
+}

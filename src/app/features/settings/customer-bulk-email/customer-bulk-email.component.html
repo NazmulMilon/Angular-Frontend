@@ -1,0 +1,168 @@
+<div class="page">
+  <nav class="breadcrumb">
+    <a routerLink="/settings" class="breadcrumb__link">Settings</a>
+    <span class="breadcrumb__sep">/</span>
+    <span class="breadcrumb__current">Send Bulk Email to Customer</span>
+  </nav>
+
+  <div class="page__header">
+    <h1 class="page__title">Send Bulk Email to Customer</h1>
+    <p class="page__subtitle">Compose a message and send it to multiple customers at once. Use <code>XXXX</code> as a placeholder for the customer name.</p>
+  </div>
+
+  @if (error()) {
+    <div class="error-banner">{{ error() }}</div>
+  }
+  @if (sendResult()) {
+    <div class="success-banner">{{ sendResult() }}</div>
+  }
+
+  <div class="layout">
+    <!-- ── Compose column ── -->
+    <div class="compose-card">
+      <div class="card-title">Compose Message</div>
+
+      <div class="field">
+        <label class="field__label">Send From</label>
+        <div class="sender-group">
+          <label class="sender" [class.sender--active]="senderMode() === 'service'">
+            <input type="radio" name="sender" value="service" [ngModel]="senderMode()" (ngModelChange)="senderMode.set($event)" />
+            <span class="sender__body">
+              <span class="sender__title">Service Address</span>
+              <span class="sender__sub">{{ serviceEmail }}</span>
+            </span>
+          </label>
+          <label class="sender" [class.sender--active]="senderMode() === 'self'">
+            <input type="radio" name="sender" value="self" [ngModel]="senderMode()" (ngModelChange)="senderMode.set($event)" />
+            <span class="sender__body">
+              <span class="sender__title">My Email Address</span>
+              <span class="sender__sub">Send from your own account</span>
+            </span>
+          </label>
+        </div>
+      </div>
+
+      <div class="field">
+        <div class="field__label-row">
+          <label class="field__label" for="tplLoad">Load a Template</label>
+        </div>
+        <select id="tplLoad" class="field__select" (change)="loadTemplate($any($event.target).value)">
+          <option value="">— Start from scratch —</option>
+          @for (t of templates(); track t.templateKey) {
+            <option [value]="t.templateKey">{{ t.templateName }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="field">
+        <label class="field__label" for="tplName">Template Name</label>
+        <input id="tplName" type="text" class="field__input" [ngModel]="templateName()" (ngModelChange)="templateName.set($event)" name="tplName" placeholder="e.g. Service Reminder" />
+      </div>
+
+      <div class="field">
+        <label class="field__label" for="subject">Subject Line</label>
+        <input id="subject" type="text" class="field__input" [ngModel]="subjectLine()" (ngModelChange)="subjectLine.set($event)" name="subject" placeholder="Enter the email subject" />
+      </div>
+
+      <div class="field">
+        <label class="field__label">Email Body</label>
+        <app-rich-text-editor [ngModel]="bodyContent()" (ngModelChange)="bodyContent.set($event)" name="body" placeholder="Compose your message..." />
+      </div>
+
+      <div class="compose-card__actions">
+        <button type="button" class="btn btn--secondary" [disabled]="!canSaveTemplate" (click)="saveTemplate()">Save as Template</button>
+        @if (savedFlash()) {
+          <span class="save-flash">Template saved</span>
+        }
+      </div>
+    </div>
+
+    <!-- ── Recipients column ── -->
+    <div class="recipients-card">
+      <div class="card-title">Recipients</div>
+
+      <div class="rtabs">
+        <button type="button" class="rtab" [class.rtab--active]="recipientTab() === 'customers'" (click)="setTab('customers')">
+          Customers
+          @if (checkedCustomerIds().size > 0) { <span class="rtab__badge">{{ checkedCustomerIds().size }}</span> }
+        </button>
+        <button type="button" class="rtab" [class.rtab--active]="recipientTab() === 'contacts'" (click)="setTab('contacts')">
+          Location Contacts
+          @if (checkedContactIds().size > 0) { <span class="rtab__badge">{{ checkedContactIds().size }}</span> }
+        </button>
+      </div>
+
+      <!-- Customers tab -->
+      @if (recipientTab() === 'customers') {
+        <div class="rsearch">
+          <svg class="rsearch__icon" width="15" height="15" viewBox="0 0 15 15" fill="none"><circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" stroke-width="1.4"/><path d="M10 10l3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+          <input type="text" class="rsearch__input" [ngModel]="searchCustomers()" (ngModelChange)="searchCustomers.set($event)" name="searchCustomers" placeholder="Search customers..." />
+        </div>
+        <label class="select-all">
+          <input type="checkbox" [checked]="allCustomersChecked()" (change)="toggleSelectAllCustomers()" />
+          <span>Select all ({{ filteredCustomers().length }})</span>
+        </label>
+        <div class="rlist">
+          @for (c of filteredCustomers(); track c.id) {
+            <label class="ritem" [class.ritem--checked]="isCustomerChecked(c.id)">
+              <input type="checkbox" [checked]="isCustomerChecked(c.id)" (change)="toggleCustomer(c.id)" />
+              <span class="ritem__body">
+                <span class="ritem__name">{{ c.name }}</span>
+                <span class="ritem__email">{{ c.email }}</span>
+              </span>
+            </label>
+          } @empty {
+            <div class="rlist__empty">No customers match your search.</div>
+          }
+        </div>
+      }
+
+      <!-- Contacts tab -->
+      @if (recipientTab() === 'contacts') {
+        @if (contactsLoading()) {
+          <div class="rlist__empty">Loading contacts…</div>
+        } @else {
+        <div class="rsearch">
+          <svg class="rsearch__icon" width="15" height="15" viewBox="0 0 15 15" fill="none"><circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" stroke-width="1.4"/><path d="M10 10l3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+          <input type="text" class="rsearch__input" [ngModel]="searchContacts()" (ngModelChange)="searchContacts.set($event)" name="searchContacts" placeholder="Search contacts..." />
+        </div>
+        <label class="select-all">
+          <input type="checkbox" [checked]="allContactsChecked()" (change)="toggleSelectAllContacts()" />
+          <span>Select all ({{ filteredContacts().length }})</span>
+        </label>
+        <div class="rlist">
+          @for (c of filteredContacts(); track c.id) {
+            <label class="ritem" [class.ritem--checked]="isContactChecked(c.id)">
+              <input type="checkbox" [checked]="isContactChecked(c.id)" (change)="toggleContact(c.id)" />
+              <span class="ritem__body">
+                <span class="ritem__name">{{ c.contactName }}</span>
+                <span class="ritem__email">{{ c.customerName }} · {{ c.email }}</span>
+              </span>
+            </label>
+          } @empty {
+            <div class="rlist__empty">No contacts match your search.</div>
+          }
+        </div>
+        }
+      }
+    </div>
+  </div>
+
+  <!-- ── Sticky send bar ── -->
+  <div class="send-bar">
+    <div class="send-bar__info">
+      @if (selectedCount() > 0) {
+        <strong>{{ selectedCount() }}</strong> recipient{{ selectedCount() === 1 ? '' : 's' }} selected
+      } @else {
+        No recipients selected
+      }
+    </div>
+    <div class="send-bar__actions">
+      <button type="button" class="btn btn--ghost" (click)="clearAll()">Clear</button>
+      <button type="button" class="btn btn--primary" [disabled]="!canSend" (click)="send()">
+        <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M13.5 1.5L7 8M13.5 1.5l-4 12-2.5-5.5L1.5 5l12-3.5Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
+        {{ sending() ? 'Sending…' : 'Send Email' }}
+      </button>
+    </div>
+  </div>
+</div>

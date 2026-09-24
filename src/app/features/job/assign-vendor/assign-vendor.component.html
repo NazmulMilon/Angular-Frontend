@@ -1,0 +1,3972 @@
+<!-- ============================================================
+     Assign Vendor Tab — Job Vendor Management
+     Layer 5 template (reactive forms, new AssignVendorService).
+     Full UI polish deferred to Layer 6.
+     ============================================================ -->
+
+<!-- Loading overlay -->
+@if (isLoading()) {
+  <div class="loading-overlay">
+    <div class="spinner"></div>
+    <span>Loading vendor data...</span>
+  </div>
+}
+
+<!-- Fixed toast overlays — stay visible while scrolling -->
+<div class="av-toast-stack" aria-live="polite" aria-atomic="true">
+  @if (successMessage()) {
+    <div class="av-toast av-toast--success" role="status">
+      <span class="av-toast__icon" aria-hidden="true">
+        <svg viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+        </svg>
+      </span>
+      <p class="av-toast__message">{{ successMessage() }}</p>
+      <button type="button" class="av-toast__close" (click)="successMessage.set('')" aria-label="Dismiss success message">
+        <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+          <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+        </svg>
+      </button>
+    </div>
+  }
+  @if (errorMessage()) {
+    <div class="av-toast av-toast--error" role="alert">
+      <span class="av-toast__icon" aria-hidden="true">
+        <svg viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+        </svg>
+      </span>
+      <p class="av-toast__message">{{ errorMessage() }}</p>
+      <button type="button" class="av-toast__close" (click)="errorMessage.set('')" aria-label="Dismiss error message">
+        <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+          <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+        </svg>
+      </button>
+    </div>
+  }
+</div>
+
+<!-- Blocking overlay when wait popup is active (3 min) -->
+@if (formBlockedByWait()) {
+  <div class="form-block-overlay" aria-hidden="true"></div>
+}
+
+<div class="page-container" [class.page-container--blocked]="formBlockedByWait()">
+
+  <!-- ================================================================
+       APP-LEVEL TABS — job-scoped destinations
+       ================================================================ -->
+  @if (jobKey()) {
+    <div class="app-tabs">
+      <span class="app-tab app-tab--active">Assign Vendor</span>
+      <span class="app-tab" (click)="onEstimatesTabClick()">Estimates</span>
+      <span class="app-tab" [routerLink]="['/job', jobKey(), 'vendor-bills']">Customer & Vendor Invoicing</span>
+      <span class="app-tab" [routerLink]="['/job', jobKey(), 'notes-activity']">Notes &amp; Activity</span>
+    </div>
+  }
+
+  <app-estimate-chat-interstitial-modal />
+
+  <!-- ================================================================
+       SECTION 1: Job Details Accordion  (Figma node 1:37 / 1:38)
+       ================================================================ -->
+  <div id="section-job-details" class="av-section-anchor"></div>
+  <app-job-details-accordion
+    #jobDetailsAccordion
+    [jobKey]="jobKey()"
+    [defaultOpen]="true"
+    [showNav]="false"
+    (tradeChangeStarted)="onTradeChangeStarted()"
+    (tradeChangeSucceeded)="onTradeChangeSucceeded($event)"
+    (tradeChangeFailed)="onTradeChangeFailed()" />
+
+  <!-- ================================================================
+       QUICK NAVIGATION BAR  (Figma node 8:347)
+       ================================================================ -->
+  <div class="job-quick-nav-wrap">
+  <nav class="job-quick-nav" aria-label="Page section navigation">
+    <!-- Job Details -->
+    <button
+      class="job-quick-nav__tab"
+      [class.job-quick-nav__tab--active]="activeNavTab() === 'job-details'"
+      (click)="scrollToSection('section-job-details', 'job-details')"
+      type="button"
+    >
+      <svg class="job-quick-nav__icon" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+        <rect x="1" y="2" width="10" height="1.5" rx="0.75" fill="currentColor"/>
+        <rect x="1" y="5.25" width="10" height="1.5" rx="0.75" fill="currentColor"/>
+        <rect x="1" y="8.5" width="7" height="1.5" rx="0.75" fill="currentColor"/>
+      </svg>
+      <span>Job Details</span>
+    </button>
+
+    <!-- Dispatching Agent
+    <button
+      class="job-quick-nav__tab"
+      [class.job-quick-nav__tab--active]="activeNavTab() === 'dispatching'"
+      (click)="scrollToSection('section-dispatching', 'dispatching')"
+      type="button"
+    >
+      <svg class="job-quick-nav__icon" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+        <path d="M7 1L3 6.5H6.5L5 11L9 5.5H5.5L7 1Z" fill="currentColor"/>
+      </svg>
+      <span>Dispatching Agent</span>
+      @if ((jobHeaderDetail()?.assignedVendors?.length ?? 0) > 0) {
+        <span class="job-quick-nav__badge">{{ jobHeaderDetail()?.assignedVendors?.length }}</span>
+      }
+    </button>  -->
+
+    <!-- Selected Vendors -->
+    <button
+      class="job-quick-nav__tab"
+      [class.job-quick-nav__tab--active]="activeNavTab() === 'selected'"
+      (click)="scrollToSection('section-selected', 'selected')"
+      type="button"
+    >
+      <span>Selected Vendors</span>
+      @if ((jobHeaderDetail()?.assignedVendors?.length ?? 0) > 0) {
+        <span class="job-quick-nav__badge">{{ jobHeaderDetail()?.assignedVendors?.length }}</span>
+      }
+    </button>
+
+    <!-- Previously Serviced -->
+    @if (locationHistoryVendors().length > 0) {
+      <button
+        class="job-quick-nav__tab"
+        [class.job-quick-nav__tab--active]="activeNavTab() === 'prev-serviced'"
+        (click)="scrollToSection('section-prev-serviced', 'prev-serviced')"
+        type="button"
+        title="These are vendors who have previously serviced this location"
+      >
+        <span>Previously Serviced</span>
+        <span class="job-quick-nav__badge">{{ locationHistoryVendors().length }}</span>
+      </button>
+    }
+
+    <!-- Sourcing Agent -->
+    <button
+      class="job-quick-nav__tab"
+      [class.job-quick-nav__tab--active]="activeNavTab() === 'sourcing'"
+      (click)="scrollToSection('section-sourcing', 'sourcing')"
+      type="button"
+    >
+      <svg class="job-quick-nav__icon" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+        <circle cx="5.25" cy="5.25" r="3.5" stroke="currentColor" stroke-width="1.3"/>
+        <line x1="7.9" y1="7.9" x2="10.5" y2="10.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+      </svg>
+      <span>Sourcing Agent</span>
+      @if (aiSourcingVendors().length > 0) {
+        <span class="job-quick-nav__badge">{{ aiSourcingVendors().length }}</span>
+      }
+    </button>
+
+    <!-- Internal Vendors -->
+    <button
+      class="job-quick-nav__tab"
+      [class.job-quick-nav__tab--active]="activeNavTab() === 'internal-vendors'"
+      (click)="scrollToSection('section-internal-vendors', 'internal-vendors')"
+      type="button"
+    >
+      <span>Internal Vendors</span>
+      @if (filteredInternalVendors().length > 0) {
+        <span class="job-quick-nav__badge">{{ filteredInternalVendors().length }}</span>
+      }
+    </button>
+
+    <!-- Add Vendor -->
+    <button
+      class="job-quick-nav__tab"
+      [class.job-quick-nav__tab--active]="activeNavTab() === 'add-vendor'"
+      (click)="scrollToSection('section-add-vendor', 'add-vendor')"
+      type="button"
+    >
+      <svg class="job-quick-nav__icon" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+        <line x1="6" y1="1.5" x2="6" y2="10.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="1.5" y1="6" x2="10.5" y2="6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+      <span>Add Vendor</span>
+    </button>
+  </nav>
+  </div>
+
+  <!-- ================================================================
+       SECTION 2: Assigned Vendors Grid  (Figma node 1:272)
+       ================================================================ -->
+  <div id="section-dispatching" class="av-section-anchor"></div>
+  <app-accordion
+    #vendorsAccordion
+    heading="Vendors"
+    [defaultOpen]="true"
+    variant="figma"
+  >
+    <div id="section-selected" class="av-section-anchor"></div>
+    <!-- ── Vendor chips in header (Figma 1:273) ── -->
+    @if (jobHeaderDetail(); as hd) {
+      <div accordionHeaderActions class="jd-vendor-header-chips">
+        @for (v of orderedAssignedVendors(); track v.jobVendorKey) {
+          <span
+            class="jd-vendor-hchip"
+            data-accordion-no-toggle
+            [class.jd-vendor-hchip--active]="selectedVendorDetailKey() === v.vendorKey"
+            [class.jd-vendor-hchip--inactive]="v.isDelete"
+            (click)="selectedVendorDetailKey.set(v.vendorKey)"
+          >
+            {{ v.vendorName ?? 'Unknown' }}
+            @if (v.isDefault && !v.isDelete) { <span class="jd-vendor-default-tag">DEFAULT</span> }
+            @if (v.isDelete) {
+              <span class="jd-vendor-status-dot jd-vendor-status-dot--inactive" title="Inactive"></span>
+            } @else if (getVendorJobStatusLabel(v)) {
+              <span class="jd-vendor-status-dot" [title]="getVendorJobStatusLabel(v)"></span>
+            }
+          </span>
+        }
+      </div>
+    }
+
+    <!-- ── Vendor cards  (Figma node 1:272) ── -->
+    @if (jobHeaderDetail(); as hd) {
+      @for (v of orderedAssignedVendors(); track v.jobVendorKey) {
+        @if (selectedVendorDetailKey() === v.vendorKey) {
+          <div class="vc-card" [class.vc-card--default]="v.isDefault" [class.vc-card--inactive]="v.isDelete">
+            <!-- Left accent bar -->
+            <div class="vc-card__accent"></div>
+
+            <!-- Card header: avatar · name · DEFAULT badge · status badge -->
+            <div class="vc-card__header">
+              <div class="vc-card__avatar">{{ (v.vendorName ?? 'V').substring(0, 2).toUpperCase() }}</div>
+              <div class="vc-card__name-row">
+                <a
+                  class="vc-card__name vc-card__name--link"
+                  [href]="legacyVendorEditUrl(v.vendorKey)"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >{{ v.vendorName ?? 'Unknown' }}</a>
+                @if (v.isDelete) {
+                  <span class="vc-card__inactive-badge">INACTIVE</span>
+                } @else if (v.isDefault) {
+                  <span class="vc-card__default-badge">DEFAULT</span>
+                } @else {
+                  <button
+                    type="button"
+                    class="vc-card__set-default-btn"
+                    title="Set as default vendor for this job"
+                    [disabled]="isSetDefaultVendorSaving(v.jobVendorKey)"
+                    (click)="onSetVendorAsDefault(v)"
+                  >
+                    @if (isSetDefaultVendorSaving(v.jobVendorKey)) {
+                      Setting…
+                    } @else {
+                      Set to Default
+                    }
+                  </button>
+                }
+              </div>
+              @let vendorStatusLabel = getVendorJobStatusLabel(v);
+              @if (vendorStatusLabel && !v.isDelete) {
+                <span
+                  class="vc-card__status-badge"
+                  [class]="'vc-card__status-badge vc-card__status-badge--' + vcStatusColor(vendorStatusLabel)"
+                >
+                  {{ vendorStatusLabel }}
+                </span>
+              }
+            </div>
+
+            <!-- Card body: 3 columns -->
+            <div class="vc-card__body">
+              <!-- Column 1: VENDOR CONTACT INFO -->
+              <div class="vc-card__section">
+                <div class="vc-card__section-title">
+                  <svg width="11" height="11" viewBox="0 0 11 11" fill="none" aria-hidden="true">
+                    <circle cx="5.5" cy="3.5" r="2" stroke="#667085" stroke-width="1"/>
+                    <path d="M1.5 9.5c0-2.21 1.79-4 4-4s4 1.79 4 4" stroke="#667085" stroke-width="1" stroke-linecap="round"/>
+                  </svg>
+                  VENDOR CONTACT INFO
+                </div>
+
+                <div class="info-field">
+                  <label class="nte-label">TECH NAME</label>
+                  <div class="info-box info-box--readonly">
+                    <span class="info-val">{{ v.contactName || '—' }}</span>
+                  </div>
+                </div>
+
+                <div class="info-field">
+                  <label class="nte-label">EMAIL</label>
+                  <div class="info-box info-box--readonly">
+                    @if (v.contactEmail) {
+                      <button
+                        type="button"
+                        class="info-link info-link--btn"
+                        (click)="onOpenNotesForVendorEmail(v.vendorKey, v.contactEmail)"
+                      >{{ v.contactEmail }}</button>
+                    } @else {
+                      <span class="info-val info-val--empty">—</span>
+                    }
+                  </div>
+                </div>
+
+                <div class="info-field">
+                  <label class="nte-label">VENDOR PHONE NUMBER</label>
+                  <div class="info-box info-box--readonly info-box--with-phone">
+                    @if (v.contactPhone) {
+                      <span class="info-val">
+                        {{ formatPhoneWithExt(v.contactPhone, v.contactPhoneExt) }}
+                      </span>
+                      <a
+                        class="info-phone-icon"
+                        [href]="telHref(v.contactPhone)"
+                        [attr.aria-label]="'Call ' + formatPhoneDisplay(v.contactPhone)"
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                          <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                      </a>
+                    } @else {
+                      <span class="info-val info-val--empty">—</span>
+                    }
+                  </div>
+                </div>
+
+                <button
+                  class="vc-card__login-btn"
+                  type="button"
+                  (click)="openLoginEmailModal({ jobVendorKey: v.jobVendorKey, vendorKey: v.vendorKey, vendorName: v.vendorName })"
+                >
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                    <rect x="1" y="3" width="10" height="7" rx="1.5" stroke="currentColor" stroke-width="1"/>
+                    <path d="M1 4.5l5 3 5-3" stroke="currentColor" stroke-width="1" stroke-linecap="round"/>
+                  </svg>
+                  Email Vendor Portal Login
+                </button>
+              </div>
+
+              <!-- Column 2: $ FINANCIAL -->
+              <div class="vc-card__section">
+                <div class="vc-card__section-title">
+                  <svg width="11" height="11" viewBox="0 0 11 11" fill="none" aria-hidden="true">
+                    <circle cx="5.5" cy="5.5" r="4.5" stroke="#667085" stroke-width="1"/>
+                    <path d="M5.5 3v5M4 4.5h3a1 1 0 0 1 0 2H4" stroke="#667085" stroke-width="1" stroke-linecap="round"/>
+                  </svg>
+                  FINANCIAL
+                </div>
+
+                <div class="info-field">
+                  <label class="nte-label">VENDOR DNE</label>
+                  <div class="info-box info-box--readonly info-box--currency">
+                    <span class="info-currency">$</span>
+                    <span class="info-val">{{ vendorDneNumber(getVendorCardVendorDne(v.vendorDne, v.revVendorDne)) | number:'1.2-2' }}</span>
+                  </div>
+                </div>
+
+                <div class="info-field">
+                  <label class="nte-label">REVISED VENDOR DNE</label>
+                  <div class="info-box info-box--readonly info-box--currency">
+                    <span class="info-currency">$</span>
+                    <span class="info-val">{{ vendorDneNumber(getVendorCardRevVendorDne(v.vendorDne, v.revVendorDne)) | number:'1.2-2' }}</span>
+                  </div>
+                </div>
+
+                <div class="info-field">
+                  <label class="nte-label">STATUS</label>
+                  <div class="info-box info-box--select info-box--select-native">
+                    <select
+                      class="info-select"
+                      [ngModel]="vendorJobStatusSelectKey(v)"
+                      (ngModelChange)="onVendorStatusChange(v, $event)"
+                      [attr.aria-label]="'Status for ' + (v.vendorName ?? 'vendor')"
+                    >
+                      @if (!vendorJobStatusSelectKey(v)) {
+                        <option value="" disabled>— Select status —</option>
+                      }
+                      @for (opt of vendorJobStatusOptions(v); track opt.value) {
+                        <option [value]="normalizeSelectKey(opt.value)">{{ opt.text }}</option>
+                      }
+                    </select>
+                    <span class="info-arrow" aria-hidden="true">▾</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Column 3: VENDOR SCHEDULE -->
+              <div class="vc-card__section">
+                <div class="vc-card__section-title">
+                  <svg width="11" height="11" viewBox="0 0 11 11" fill="none" aria-hidden="true">
+                    <rect x="1" y="2" width="9" height="8" rx="1.5" stroke="#667085" stroke-width="1"/>
+                    <path d="M3.5 1v2M7.5 1v2M1 5h9" stroke="#667085" stroke-width="1" stroke-linecap="round"/>
+                  </svg>
+                  VENDOR SCHEDULE
+                </div>
+
+                <div class="info-field">
+                  <label class="nte-label">SCHEDULE DATE</label>
+                  <div class="info-box" [class.info-box--disabled]="!canEditScheduleDate(v)">
+                    <input
+                      class="info-input"
+                      type="datetime-local"
+                      [ngModel]="vendorScheduleDrafts()[v.jobVendorKey]?.scheduleDate ?? ''"
+                      (ngModelChange)="setVendorScheduleDraft(v.jobVendorKey, 'scheduleDate', $event, v)"
+                      [disabled]="!canEditScheduleDate(v)"
+                      [attr.title]="!canEditScheduleDate(v) ? 'ETA cannot be changed after the vendor has checked in' : null"
+                    />
+                  </div>
+                  @if (!canEditScheduleDate(v)) {
+                    <p class="schedule-field-hint">ETA cannot be changed after the vendor has checked in.</p>
+                  }
+                </div>
+
+                <div class="info-field">
+                  <label class="nte-label">RETURN SCHEDULE</label>
+                  <div class="info-box" [class.info-box--disabled]="!canEditReturnScheduleDate(v)">
+                    <input
+                      class="info-input"
+                      type="datetime-local"
+                      [ngModel]="vendorScheduleDrafts()[v.jobVendorKey]?.returnScheduleDate ?? ''"
+                      (ngModelChange)="setVendorScheduleDraft(v.jobVendorKey, 'returnScheduleDate', $event, v)"
+                      [disabled]="!canEditReturnScheduleDate(v)"
+                      [attr.title]="!canEditReturnScheduleDate(v) ? 'Available after Pending Return ETA or after the vendor estimate is approved' : null"
+                    />
+                  </div>
+                  @if (!canEditReturnScheduleDate(v)) {
+                    <p class="schedule-field-hint">Available after Pending Return ETA or after the vendor estimate is approved.</p>
+                  }
+                </div>
+
+                <div class="schedule-actions">
+                  <button type="button" class="vc-btn vc-btn--primary" [disabled]="isVendorScheduleSaving(v.jobVendorKey) || (!canEditScheduleDate(v) && !canEditReturnScheduleDate(v))" (click)="saveVendorSchedule(v.jobVendorKey, v)">
+                    @if (isVendorScheduleSaving(v.jobVendorKey)) {
+                      Saving...
+                    } @else {
+                      Save Schedule
+                    }
+                  </button>
+                </div>
+
+              </div>
+            </div><!-- /.vc-card__body -->
+
+            <!-- Card footer actions -->
+            <div class="vc-card__footer">
+              <div class="vc-card__footer-left vc-card__footer-actions">
+                @if (v.isDelete) {
+                  <!-- Inactive vendor: Show Assign button -->
+                  <button
+                    type="button"
+                    class="vc-btn vc-btn--primary"
+                    (click)="onReassignInactiveVendor(v)"
+                    title="Reassign this vendor to the job"
+                  >
+                    Assign Vendor
+                  </button>
+                } @else {
+                  <!-- Active vendor: Show normal action buttons -->
+                  @for (action of vendorStatusActions(v); track $index) {
+                    @if (action.isStatusLabel) {
+                      <span class="vc-status-label">{{ action.label }}</span>
+                    } @else {
+                      <button
+                        type="button"
+                        class="vc-btn"
+                        [class.vc-btn--primary]="action.variant === 'primary'"
+                        [class.vc-btn--outline]="action.variant === 'outline'"
+                        [class.vc-btn--info]="action.variant === 'info'"
+                        [class.vc-btn--checkout]="action.actionId === 'check_out_tech'"
+                        (click)="onVendorStatusAction(action, v)"
+                      >
+                        @if (action.actionId === 'check_out_tech') {
+                          <span class="vc-btn__dot vc-btn__dot--green"></span>
+                        }
+                        {{ action.label }}
+                      </button>
+                    }
+                  }
+                  <!-- On-site approval button available for ALL vendors (default and secondary) -->
+                  <button
+                    type="button"
+                    class="vc-btn vc-btn--primary"
+                    [disabled]="onSiteApprovalLoading()"
+                    (click)="onProvideOnsiteApproval(v)"
+                  >
+                    {{ onSiteApprovalButtonLabel(v) }}
+                  </button>
+                  <button
+                    type="button"
+                    class="vc-btn vc-btn--danger"
+                    (click)="onUnassignVendor($any(v))"
+                    title="Remove vendor from this job"
+                  >
+                    Unassign Vendor
+                  </button>
+                }
+              </div>
+            </div>
+          </div><!-- /.vc-card -->
+        }
+      }
+    }
+
+  </app-accordion>
+
+  <!-- ================================================================
+       SECTION 2B: AI Sourcing Agent — External Vendors
+       ================================================================ -->
+  <div id="section-sourcing" class="av-section-anchor"></div>
+  <div class="ai-sourcing-accordion-wrap">
+  <app-accordion #sourcingAccordion heading="Sourcing Agent" [defaultOpen]="false" variant="figma">
+
+    <!-- Supplemental header chips -->
+    <div accordionHeaderActions class="sa-header">
+      <div class="sa-header-left">
+        @if (aiSourcingVendors().length > 0) {
+          <span class="sa-count-badge">{{ filteredAiVendors().length }}</span>
+        }
+        @if (tradeName()) {
+          <span class="sa-trade-chip">{{ tradeName() }}</span>
+        }
+        @if (aiSourcingVendors().length > 0) {
+          <button
+            type="button"
+            class="vc-btn vc-btn--primary sa-rerun-btn"
+            [disabled]="aiSourcingStarting()"
+            (click)="onStartAISourcing()"
+          >
+            @if (aiSourcingStarting()) { <span class="spinner-sm"></span> }
+            Run AI Sourcing Agent
+          </button>
+        }
+      </div>
+      <div class="sa-header-right">
+        @if (aiSourcingVendors().length > 0) {
+          <button
+            type="button"
+            class="sa-send-email-btn"
+            (click)="onOpenBulkRecruitEmail($event)"
+            [disabled]="bulkRecruitRecipients().length === 0"
+            [title]="bulkRecruitRecipients().length === 0 ? 'No vendors with fetched emails yet' : 'Send email to ' + bulkRecruitRecipients().length + ' recipient(s)'"
+            [attr.aria-label]="'Send email to ' + bulkRecruitRecipients().length + ' recipients'"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+              <path d="M22 6l-10 7L2 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>Send Email ({{ bulkRecruitRecipients().length }})</span>
+          </button>
+        }
+        <span class="sa-sorted-text">Sorted by relevance</span>
+      </div>
+    </div>
+
+    <div class="ai-sourcing-section">
+
+      <!-- Loading / polling state -->
+      @if (aiSourcingLoading() || aiSourcingPolling()) {
+        <div class="ai-sourcing-status">
+          <div class="spinner-sm"></div>
+          <span class="ai-status-text">
+            @if (aiSourcingPolling()) {
+              Checking AI sourcing status… Waiting for results.
+            } @else {
+              Loading AI sourcing data...
+            }
+          </span>
+        </div>
+      }
+
+      <!-- Error state -->
+      @if (aiSourcingError()) {
+        <div class="ai-sourcing-error">
+          <span>{{ aiSourcingError() }}</span>
+          <button class="btn btn--sm btn--outline" (click)="onRequestAISourcing()">Retry</button>
+        </div>
+      }
+
+      <!-- Results table -->
+      @if (aiSourcingVendors().length > 0) {
+
+        <!-- Toolbar: search + record count -->
+        <div class="sa-toolbar">
+          <div class="sa-search-wrap">
+            <svg class="sa-search-icon" width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+              <circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1.5"/>
+              <path d="M9.5 9.5L12 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+            <input
+              class="sa-search-input"
+              type="text"
+              placeholder="Search..."
+              [ngModel]="aiSourcingSearch()"
+              (ngModelChange)="aiSourcingSearch.set($event)"
+            />
+          </div>
+          <span class="sa-record-count">{{ filteredAiVendors().length }} records</span>
+        </div>
+
+        <!-- Table -->
+        <div class="sa-table-wrap">
+          <table class="sa-table">
+            <thead>
+              <tr class="sa-thead-row">
+                <th class="sa-th sa-th--score">FIT<br>SCORE</th>
+                <th class="sa-th sa-th--company">COMPANY</th>
+                <th class="sa-th sa-th--dist">DISTANCE</th>
+                <th class="sa-th sa-th--phone">PHONE</th>
+                <th class="sa-th sa-th--email">EMAIL</th>
+                <th class="sa-th sa-th--contact-page">CONTACT PAGE</th>
+                <th class="sa-th sa-th--action">ACTION</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (v of filteredAiVendors(); track ($any(v).google_maps_uri ?? v.company_name)) {
+                <tr class="sa-row">
+
+                  <!-- FIT SCORE -->
+                  <td class="sa-td sa-td--score">
+                    <div class="sa-score" [class]="'sa-score ' + getFitScoreClass($any(v).relevance_score)">
+                      <span class="sa-score__num">{{ getFitScore($any(v).relevance_score) }}</span>
+                      <span class="sa-score__lbl">FIT</span>
+                    </div>
+                  </td>
+
+                  <!-- COMPANY -->
+                  <td class="sa-td sa-td--company">
+                    @if ($any(v).google_maps_uri || $any(v).website) {
+                      <a class="sa-company-name" [href]="$any(v).google_maps_uri ?? $any(v).website" target="_blank" rel="noopener noreferrer">{{ v.company_name }}</a>
+                    } @else {
+                      <span class="sa-company-name sa-company-name--plain">{{ v.company_name }}</span>
+                    }
+                    <div class="sa-company-meta">
+                      @if (aiVendorHasRating(v)) {
+                        <span class="sa-stars">★ {{ $any(v).avg_rating }}</span>
+                        <span class="sa-review-ct">({{ $any(v).review_count }})</span>
+                        <span class="sa-sep">·</span>
+                      }
+                      <span class="sa-source-lbl">{{ getAiVendorSourceLabel(v) }}</span>
+                    </div>
+                  </td>
+
+                  <!-- DISTANCE -->
+                  <td class="sa-td sa-td--dist">
+                    {{ $any(v).distance_miles != null ? (($any(v).distance_miles | number:'1.1-1') + ' mi') : '—' }}
+                  </td>
+
+                  <!-- PHONE -->
+                  <td class="sa-td sa-td--phone">
+                    @if (v.phone) {
+                      <div class="sa-phone-cell">
+                        <span class="sa-phone-text">{{ formatPhoneDisplay(v.phone) }}</span>
+                        <a class="info-phone-icon sa-phone-icon" [href]="telHref(v.phone)" [attr.aria-label]="'Call ' + formatPhoneDisplay(v.phone)">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                          </svg>
+                        </a>
+                      </div>
+                    } @else {
+                      —
+                    }
+                  </td>
+
+                  <!-- EMAIL -->
+                  <td class="sa-td sa-td--email">
+                    @let primaryEmail = v.email;
+                    @let alternateEmails = v.website_enrichment?.alternate_emails;
+                    @let displayEmail = primaryEmail || (alternateEmails && alternateEmails.length > 0 ? alternateEmails[0] : null);
+                    @if (displayEmail) {
+                      <button
+                        type="button"
+                        class="sa-email-link"
+                        title="Click to send vendor onboarding email"
+                        (click)="onOpenRecruitEmail($any(v))"
+                      >{{ displayEmail }}</button>
+                    } @else {
+                      <input
+                        #emailInput
+                        class="sa-inline-email-input"
+                        type="email"
+                        placeholder="Add email..."
+                        (keyup.enter)="onInlineSaveEmail($any(v), emailInput.value)"
+                        (blur)="onInlineSaveEmail($any(v), emailInput.value)"
+                      />
+                    }
+                  </td>
+
+                  <!-- CONTACT PAGE -->
+                  <td class="sa-td sa-td--contact-page">
+                    @if (v.website_enrichment?.contact_form_url) {
+                      <a class="sa-contact-page-link" [href]="v.website_enrichment!.contact_form_url!" target="_blank" rel="noopener noreferrer">Contact Page</a>
+                    } @else {
+                      <span class="sa-contact-page-empty">--</span>
+                    }
+                  </td>
+
+                  <!-- ACTION -->
+                  <td class="sa-td sa-td--action">
+                    <button class="sa-more-btn" type="button" (click)="onOpenAIVendorInfo($any(v))">More Info</button>
+                  </td>
+
+                </tr>
+              }
+              @empty {
+                <tr>
+                  <td colspan="7" class="sa-td sa-empty-row">No vendors match your search.</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+
+      } @else if (!aiSourcingLoading() && !aiSourcingPolling() && !aiSourcingError()) {
+
+        @if (aiSourcingStatus()?.status === 'completed') {
+          <div class="ai-sourcing-empty">
+            <p>AI sourcing completed but found no external vendors for this job.</p>
+          </div>
+        } @else if (aiSourcingStatus()?.status === 'failed') {
+          <div class="ai-sourcing-prompt">
+            <p class="ai-sourcing-prompt__text">Sourcing failed for this job.</p>
+            <button type="button" class="vc-btn vc-btn--primary" [disabled]="aiSourcingStarting()" (click)="onStartAISourcing()">
+              @if (aiSourcingStarting()) { <span class="spinner-sm"></span> }
+              Re-Run Sourcing Agent
+            </button>
+          </div>
+        } @else {
+          <div class="ai-sourcing-prompt">
+            <svg class="ai-sourcing-prompt__icon" width="32" height="32" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+              <circle cx="16" cy="16" r="15" stroke="currentColor" stroke-width="1.5" opacity="0.2"/>
+              <path d="M16 7l2.4 5.6L24 14l-5.6 2.4L16 22l-2.4-5.6L8 14l5.6-2.4L16 7Z" fill="currentColor"/>
+            </svg>
+            <p class="ai-sourcing-prompt__text">
+              No sourcing results yet for this job.<br>
+              Run the AI Sourcing Agent to find external vendor prospects.
+            </p>
+            <button type="button" class="vc-btn vc-btn--primary" [disabled]="aiSourcingStarting()" (click)="onStartAISourcing()">
+              @if (aiSourcingStarting()) { <span class="spinner-sm"></span> }
+              Run AI Sourcing Agent
+            </button>
+          </div>
+        }
+
+      }
+    </div>
+  </app-accordion>
+  </div>
+
+  <!-- ================================================================
+       SECTION 3: Add Vendor to Job (Vendor Selection + Search + Location History)
+       ================================================================ -->
+  <div id="section-add-vendor" class="av-section-anchor"></div>
+  <app-accordion
+    #addVendorAccordion
+    heading="Add Vendor to Job"
+    [badge]="jobHeaderDetail()?.locationName ?? pageContext()?.jobName ?? ''"
+    [defaultOpen]="false"
+    variant="figma"
+  >
+    <div class="add-vendor-body">
+
+      <!-- ── TOP FORM AREA (two columns with vertical divider, dashed bottom border) ── -->
+      <div class="av-form-area">
+        <div class="av-form-cols">
+
+          <!-- LEFT: Select Vendor -->
+          <div class="av-col">
+            <h4 class="av-col-title">Select Vendor</h4>
+            <form [formGroup]="vendorForm">
+              <div class="av-field">
+                <label class="av-label">VENDOR</label>
+                <div class="av-select-wrap">
+                  <app-searchable-select
+                    [options]="vendorDropdown()"
+                    formControlName="vendorKey"
+                    placeholder="— Select Vendor —"
+                    [invalid]="!!(vendorForm.get('vendorKey')?.touched && vendorForm.get('vendorKey')?.invalid)"
+                    (selectionChange)="onVendorSelected()"
+                  ></app-searchable-select>
+                </div>
+                @if (vendorForm.get('vendorKey')?.touched && vendorForm.get('vendorKey')?.invalid) {
+                  <span class="av-error">Please select a vendor</span>
+                }
+              </div>
+
+              <div class="av-field">
+                <label class="av-label">CONTACT</label>
+                <app-searchable-select
+                  [options]="contactDropdown()"
+                  formControlName="contactKey"
+                  placeholder="— Select Contact —"
+                ></app-searchable-select>
+              </div>
+
+              <!-- Info bar -->
+              <div class="av-info-bar">
+                @if (selectedVendorConsolidator()) {
+                  <span class="av-info-item av-info-item--consolidator">
+                    <span class="av-info-key">Consolidator:</span>
+                    <span class="av-info-val av-info-val--consolidator">{{ selectedVendorConsolidator() }}</span>
+                  </span>
+                }
+                <span class="av-info-item">
+                  <span class="av-info-key">Distance:</span>
+                  <span class="av-info-val">{{ selectedVendorDistance() != null ? (selectedVendorDistance() | number:'1.0-1') + ' mi' : '—' }}</span>
+                </span>
+                <span class="av-info-item">
+                  <span class="av-info-key">Trade:</span>
+                  <span class="av-info-val">{{ tradeName() || '—' }}</span>
+                </span>
+                <span class="av-info-item">
+                  <span class="av-info-key">Service charge:</span>
+                  <span class="av-info-val">{{ selectedVendorServiceCharge() != null ? ('$' + selectedVendorServiceCharge()) : '—' }}</span>
+                </span>
+              </div>
+            </form>
+          </div>
+
+          <!-- Vertical Divider -->
+          <div class="av-divider" aria-hidden="true"></div>
+
+          <!-- RIGHT: Vendor Search -->
+          <div class="av-col">
+            <h4 class="av-col-title">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true" style="margin-right:6px;vertical-align:-1px;color:#667085">
+                <path d="M7.333 12.667A5.333 5.333 0 1 0 7.333 2a5.333 5.333 0 0 0 0 10.667ZM14 14l-2.9-2.9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              Vendor Search
+            </h4>
+            <form [formGroup]="searchForm">
+              <div class="av-field av-field--sm">
+                <label class="av-label" for="avRadius">RADIUS (MILES)</label>
+                <div class="av-input-wrap">
+                  <input
+                    id="avRadius"
+                    type="number"
+                    class="av-input"
+                    formControlName="radius"
+                    min="1"
+                    max="500"
+                  />
+                </div>
+                @if (getErrorMessage(searchForm, 'radius'); as err) {
+                  <span class="av-error">{{ err }}</span>
+                }
+              </div>
+
+              <div class="av-radio-group">
+                @for (opt of searchTypeOptions; track opt.value) {
+                  <label class="av-radio-label">
+                    <input
+                      type="radio"
+                      class="av-radio"
+                      formControlName="searchType"
+                      [value]="opt.value"
+                    />
+                    <span>{{ opt.label }}</span>
+                  </label>
+                }
+              </div>
+
+              <div class="av-search-btns">
+                <button
+                  type="button"
+                  class="btn av-btn-search"
+                  [disabled]="searchForm.invalid || isLoading()"
+                  (click)="onSearchVendors()"
+                >
+                  Search Vendors
+                </button>
+                <button
+                  type="button"
+                  class="btn av-btn-outline"
+                  (click)="onLoadAllVendors()"
+                >
+                  All Vendors
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── ACTION ROW ── -->
+      <div class="av-actions-row">
+        <div class="av-actions-left">
+          <button
+            type="button"
+            class="btn av-btn-add"
+            [disabled]="vendorForm.invalid || isSubmitting()"
+            (click)="onAddVendorToJob()"
+          >
+            @if (isSubmitting()) { <span class="spinner-sm"></span> }
+            Add Vendor To This Job
+          </button>
+          <button
+            type="button"
+            class="btn av-btn-reset"
+            (click)="onResetVendorForm()"
+          >
+            Reset
+          </button>
+        </div>
+        <button
+          type="button"
+          class="btn av-btn-onboard"
+          (click)="onOpenQuickVendor()"
+        >
+          Onboard Outside Vendor
+        </button>
+      </div>
+
+      <!-- ── VENDORS WHO PREVIOUSLY SERVICED THIS LOCATION ── -->
+      @if (locationHistoryVendors().length > 0) {
+          <div id="section-prev-serviced" class="av-section-anchor"></div>
+          <div class="av-sub-section">
+          <!-- Header row -->
+          <div class="av-sub-header">
+            <span class="av-sub-title">Vendors Who Previously Serviced This Location</span>
+            <span class="av-sub-badge">{{ locationHistoryVendors().length }}</span>
+          </div>
+          <!-- Search toolbar -->
+          <div class="av-scorecard-toolbar">
+            <div class="av-search-input-wrap">
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true" class="av-search-icon">
+                <path d="M7.333 12.667A5.333 5.333 0 1 0 7.333 2a5.333 5.333 0 0 0 0 10.667ZM14 14l-2.9-2.9" stroke="#667085" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <input
+                type="text"
+                class="av-search-input"
+                placeholder="Search…"
+                [value]="locationHistorySearch()"
+                (input)="locationHistorySearch.set($any($event.target).value)"
+                aria-label="Search location history vendors"
+              />
+            </div>
+            <span class="av-records-count">
+              {{ filteredLocationHistoryVendors().length }} record{{ filteredLocationHistoryVendors().length === 1 ? '' : 's' }}
+            </span>
+          </div>
+          <div class="av-vendor-table-scroll">
+            <p class="av-vendor-table-scroll__hint">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <path d="M2 8h10M9 5l3 3-3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+          Use the scrollbar below to view all vendor columns
+            </p>
+            <div class="av-vendor-table-scroll__track" tabindex="0" role="region" aria-label="Vendor table horizontal scroll">
+              <app-data-grid
+                class="av-vendor-grid"
+                [columns]="locationHistoryColumns"
+                [data]="$any(filteredLocationHistoryVendors())"
+                [actions]="locationHistoryActions"
+                [initialSort]="vendorListInitialSort"
+                [borderless]="true"
+                [showSearch]="false"
+                [scoreLoading]="scoresLoading()"
+                [rowClassFn]="vendorListRowClass"
+                trackField="vendorKey"
+                emptyMessage="No vendors have previously serviced this location."
+              />
+            </div>
+          </div>
+        </div>
+      }
+
+    </div>
+  </app-accordion>
+
+  <!-- ================================================================
+       SECTION 4: Internal Vendors in Radius (Scorecard Agent)
+       ================================================================ -->
+  <div id="section-internal-vendors" class="av-section-anchor"></div>
+  <app-accordion
+    #internalVendorsAccordion
+    heading="Internal Vendors in Radius"
+    [badge]="filteredInternalVendors().length > 0 ? '' + filteredInternalVendors().length : ''"
+    [defaultOpen]="false"
+    variant="figma"
+  >
+    <div accordionHeaderActions class="av-internal-vendors-header-actions">
+      <span class="av-scorecard-badge">
+        <svg width="10" height="10" viewBox="0 0 13 13" fill="none" aria-hidden="true">
+          <path d="M6.5 1v4l2.5 1.5" stroke="#0e7490" stroke-width="1.3" stroke-linecap="round"/>
+          <circle cx="6.5" cy="6.5" r="5.5" stroke="#0e7490" stroke-width="1.1"/>
+        </svg>
+        SCORECARD AGENT
+      </span>
+      <button
+        type="button"
+        class="btn av-btn-refresh"
+        data-accordion-no-toggle
+        (click)="onRefresh()"
+      >
+        Refresh
+      </button>
+    </div>
+
+    <div class="add-vendor-body">
+      <div class="av-scorecard-toolbar">
+        <div class="av-search-input-wrap">
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true" class="av-search-icon">
+            <path d="M7.333 12.667A5.333 5.333 0 1 0 7.333 2a5.333 5.333 0 0 0 0 10.667ZM14 14l-2.9-2.9" stroke="#667085" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <input
+            type="text"
+            class="av-search-input"
+            placeholder="Search…"
+            [value]="internalVendorSearch()"
+            (input)="internalVendorSearch.set($any($event.target).value)"
+            aria-label="Search internal vendors"
+          />
+        </div>
+        <div class="av-score-filter" role="group" aria-label="Filter by scoring status">
+          <button
+            type="button"
+            class="av-score-filter__btn"
+            [class.av-score-filter__btn--active]="internalScoringFilter() === 'all'"
+            (click)="internalScoringFilter.set('all')"
+          >All</button>
+          <button
+            type="button"
+            class="av-score-filter__btn"
+            [class.av-score-filter__btn--active]="internalScoringFilter() === 'scored'"
+            (click)="internalScoringFilter.set('scored')"
+          >Scored</button>
+          <button
+            type="button"
+            class="av-score-filter__btn"
+            [class.av-score-filter__btn--active]="internalScoringFilter() === 'unscored'"
+            (click)="internalScoringFilter.set('unscored')"
+          >Unscored</button>
+        </div>
+        <span class="av-records-count">
+          {{ filteredInternalVendors().length }} record{{ filteredInternalVendors().length === 1 ? '' : 's' }}
+        </span>
+      </div>
+
+      <div class="av-vendor-table-scroll">
+        <p class="av-vendor-table-scroll__hint">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M2 8h10M9 5l3 3-3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Use the scrollbar below to view all vendor columns
+        </p>
+        <div class="av-vendor-table-scroll__track" tabindex="0" role="region" aria-label="Vendor table horizontal scroll">
+          @if (searchResults().length > 0) {
+            <app-data-grid
+              class="av-vendor-grid"
+              [columns]="searchResultColumns"
+              [data]="$any(filteredInternalVendors())"
+              [actions]="searchResultActions"
+              [initialSort]="vendorListInitialSort"
+              [borderless]="true"
+              [showSearch]="false"
+              [scoreLoading]="scoresLoading()"
+              [rowClassFn]="vendorListRowClass"
+              trackField="vendorKey"
+              emptyMessage="No vendors found matching your search criteria."
+            />
+          } @else {
+            <app-data-grid
+              class="av-vendor-grid"
+              [columns]="vendorListColumns"
+              [data]="$any(filteredInternalVendors())"
+              [actions]="vendorListActions"
+              [initialSort]="vendorListInitialSort"
+              [borderless]="true"
+              [showSearch]="false"
+              [scoreLoading]="scoresLoading()"
+              [rowClassFn]="vendorListRowClass"
+              trackField="vendorKey"
+              emptyMessage="No internal vendors in radius. Use Vendor Search in Add Vendor to load vendors."
+            />
+          }
+        </div>
+      </div>
+    </div>
+  </app-accordion>
+
+  <!-- ================================================================
+       SECTION 6: Pinned Vendors
+       ================================================================ -->
+  @if (pinnedVendors().length > 0) {
+    <app-accordion
+      heading="Pinned Vendors"
+      [badge]="'' + displayPinnedVendors().length"
+      [defaultOpen]="false"
+      variant="figma"
+    >
+      <button
+        accordionHeaderActions
+        type="button"
+        class="btn btn--outline btn--sm"
+        (click)="onUnpinAll()"  
+      >
+        Unpin All
+      </button>
+      <div class="section pinned-vendors-grid">
+        <app-data-grid
+          [columns]="pinnedColumns"
+          [data]="$any(displayPinnedVendors())"
+          [actions]="pinnedActions"
+          [borderless]="true"
+          [showSearch]="false"
+          [scoreLoading]="scoresLoading()"
+          trackField="vendorKey"
+          emptyMessage="No pinned vendors."
+        />
+      </div>
+    </app-accordion>
+  }
+
+  <!-- ================================================================
+       MODAL: AI Vendor — More Information
+       ================================================================ -->
+  @if (showAIInfoModal() && selectedAIVendor(); as v) {
+    <div class="modal-overlay">
+      <div class="modal modal--wide ai-info-modal">
+        <div class="modal__header">
+          <h3 class="modal__title ai-info-modal-title">
+            <span class="ai-info-title-line">
+              @if (v.website) {
+                <a [href]="v.website" target="_blank" rel="noopener" class="ai-info-company-link">{{ v.company_name }}</a>
+              } @else {
+                <span class="ai-info-company-text" title="No website was found">{{ v.company_name }}</span>
+              }
+              <span class="ai-info-rank">#{{ v.rank }}</span>
+            </span>
+          </h3>
+          <button class="modal__close" (click)="showAIInfoModal.set(false); alternateEmailsExpanded.set(false)">&times;</button>
+        </div>
+        <div class="modal__body ai-info-body">
+
+          <!-- Review Score and Opening Hours at top -->
+          <div class="ai-info-grid ai-info-grid--score-hours">
+            <div class="ai-info-card">
+              <label>Review Score</label>
+              @if (v.avg_rating) {
+                <span class="ai-info-rating">
+                  <span class="ai-rating-star-lg">&#9733;</span> {{ v.avg_rating }}
+                  @if (v.review_count) { <span class="ai-review-ct">({{ v.review_count }} reviews)</span> }
+                </span>
+              } @else {
+                <span class="ai-info-na">Not available</span>
+              }
+            </div>
+            <div class="ai-info-card">
+              <label>Opening Hours</label>
+              <span>{{ aiFormatHours(v.opening_hours) }}</span>
+            </div>
+          </div>
+
+          <!-- Website, Commercial / Residential, Emergency Response — one row -->
+          <div class="ai-info-grid ai-info-grid--top-follow">
+            <div class="ai-info-card ai-info-card--compact-inline ai-info-card--website-follow">
+              <label>Website</label>
+              @if (v.website) {
+                <a [href]="v.website" target="_blank" rel="noopener" class="ai-info-link ai-info-website-url">{{ v.website }}</a>
+              } @else {
+                <span class="ai-info-na">No website was found</span>
+              }
+            </div>
+            <div class="ai-info-card ai-info-card--compact-inline ai-info-card--thin-follow">
+              <label>Commercial / Residential</label>
+              <span>{{ aiWorkTypeLabel(v.website_enrichment?.commercial_residential) }}</span>
+            </div>
+            <div class="ai-info-card ai-info-card--compact-inline ai-info-card--thin-follow">
+              <label>Emergency Response</label>
+              @if (v.website_enrichment?.emergency_service) {
+                <span class="ai-badge ai-badge--green">Yes</span>
+              } @else {
+                <span class="ai-badge ai-badge--muted">Not confirmed</span>
+              }
+            </div>
+          </div>
+          @if (v.website_enrichment?.website_summary) {
+          <div class="ai-info-grid">
+            <div class="ai-info-card ai-info-card--wide">
+              <label>Website Summary</label>             
+                <p class="ai-summary-text">{{ v.website_enrichment!.website_summary }}</p>             
+            </div>
+          </div>
+          }
+          <!-- Alternate Phones and Alternate Emails (side by side) -->
+          
+          <div class="ai-info-grid">
+            @if (v.website_enrichment?.alternate_phones?.length)
+          {
+            <div class="ai-info-card">
+              <label>Alternate Phones</label>             
+                <div class="ai-info-list">
+                  @for (ph of v.website_enrichment!.alternate_phones!; track ph) {
+                    <span class="ai-info-text ai-info-text--phone">
+                      <span>{{ formatPhoneDisplay(ph) }}</span>
+                      <a class="info-phone-icon sa-phone-icon" [href]="telHref(ph)" [attr.aria-label]="'Call ' + formatPhoneDisplay(ph)">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                          <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                      </a>
+                    </span>
+                  }
+                </div>            
+            </div>
+          }
+          @if (v.website_enrichment?.alternate_emails?.length) {
+            <div class="ai-info-card">
+              <label>Alternate Emails</label>
+              
+                <div class="ai-info-list">
+                  @let emails = v.website_enrichment!.alternate_emails!;
+                  @let showCount = alternateEmailsExpanded() ? emails.length : Math.min(2, emails.length);
+                  @for (em of emails.slice(0, showCount); track em) {
+                    <a [href]="'mailto:' + em" class="ai-info-link">{{ em }}</a>
+                  }
+                  @if (emails.length > 2 && !alternateEmailsExpanded()) {
+                    <button type="button" class="ai-read-more-btn" (click)="alternateEmailsExpanded.set(true)">Read More</button>
+                  }
+                  @if (emails.length > 2 && alternateEmailsExpanded()) {
+                    <button type="button" class="ai-read-less-btn" (click)="alternateEmailsExpanded.set(false)">Read Less</button>
+                  }
+                </div>              
+            </div>
+          }
+          </div>
+        
+          <!-- 7. Social site link -->
+          @if (v.social_media?.facebook || v.social_media?.linkedin || v.social_media?.instagram) {
+            <div class="ai-info-card ai-info-card--wide ai-info-social-inline">
+              <div class="ai-info-social-inline__row">
+                <label>Social Media</label>
+                <div class="ai-social-links">
+                  @if (v.social_media?.facebook || v.website_enrichment?.social_media?.['facebook']) {
+                    <a [href]="v.website_enrichment?.social_media?.['facebook'] ?? v.social_media?.facebook ?? ''" target="_blank" rel="noopener" class="ai-social-chip">Facebook</a>
+                  }
+                  @if (v.social_media?.linkedin || v.website_enrichment?.social_media?.['linkedin']) {
+                    <a [href]="v.website_enrichment?.social_media?.['linkedin'] ?? v.social_media?.linkedin ?? ''" target="_blank" rel="noopener" class="ai-social-chip">LinkedIn</a>
+                  }
+                  @if (v.social_media?.instagram || v.website_enrichment?.social_media?.['instagram']) {
+                    <a [href]="v.website_enrichment?.social_media?.['instagram'] ?? v.social_media?.instagram ?? ''" target="_blank" rel="noopener" class="ai-social-chip">Instagram</a>
+                  }
+                </div>
+              </div>
+            </div>
+          }
+
+          <!-- Address (label + value one line, compact) and AI Notes -->
+          <div class="ai-info-grid">
+            <div class="ai-info-card ai-info-card--wide ai-info-card--address-tight">
+              <div class="ai-info-address-one-line">
+                <label>Address</label>
+                <div class="ai-info-address-one-line__value">
+                  @if (v.address) {
+                    @if (v.google_maps_uri) {
+                      <a [href]="v.google_maps_uri" target="_blank" rel="noopener" class="ai-info-link">{{ v.address }}</a>
+                    } @else {
+                      <span>{{ v.address }}</span>
+                    }
+                  } @else {
+                    <span class="ai-info-na">--</span>
+                  }
+                  @if (v.google_maps_uri) {
+                    <a [href]="v.google_maps_uri" target="_blank" rel="noopener" class="btn btn--sm btn--outline ai-info-maps-btn ai-info-maps-btn--inline">Open in Maps</a>
+                  }
+                </div>
+              </div>
+            </div>
+            <div class="ai-info-card ai-info-card--wide">
+              <label>AI Notes</label>
+              @if (v.ai_notes) {
+                <p class="ai-summary-text">{{ v.ai_notes }}</p>
+              } @else {
+                <span class="ai-info-na">--</span>
+              }
+            </div>
+          </div>
+          @if (v.website_enrichment?.services_list?.length) {
+          <!-- 9. Services List -->
+          <div class="ai-info-grid">
+            <div class="ai-info-card ai-info-card--wide">
+              <label>Services List</label>             
+                <div class="ai-services-list">
+                  @for (svc of v.website_enrichment!.services_list!; track svc) {
+                    <span class="ai-service-chip">{{ svc }}</span>
+                  }
+                </div>             
+            </div>
+          </div>
+          }
+          <!-- Business Status, Duplicate of Internal, Is Franchise — one row -->
+          <div class="ai-info-grid ai-info-grid--status-flags">
+            <div class="ai-info-card">
+              <label>Business Status</label>
+              @if (v.business_status) {
+                <span>{{ v.business_status }}</span>
+              } @else {
+                <span class="ai-info-na">--</span>
+              }
+            </div>
+            <div class="ai-info-card">
+              <label>Duplicate of Internal</label>
+              <span>{{ v.is_duplicate_of_internal ? 'Yes' : 'No' }}</span>
+            </div>
+            <div class="ai-info-card">
+              <label>Is Franchise</label>
+              <span>{{ v.is_franchise ? 'Yes' : 'No' }}</span>
+            </div>
+          </div>
+
+          @if (v.website_enrichment?.contact_form_url) {
+            <div class="ai-info-card ai-info-card--wide">
+              <label>Contact Us Page</label>
+              <a
+                [href]="v.website_enrichment!.contact_form_url!"
+                target="_blank"
+                rel="noopener"
+                class="btn btn--sm btn--outline"
+                (click)="onOpenContactFormCopyBody($event, v.website_enrichment!.contact_form_url!, v)"
+              >
+                Open Contact Form
+              </a>
+            </div>
+          }
+
+        </div>
+        <div class="modal__footer">
+          <button class="btn btn--secondary" (click)="showAIInfoModal.set(false); alternateEmailsExpanded.set(false)">Close</button>
+          <button class="btn btn--primary" (click)="showAIInfoModal.set(false); alternateEmailsExpanded.set(false); onOpenRecruitEmail($any(v))">Send Vendor Onboarding Email</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ================================================================
+       MODAL: AI Vendor — Recruitment Email
+       ================================================================ -->
+  @if (showRecruitEmailModal() && recruitEmailVendor(); as rv) {
+    <div class="modal-overlay">
+      <div class="modal modal--wide">
+        <div class="modal__header">
+          <h3 class="modal__title">Send Vendor Onboarding Email — {{ rv.company_name }}</h3>
+          <button class="modal__close" (click)="showRecruitEmailModal.set(false)">&times;</button>
+        </div>
+        <div class="modal__body">
+          <div class="recruit-email-form">
+            <div class="form-group">
+              <label for="recruit-subject">Subject</label>
+              <input
+                id="recruit-subject"
+                class="form-control"
+                type="text"
+                [value]="recruitEmailSubject()"
+                (input)="onRecruitSubjectInput($event)"
+              />
+            </div>
+            <div class="form-group">
+              <label for="recruit-to">Recipient Email</label>
+              <input
+                id="recruit-to"
+                class="form-control"
+                type="email"
+                placeholder="Vendor email address"
+                [value]="recruitEmailTo()"
+                (input)="onRecruitToInput($event)"
+              />
+            </div>
+            <div class="form-group">
+              <label for="recruit-body">Email Body</label>
+              <div
+                id="recruit-body"
+                class="form-control recruit-email-body-editor"
+                contenteditable="true"
+                (input)="onRecruitBodyHtmlInput($event)"
+              ></div>
+            </div>
+            @if (rv.website_enrichment?.contact_form_url) {
+              <footer class="recruit-email-contact-footer">
+                <a
+                  class="recruit-email-contact-footer__link"
+                  [href]="rv.website_enrichment!.contact_form_url!"
+                  target="_blank"
+                  rel="noopener"
+                  (click)="onOpenContactFormCopyBody($event, rv.website_enrichment!.contact_form_url!, rv)"
+                >
+                  Contact Page
+                </a>
+                <p class="recruit-email-contact-footer__hint">
+                  Click to open the contact us page of this vendor. The message of the email body given above is copied to your clipboard so you can paste it into the vendor's website contact form.
+                </p>
+              </footer>
+            }
+          </div>
+        </div>
+        <div class="modal__footer">
+          <button class="btn btn--secondary" (click)="showRecruitEmailModal.set(false)" [disabled]="recruitEmailSending()">Cancel</button>
+          <button type="button" class="btn btn--primary" (click)="onSendRecruitmentEmail()" [disabled]="recruitEmailSending()">
+            @if (recruitEmailSending()) {
+              Sending...
+            } @else {
+              Send Vendor Onboarding Email
+            }
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ================================================================
+       MODAL: Bulk — Send Email to all sourced vendors with fetched email
+       ================================================================ -->
+  @if (showBulkRecruitEmailModal()) {
+    <div class="modal-overlay">
+      <div class="modal modal--wide">
+        <div class="modal__header">
+          <h3 class="modal__title">Send Email to Sourced Vendors ({{ bulkRecruitRecipients().length }})</h3>
+          <button class="modal__close" (click)="onCloseBulkRecruitEmailModal()" [disabled]="bulkRecruitSending()">&times;</button>
+        </div>
+        <div class="modal__body">
+          <div class="recruit-email-form">
+            <div class="form-group">
+              <label>Recipients ({{ bulkRecruitRecipients().length }})</label>
+              <ul class="bulk-recruit-recipient-list">
+                @for (r of bulkRecruitRecipients(); track r.email) {
+                  <li class="bulk-recruit-recipient">
+                    <span class="bulk-recruit-recipient__company">{{ r.vendor.company_name }}</span>
+                    <span class="bulk-recruit-recipient__email">&lt;{{ r.email }}&gt;</span>
+                    @if (bulkRecruitResults().length > 0) {
+                      @for (res of bulkRecruitResults(); track res.email) {
+                        @if (res.email === r.email) {
+                          @if (res.success) {
+                            <span class="bulk-recruit-recipient__badge bulk-recruit-recipient__badge--ok">Sent</span>
+                          } @else {
+                            <span class="bulk-recruit-recipient__badge bulk-recruit-recipient__badge--fail" [title]="res.error ?? ''">Failed</span>
+                          }
+                        }
+                      }
+                    }
+                  </li>
+                }
+              </ul>
+            </div>
+            <div class="form-group">
+              <label for="bulk-recruit-subject">Subject</label>
+              <input
+                id="bulk-recruit-subject"
+                class="form-control"
+                type="text"
+                [value]="bulkRecruitSubject()"
+                (input)="onBulkRecruitSubjectInput($event)"
+                [disabled]="bulkRecruitSending()"
+              />
+            </div>
+            <div class="form-group">
+              <label for="bulk-recruit-body">Email Body</label>
+              <p class="bulk-recruit-hint">
+                The placeholder <code>{{ '{{companyName}}' }}</code> is replaced with each recipient's company name.
+              </p>
+              <div
+                id="bulk-recruit-body"
+                class="form-control recruit-email-body-editor"
+                [attr.contenteditable]="!bulkRecruitSending()"
+                (input)="onBulkRecruitBodyHtmlInput($event)"
+              ></div>
+            </div>
+            @if (bulkRecruitProgress(); as p) {
+              <div class="bulk-recruit-progress">
+                <span>Progress: {{ p.sent + p.failed }} / {{ p.total }}</span>
+                @if (p.sent > 0) { <span class="bulk-recruit-progress__ok">{{ p.sent }} sent</span> }
+                @if (p.failed > 0) { <span class="bulk-recruit-progress__fail">{{ p.failed }} failed</span> }
+              </div>
+            }
+          </div>
+        </div>
+        <div class="modal__footer">
+          <button class="btn btn--secondary" (click)="onCloseBulkRecruitEmailModal()" [disabled]="bulkRecruitSending()">
+            @if (bulkRecruitProgress() && !bulkRecruitSending()) { Close } @else { Cancel }
+          </button>
+          <button
+            type="button"
+            class="btn btn--primary"
+            (click)="onSendBulkRecruitEmails()"
+            [disabled]="bulkRecruitSending() || bulkRecruitRecipients().length === 0"
+          >
+            @if (bulkRecruitSending()) {
+              Sending...
+            } @else {
+              Send to {{ bulkRecruitRecipients().length }} Recipient{{ bulkRecruitRecipients().length === 1 ? '' : 's' }}
+            }
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ================================================================
+       MODAL: Onboard Outside Vendor (WF-8, SRS §20)
+       ================================================================ -->
+  @if (showQuickVendorModal()) {
+    <div class="modal-overlay">
+      <div class="modal modal--wide">
+        <div class="modal__header">
+          <h3 class="modal__title">Onboard Outside Vendor</h3>
+          <button class="modal__close" (click)="onCloseQuickVendor()">&times;</button>
+        </div>
+        <div class="modal__body">
+          <form [formGroup]="quickVendorForm">
+            <div class="form-row">
+              <div class="form-group">
+                <label>Company Name *</label>
+                <input class="form-control" formControlName="companyName"
+                  [class.form-control--invalid]="quickVendorForm.get('companyName')?.touched && quickVendorForm.get('companyName')?.invalid" />
+                @if (getErrorMessage(quickVendorForm, 'companyName'); as err) {
+                  <span class="form-error">{{ err }}</span>
+                }
+              </div>
+              <div class="form-group">
+                <label>Company Email *</label>
+                <input class="form-control" formControlName="companyemail" type="email"
+                  [class.form-control--invalid]="quickVendorForm.get('companyemail')?.touched && quickVendorForm.get('companyemail')?.invalid" />
+                @if (getErrorMessage(quickVendorForm, 'companyemail'); as err) {
+                  <span class="form-error">{{ err }}</span>
+                }
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Contact Name *</label>
+                <input class="form-control" formControlName="contactName"
+                  [class.form-control--invalid]="quickVendorForm.get('contactName')?.touched && quickVendorForm.get('contactName')?.invalid" />
+                @if (getErrorMessage(quickVendorForm, 'contactName'); as err) {
+                  <span class="form-error">{{ err }}</span>
+                }
+              </div>
+              <div class="form-group">
+                <label>Contact Email *</label>
+                <input class="form-control" formControlName="contactemail" type="email"
+                  [class.form-control--invalid]="quickVendorForm.get('contactemail')?.touched && quickVendorForm.get('contactemail')?.invalid" />
+                @if (getErrorMessage(quickVendorForm, 'contactemail'); as err) {
+                  <span class="form-error">{{ err }}</span>
+                }
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Phone *</label>
+                <input class="form-control" formControlName="phone"
+                  [class.form-control--invalid]="quickVendorForm.get('phone')?.touched && quickVendorForm.get('phone')?.invalid" />
+                @if (getErrorMessage(quickVendorForm, 'phone'); as err) {
+                  <span class="form-error">{{ err }}</span>
+                }
+              </div>
+              <div class="form-group">
+                <label>Address *</label>
+                <input class="form-control" formControlName="address"
+                  [class.form-control--invalid]="quickVendorForm.get('address')?.touched && quickVendorForm.get('address')?.invalid" />
+                @if (getErrorMessage(quickVendorForm, 'address'); as err) {
+                  <span class="form-error">{{ err }}</span>
+                }
+              </div>
+              <div class="form-group">
+                <label>Address 2</label>
+                <input class="form-control" formControlName="address1" />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>State *</label>
+                <select class="form-control" formControlName="stateKey"
+                  (change)="onStateChange()"
+                  [class.form-control--invalid]="quickVendorForm.get('stateKey')?.touched && quickVendorForm.get('stateKey')?.invalid">
+                  <option [value]="0">-- Select State --</option>
+                  @for (s of stateDropdown(); track s.value) {
+                    <option [value]="s.value">{{ s.text }}</option>
+                  }
+                </select>
+                @if (getErrorMessage(quickVendorForm, 'stateKey'); as err) {
+                  <span class="form-error">{{ err }}</span>
+                }
+              </div>
+              <div class="form-group">
+                <label>City *</label>
+                <select class="form-control" formControlName="cityKey"
+                  [class.form-control--invalid]="quickVendorForm.get('cityKey')?.touched && quickVendorForm.get('cityKey')?.invalid">
+                  <option [value]="0">-- Select City --</option>
+                  @for (c of cityDropdown(); track c.value) {
+                    <option [value]="c.value">{{ c.text }}</option>
+                  }
+                </select>
+                @if (getErrorMessage(quickVendorForm, 'cityKey'); as err) {
+                  <span class="form-error">{{ err }}</span>
+                }
+              </div>
+              <div class="form-group">
+                <label>ZIP *</label>
+                <input class="form-control" formControlName="zip"
+                  [class.form-control--invalid]="quickVendorForm.get('zip')?.touched && quickVendorForm.get('zip')?.invalid" />
+                @if (getErrorMessage(quickVendorForm, 'zip'); as err) {
+                  <span class="form-error">{{ err }}</span>
+                }
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Trade *</label>
+                <app-searchable-select
+                  [options]="tradeDropdown()"
+                  formControlName="tradeKey"
+                  placeholder="-- Select Trade --"
+                  [invalid]="!!(quickVendorForm.get('tradeKey')?.touched && quickVendorForm.get('tradeKey')?.invalid)"
+                ></app-searchable-select>
+                @if (getErrorMessage(quickVendorForm, 'tradeKey'); as err) {
+                  <span class="form-error">{{ err }}</span>
+                }
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group form-group--sm">
+                <label>Flat Trip</label>
+                <input class="form-control" formControlName="flatTrip" type="number" />
+              </div>
+              <div class="form-group form-group--sm">
+                <label>Standard Hourly</label>
+                <input class="form-control" formControlName="standardHourly" type="number" />
+              </div>
+              <div class="form-group form-group--sm">
+                <label>Helper Standard</label>
+                <input class="form-control" formControlName="helperStandard" type="number" />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group form-group--sm">
+                <label>Emergency Flat</label>
+                <input class="form-control" formControlName="emergencyFlat" type="number" />
+              </div>
+              <div class="form-group form-group--sm">
+                <label>Emergency Standard</label>
+                <input class="form-control" formControlName="emergencyStandard" type="number" />
+              </div>
+              <div class="form-group form-group--sm">
+                <label>Emergency Helper</label>
+                <input class="form-control" formControlName="emergencyHelper" type="number" />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Workers Compensation *</label>
+                <div class="radio-group">
+                  <label class="radio-group__item">
+                    <input type="radio" formControlName="wcom" [value]="true" /> Yes
+                  </label>
+                  <label class="radio-group__item">
+                    <input type="radio" formControlName="wcom" [value]="false" /> No
+                  </label>
+                </div>
+                @if (getErrorMessage(quickVendorForm, 'wcom'); as err) {
+                  <span class="form-error">{{ err }}</span>
+                }
+              </div>
+              <div class="form-group">
+                <label>General Liability *</label>
+                <div class="radio-group">
+                  <label class="radio-group__item">
+                    <input type="radio" formControlName="genL" [value]="true" /> Yes
+                  </label>
+                  <label class="radio-group__item">
+                    <input type="radio" formControlName="genL" [value]="false" /> No
+                  </label>
+                </div>
+                @if (getErrorMessage(quickVendorForm, 'genL'); as err) {
+                  <span class="form-error">{{ err }}</span>
+                }
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Accounting Name</label>
+                <input class="form-control" formControlName="accName" />
+              </div>
+              <div class="form-group">
+                <label>Accounting Email</label>
+                <input class="form-control" formControlName="accEmail" type="email" />
+              </div>
+              <div class="form-group">
+                <label>Accounting Phone</label>
+                <input class="form-control" formControlName="accPhone" />
+              </div>
+            </div>
+            @if (quickVendorForm.errors?.['accountingIncomplete']) {
+              <div class="form-group-error">
+                Please fill all accounting contact fields
+              </div>
+            }
+          </form>
+
+          @if (showDuplicateWarning()) {
+            <div class="duplicate-warning">
+              <span>A vendor with similar details already exists: {{ duplicateResult()?.message }}</span>
+              <div class="duplicate-warning__actions">
+                <button class="btn btn--primary btn--sm" (click)="onSubmitQuickVendor(true)">
+                  Create Anyway
+                </button>
+                <button class="btn btn--secondary btn--sm" (click)="showDuplicateWarning.set(false)">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          }
+        </div>
+        <div class="modal__footer">
+          <button class="btn btn--secondary" (click)="onCloseQuickVendor()">Cancel</button>
+          <button
+            class="btn btn--primary"
+            [disabled]="quickVendorForm.invalid || isSubmitting()"
+            (click)="onSubmitQuickVendor()"
+          >
+            @if (isSubmitting()) { <span class="spinner-sm"></span> }
+            Create Vendor
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ================================================================
+       MODAL: Vendor Notes (WF-9, SRS §21)
+       ================================================================ -->
+  @if (showNotesModal()) {
+    <div class="modal-overlay">
+      <div class="modal modal--wide">
+        <div class="modal__header">
+          <h3 class="modal__title">Vendor Notes</h3>
+          <button class="modal__close" (click)="onCloseNotes()">&times;</button>
+        </div>
+        <div class="modal__body">
+
+          <!-- Existing notes list -->
+          @if (notesLoading()) {
+            <p class="notes-msg">{{ noteMessage() }}</p>
+          } @else if (vendorNotes().length > 0) {
+            <div class="notes-search-wrap">
+              <input
+                class="notes-search-input"
+                type="text"
+                placeholder="Search notes by title, message, author..."
+                [value]="notesSearchTerm()"
+                (input)="notesSearchTerm.set($any($event.target).value)"
+              />
+            </div>
+            <div class="notes-list-wrap">
+              @if (filteredNotes().length === 0) {
+                <p class="notes-msg notes-msg--muted" style="text-align:center; padding:16px 0;">No notes match your search.</p>
+              }
+              @for (note of filteredNotes(); track note.noteKey) {
+                <div class="note-card">
+                  <div class="note-card__header">
+                    <div class="note-card__meta">
+                      <span class="note-card__title">{{ note.title }}</span>
+                      @if (note.addedBy) {
+                        <span class="note-card__author">by {{ note.addedBy }}</span>
+                      }
+                    </div>
+                    <div class="note-card__right">
+                      <span class="note-card__date">{{ formatVendorNoteAddedOn(note.addedOn) }}</span>
+                      <button class="btn btn--sm btn--secondary" (click)="onEditNote(note)">Edit</button>
+                    </div>
+                  </div>
+                  <div class="note-card__body" [innerHTML]="note.comment"></div>
+                </div>
+              }
+            </div>
+          } @else {
+            <p class="notes-msg notes-msg--muted">No notes found for this vendor.</p>
+          }
+
+          @if (noteMessage() && !notesLoading()) {
+            <p class="notes-msg">{{ noteMessage() }}</p>
+          }
+
+          <!-- Add / Edit note form -->
+          <div class="notes-form-section">
+            <h4 class="notes-form-heading">{{ vendorNoteForm.get('newNote')?.value === 0 ? 'Edit Note' : 'Add New Note' }}</h4>
+            <form [formGroup]="vendorNoteForm">
+              <div class="form-group">
+                <label>Title *</label>
+                <input class="form-control" formControlName="noteTitle" placeholder="Enter note title" />
+              </div>
+              <div class="form-group">
+                <label>Details *</label>
+                <textarea class="form-control" formControlName="notesDetail" rows="5" placeholder="Enter note details"></textarea>
+              </div>
+            </form>
+          </div>
+
+        </div>
+        <div class="modal__footer">
+          <button class="btn btn--secondary" (click)="onCloseNotes()">Close</button>
+          <button
+            class="btn btn--primary"
+            [disabled]="isSubmitting()"
+            (click)="onSaveVendorNote()"
+          >
+            @if (isSubmitting()) { <span class="spinner-sm"></span> }
+            Save Note
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ================================================================
+       MODAL: Notes & Activity (full feature — Send Msg on Selected Vendors grid)
+       ================================================================ -->
+  @if (showNotesActivityModal()) {
+    <div class="modal-overlay">
+      <div class="modal modal--notes-activity">
+        <div class="modal__header">
+          <h3 class="modal__title">Notes & Activity</h3>
+          <button type="button" class="modal__close" (click)="onCloseNotesActivityModal()">&times;</button>
+        </div>
+        <div class="modal__body modal__body--notes-activity">
+          <app-notes-activity
+            [initialActiveTab]="'vendor'"
+            [initialVendorKey]="notesActivityModalVendorKey()"
+            [embedJobKey]="jobKey()"
+          />
+        </div>
+        <div class="modal__footer">
+          <button type="button" class="btn btn--secondary" (click)="onCloseNotesActivityModal()">Close</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ================================================================
+       MODAL: Pin Vendor (WF-5, SRS §17)
+       ================================================================ -->
+  @if (showPinModal()) {
+    <div class="modal-overlay">
+      <div class="modal">
+        <div class="modal__header">
+          <h3 class="modal__title">Pin Vendor Note</h3>
+          <button class="modal__close" (click)="showPinModal.set(false)">&times;</button>
+        </div>
+        <div class="modal__body">
+          <form [formGroup]="pinForm">
+            <div class="form-group">
+              <label>Note (optional)</label>
+              <textarea class="form-control" formControlName="notes" rows="3"></textarea>
+            </div>
+          </form>
+        </div>
+        <div class="modal__footer">
+          <button class="btn btn--secondary" (click)="showPinModal.set(false)">Cancel</button>
+          <button class="btn btn--primary" (click)="onSubmitPin()">Pin Vendor</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ================================================================
+       MODAL: View Pinned Vendor Note
+       ================================================================ -->
+  @if (showPinNoteModal(); as noteData) {                                   
+    <div class="modal-overlay">
+      <div class="modal modal--compact">
+        <div class="modal__header">
+          <h3 class="modal__title">Pinned Vendor Note</h3>
+          <button class="modal__close" (click)="showPinNoteModal.set(null)">&times;</button>
+        </div>
+        <div class="modal__body">
+          <div class="pin-note-content">
+            <div class="pin-note-field">
+              <label class="pin-note-label">Vendor:</label>
+              <div class="pin-note-value">{{ noteData.vendorName }}</div>
+            </div>
+            <div class="pin-note-field">
+              <label class="pin-note-label">Pin Type:</label>
+              <div class="pin-note-value">
+                <span class="pin-note-badge" [class.pin-note-badge--maybe]="noteData.noMaybe === 'Maybe'" [class.pin-note-badge--no]="noteData.noMaybe === 'No'">
+                  {{ noteData.noMaybe }}
+                </span>
+              </div>
+            </div>
+            <div class="pin-note-field">
+              <label class="pin-note-label">Note:</label>
+              <div class="pin-note-text">{{ noteData.notes }}</div>
+            </div>
+          </div>
+        </div>
+        <div class="modal__footer">
+          <button class="btn btn--secondary" (click)="showPinNoteModal.set(null)">Close</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ================================================================
+       MODAL: ETA Set Email Notification
+       ================================================================ -->
+  @if (showEtaEmailModal(); as etaData) {
+    <div class="modal-overlay">
+      <div class="modal modal--medium">
+        <div class="modal__header">
+          <h3 class="modal__title">{{ etaData.promptTitle || 'Send Notification' }}</h3>
+          <button class="modal__close" (click)="onCloseEtaEmailModal()">&times;</button>
+        </div>
+        <div class="modal__body">
+          <!-- Job Info Alert -->
+          <div class="eta-info-box">
+            <div class="eta-info-row">
+              <strong>ETA {{ etaData.isEtaConfirmed ? 'Confirmed' : 'Set' }}:</strong> <span>{{ etaData.scheduleDateDisplay }}</span>
+            </div>
+            <div class="eta-info-row">
+              <strong>PO:</strong> <span>{{ etaData.po || 'N/A' }}</span>
+            </div>
+            <div class="eta-info-row">
+              <strong>Vendor:</strong> <span>{{ etaData.vendorName || 'N/A' }}</span>
+            </div>
+          </div>
+
+          <!-- Vendor Contacts Selection -->
+          <div class="form-group">
+            <label class="form-label"><strong>Select Vendor Contacts:</strong></label>
+            @if (etaData.vendorContacts && etaData.vendorContacts.length > 0) {
+              @for (contact of etaData.vendorContacts; track contact.contactKey) {
+                <div class="form-check">
+                  <input
+                    type="checkbox"
+                    class="form-check-input"
+                    [id]="'eta-contact-' + contact.contactKey"
+                    [checked]="isContactSelected(contact.contactKey)"
+                    (change)="onToggleContact(contact.contactKey, $event)">
+                  <label class="form-check-label" [for]="'eta-contact-' + contact.contactKey">
+                    {{ contact.cname }}
+                    @if (contact.email) {
+                      <span class="contact-detail"> - {{ contact.email }}</span>
+                    }
+                    @if (contact.phone) {
+                      <span class="contact-detail"> - {{ contact.phone }}</span>
+                    }
+                    @if (contact.isDefault) {
+                      <span class="badge badge--primary">Default</span>
+                    }
+                  </label>
+                </div>
+              }
+            } @else {
+              <p class="text-muted">No vendor contacts available.</p>
+            }
+          </div>
+
+          <!-- Custom Email Input -->
+          <div class="form-group">
+            <label class="form-label" for="eta-custom-email">Or Send to Custom Email:</label>
+            <input
+              type="email"
+              class="form-control"
+              id="eta-custom-email"
+              [(ngModel)]="etaCustomEmail"
+              placeholder="vendor@example.com">
+          </div>
+
+          <!-- Email Note Textarea -->
+          <div class="form-group">
+            <label class="form-label" for="eta-email-note">Email Note:</label>
+            <textarea
+              class="form-control"
+              id="eta-email-note"
+              rows="4"
+              [(ngModel)]="etaEmailNote"
+              placeholder="Add any additional notes for the vendor..."></textarea>
+          </div>
+
+          <!-- Error Message -->
+          @if (etaEmailError()) {
+            <div class="alert alert--error">{{ etaEmailError() }}</div>
+          }
+        </div>
+        <div class="modal__footer">
+          <button class="btn btn--secondary" (click)="onSkipEtaEmail()">
+            Skip
+          </button>
+          <button class="btn btn--primary" (click)="onSendEtaEmail()" [disabled]="etaSending()">
+            @if (etaSending()) {
+              <span class="spinner"></span>
+            }
+            Send Email
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ================================================================
+       MODAL: Vendor Rates Popup
+       ================================================================ -->
+  @if (showRatesModal()) {
+    <div class="modal-overlay">
+      <div class="modal modal--compact">
+        <div class="modal__header">
+          <h3 class="modal__title">Vendor Rates</h3>
+          <button class="modal__close" (click)="showRatesModal.set(false)">&times;</button>
+        </div>
+        <div class="modal__body">
+          @if (ratesLoading()) {
+            <p class="rates-loading">Loading rates...</p>
+          } @else if (ratesData(); as r) {
+            <p class="rates-vendor-name">{{ ratesVendorName() }}</p>
+            <table class="rates-table">
+              <tbody>
+                <tr>
+                  <td class="rates-label">Flat Rate Trip Charge</td>
+                  <td class="rates-value">{{ r.tripCharge != null ? ('$' + r.tripCharge.toFixed(2)) : '—' }}</td>
+                </tr>
+                <tr>
+                  <td class="rates-label">Standard Hourly Rate (hourly structure required)</td>
+                  <td class="rates-value">{{ r.hourlyRate != null ? ('$' + r.hourlyRate.toFixed(2)) : '—' }}</td>
+                </tr>
+                <tr>
+                  <td class="rates-label">Standard Service Call Minimum</td>
+                  <td class="rates-value">{{ r.serviceCharge != null ? ('$' + r.serviceCharge.toFixed(2)) : '—' }}</td>
+                </tr>
+                <tr>
+                  <td class="rates-label">Overtime / weekend - flat rate trip charge</td>
+                  <td class="rates-value">{{ r.emergencyTripCharge != null ? ('$' + r.emergencyTripCharge.toFixed(2)) : '—' }}</td>
+                </tr>
+                <tr>
+                  <td class="rates-label">Overtime / weekend Hourly Rate</td>
+                  <td class="rates-value">{{ r.emergencyHourlyRate != null ? ('$' + r.emergencyHourlyRate.toFixed(2)) : '—' }}</td>
+                </tr>
+                <tr>
+                  <td class="rates-label">Overtime / weekend Minimum</td>
+                  <td class="rates-value">{{ r.emergencyServiceCharge != null ? ('$' + r.emergencyServiceCharge.toFixed(2)) : '—' }}</td>
+                </tr>
+              </tbody>
+            </table>
+          } @else {
+            <p class="rates-empty">No rate data available for this vendor.</p>
+          }
+        </div>
+        <div class="modal__footer">
+          <button class="btn btn--secondary" (click)="showRatesModal.set(false)">Close</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ================================================================
+       MODAL: Trade Change — loading
+       ================================================================ -->
+  @if (tradeChangeLoadingOpen()) {
+    <div class="modal-overlay">
+      <div class="modal modal--compact">
+        <div class="modal__body trade-change-loading-body">
+          <div class="spinner"></div>
+          <p>Updating trade…</p>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ================================================================
+       MODAL: Trade Change — confirmation
+       ================================================================ -->
+  @if (tradeChangeConfirmOpen()) {
+    <div class="modal-overlay">
+      <div class="modal modal--compact">
+        <div class="modal__header">
+          <h3 class="modal__title">Trade Updated</h3>
+        </div>
+        <div class="modal__body">
+          <p>Trade has been updated to {{ tradeChangeConfirmName() ?? 'Unknown' }}.</p>
+        </div>
+        <div class="modal__footer">
+          <button type="button" class="btn btn--primary" (click)="onAcknowledgeTradeChangeConfirm()">OK</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ================================================================
+       MODAL: Trade Change — Sourcing Agent started, come back later
+       ================================================================ -->
+  @if (tradeSourcingWaitModalOpen()) {
+    <div class="modal-overlay">
+      <div class="modal modal--compact">
+        <div class="modal__header">
+          <h3 class="modal__title">Sourcing Agent Started</h3>
+        </div>
+        <div class="modal__body">
+          <p>
+            The AI Sourcing Agent is now searching for vendors for the new trade. You can close
+            this tab and come back in 10 minutes to see the results.
+          </p>
+        </div>
+        <div class="modal__footer">
+          <button type="button" class="btn btn--primary" (click)="tradeSourcingWaitModalOpen.set(false)">Close</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ================================================================
+       MODAL: Registered Vendor Packet Popup
+       ================================================================ -->
+  @if (showPacketModal()) {
+    <div class="modal-overlay">
+      <div class="modal modal--wide">
+        <div class="modal__header">
+          <h3 class="modal__title">Registered Vendor Packet — {{ packetVendorName() }}</h3>
+          <button class="modal__close" (click)="showPacketModal.set(false)">&times;</button>
+        </div>
+        <div class="modal__body">
+          @if (packetLoading()) {
+            <p class="rates-loading">Loading vendor packet...</p>
+          } @else if (packetData(); as p) {
+            @if (p.fallbackMessage) {
+              <div class="packet-fallback">
+                <p>Sorry, there is no data to display.</p>
+                <a class="btn btn--primary"
+                  [href]="'https://admin-dev.retailfixitapp.com/MgtVendor/CreateFileAttachment/' + packetVendorKey()"
+                  target="_blank">
+                  Click here to check for RCS Completed Vendor Packet
+                </a>
+              </div>
+            } @else {
+              <div class="packet-content">
+                <div class="packet-row">
+                  <div class="packet-section">
+                    <h4 class="packet-section-title">Contact Information</h4>
+                    <p>{{ p.contactName }}</p>
+                    <p>{{ p.contactTitle }}</p>
+                    <p>{{ p.contactEmail }}</p>
+                    <p>{{ p.contactPhone }}</p>
+                  </div>
+                  <div class="packet-section">
+                    <h4 class="packet-section-title">Company Information</h4>
+                    <p>{{ p.companyName }}</p>
+                    @if (p.addressLine2) { <p>{{ p.addressLine2 }}</p> }
+                    <p>{{ p.address }}</p>
+                    @if (p.nonUsaAddress !== true) {
+                      <p>{{ p.cityName }}, {{ p.stateName }}, {{ p.zipCode }}</p>
+                    }
+                    <p>{{ p.companyEmail }}</p>
+                    <p>{{ p.companyPhone }}</p>
+                  </div>
+                </div>
+
+                <div class="packet-row">
+                  <div class="packet-section">
+                    <h4 class="packet-section-title">Standard Rates</h4>
+                    <table class="rates-table">
+                      <tbody>
+                        <tr><td class="rates-label">Flat Rate Trip Charge</td><td class="rates-value">{{ p.flatRate ?? '—' }}</td></tr>
+                        <tr><td class="rates-label">Standard Hourly Rate</td><td class="rates-value">{{ p.standardHourlyRate ?? '—' }}</td></tr>
+                        <tr><td class="rates-label">Standard Service Call Minimum</td><td class="rates-value">{{ p.standardServiceCallMinimum ?? '—' }}</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                  <div class="packet-section">
+                    <h4 class="packet-section-title">Emergency / Overtime Rates</h4>
+                    <table class="rates-table">
+                      <tbody>
+                        <tr><td class="rates-label">Overtime / weekend - flat rate trip charge</td><td class="rates-value">{{ p.overtimeFlatRate ?? '—' }}</td></tr>
+                        <tr><td class="rates-label">Overtime / weekend Hourly Rate</td><td class="rates-value">{{ p.overtimeHourlyRate ?? '—' }}</td></tr>
+                        <tr><td class="rates-label">Overtime / weekend Minimum</td><td class="rates-value">{{ p.overtimeWeekendMinimum ?? '—' }}</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div class="packet-section packet-section--full">
+                  <h4 class="packet-section-title">Additional Information</h4>
+                  <table class="rates-table">
+                    <tbody>
+                      <tr><td class="rates-label">Workers Comp?</td><td class="rates-value">{{ p.workersCompString ?? '—' }}</td></tr>
+                      <tr><td class="rates-label">General Liability Ins?</td><td class="rates-value">{{ p.generalLiabilityString ?? '—' }}</td></tr>
+                      <tr><td class="rates-label">Tax ID / SS Number</td><td class="rates-value">{{ p.taxId ?? '—' }}</td></tr>
+                      <tr><td class="rates-label">% of business self performed with W2 employees</td><td class="rates-value">{{ p.percentageOfBusiness ?? '—' }}</td></tr>
+                      <tr><td class="rates-label">Agree to net 45 days payment terms?</td><td class="rates-value">{{ p.agreeToPaymentTermString ?? '—' }}</td></tr>
+                      <tr><td class="rates-label">Notes</td><td class="rates-value">{{ p.notes ?? '—' }}</td></tr>
+                      <tr><td class="rates-label">Coverage Areas</td><td class="rates-value">{{ p.coverageArea ?? '—' }}</td></tr>
+                      <tr><td class="rates-label">Radius in miles from address</td><td class="rates-value">{{ p.radiusInMiles ?? '—' }}</td></tr>
+                      <tr><td class="rates-label">Radius (in-house techs, no travel charges)</td><td class="rates-value">{{ p.radiusInMilesInhouseTech ?? '—' }}</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                <div class="packet-section packet-section--full">
+                  <h4 class="packet-section-title">Service Trades</h4>
+                  <p [innerHTML]="p.tradeName ?? '—'"></p>
+                </div>
+              </div>
+            }
+          } @else {
+            <p class="rates-empty">Unable to load vendor packet.</p>
+          }
+        </div>
+        <div class="modal__footer">
+          <button class="btn btn--secondary" (click)="showPacketModal.set(false)">Close</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ================================================================
+       MODAL: Upline approval — Customer did not approve
+       User must complete Override Upline Approval (reason + Save) to proceed.
+       No Cancel or close; modal blocks until override is saved successfully.
+       ================================================================ -->
+  @if (showUplineModal()) {
+    <div class="modal-overlay">
+      <div class="modal">
+        <div class="modal__header">
+          <h3 class="modal__title">Upline Approval</h3>
+        </div>
+        <div class="modal__body">
+          <p class="upline-modal-message">The Customer did not approve to proceed with this job.</p>
+          <div class="modal__actions">
+            <button class="btn btn--primary" (click)="onUplineOverrideClick()">Override Upline Approval</button>
+          </div>
+          @if (showUplineOverrideSection()) {
+            <div class="upline-override-section">
+              <label for="upline-reason">Upline reason</label>
+              <textarea
+                id="upline-reason"
+                class="form-control"
+                rows="4"
+                [value]="uplineOverrideReason()"
+                (input)="uplineOverrideReason.set($any($event.target).value)"
+                placeholder="Enter reason for override"
+              ></textarea>
+              <button
+                class="btn btn--primary upline-save-btn"
+                [disabled]="!uplineOverrideReason().trim() || uplineOverrideSaving()"
+                (click)="onUplineSave()"
+              >
+                @if (uplineOverrideSaving()) { <span class="spinner-sm"></span> }
+                Save
+              </button>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ================================================================
+       POPUP: Wait — primary vendor or emergency broadcast in progress
+       Form is blocked for 3 minutes then reload
+       ================================================================ -->
+  @if (showWaitPopup()) {
+    <div class="modal-overlay modal-overlay--wait">
+      <div class="modal modal--compact">
+        <div class="modal__body">
+          <p class="wait-popup-message">{{ waitPopupMessage() }}</p>
+          <p class="wait-popup-note">This form will reload automatically in a few minutes.</p>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ================================================================
+       MODAL: Consolidator API pre-check (CheckIfVendorIs — Job Ops)
+       ================================================================ -->
+  @if (showConsolidatorPrecheckModal()) {
+    <div class="modal-overlay" (click)="$event.stopPropagation()">
+      <div class="modal modal--compact" (click)="$event.stopPropagation()">
+        <div class="modal__header">
+          <h3 class="modal__title">Vendor verification</h3>
+        </div>
+        <div class="modal__body">
+          <p>{{ consolidatorPrecheckMessage() }}</p>
+        </div>
+        <div class="modal__footer">
+          <button type="button" class="btn btn--primary" (click)="onConsolidatorPrecheckProceed()">
+            Proceed with this vendor
+          </button>
+          <button type="button" class="btn btn--secondary" (click)="onConsolidatorPrecheckCancel()">
+            Cancel and go back
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ================================================================
+       MODAL: QC manager dispatch outcome (send-mail-qc-manager-consolidator-dispatch)
+       ================================================================ -->
+  @if (showQcDispatchOutcomeModal()) {
+    <div class="modal-overlay" (click)="$event.stopPropagation()">
+      <div class="modal modal--compact" (click)="$event.stopPropagation()">
+        <div class="modal__header">
+          <h3 class="modal__title">QC manager notification</h3>
+        </div>
+        <div class="modal__body">
+          <p>{{ qcDispatchOutcomeMessage() }}</p>
+        </div>
+        <div class="modal__footer">
+          <button type="button" class="btn btn--primary" (click)="onQcDispatchOutcomeClose()">OK</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ================================================================
+       MODAL 1: Consolidator Confirmation
+       ================================================================ -->
+  @if (showConsolidatorModal()) {
+    <div class="modal-overlay" (click)="$event.stopPropagation()">
+      <div class="modal modal--compact" (click)="$event.stopPropagation()">
+        <div class="modal__header">
+          <h3 class="modal__title">Consolidator Vendor</h3>
+        </div>
+        <div class="modal__body">
+          <p>You are about to assign a <strong>Consolidator</strong> vendor ("{{ woSelectedVendorName() }}") to this job.</p>
+          <p>Are you sure you want to proceed?</p>
+        </div>
+        <div class="modal__footer">
+          <button class="btn btn--primary" (click)="onConsolidatorProceed()">Proceed With this Vendor</button>
+          <button class="btn btn--secondary" (click)="onConsolidatorCancel()">Cancel and Go Back</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ================================================================
+       MODAL 2: Primary Vendor Decision
+       ================================================================ -->
+  @if (showPrimaryVendorModal()) {
+    <div class="modal-overlay" (click)="$event.stopPropagation()">
+      <div class="modal" (click)="$event.stopPropagation()">
+        <div class="modal__header">
+          <h3 class="modal__title">Primary Vendor Available</h3>
+        </div>
+        <div class="modal__body">
+          <p>{{ woPrimaryVendorMessage() }}</p>
+        </div>
+        <div class="modal__footer">
+          <button class="btn btn--primary" (click)="onPrimaryVendorDispatch()">Dispatch To the Primary Vendor Now</button>
+          <button class="btn btn--secondary" (click)="onPrimaryVendorContinue()">Continue Assigning Selected Vendor</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ================================================================
+       MODAL 3: Default Vendor Decision
+       ================================================================ -->
+  @if (showDefaultVendorModal()) {
+    <div class="modal-overlay" (click)="$event.stopPropagation()">
+      <div class="modal" (click)="$event.stopPropagation()">
+        <div class="modal__header">
+          <h3 class="modal__title">Default Vendor</h3>
+          <button class="modal__close" (click)="showDefaultVendorModal.set(false)">&times;</button>
+        </div>
+        <div class="modal__body">
+          <p>There is already a vendor assigned to this job. How would you like to proceed with "{{ woSelectedVendorName() }}"?</p>
+        </div>
+        <div class="modal__footer">
+          <button class="btn btn--primary" (click)="onDefaultVendorReplace()">Replace and Unassign Previous Vendor(s)</button>
+          <button class="btn btn--secondary" (click)="onDefaultVendorAdd()">Add as Additional Vendor</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ================================================================
+       MODAL: Distance Exceeded — Manager Approval Required
+       ================================================================ -->
+  @if (showDistanceExceededModal()) {
+    <div class="modal-overlay" (click)="$event.stopPropagation()">
+      <div class="modal" (click)="$event.stopPropagation()">
+        <div class="modal__header">
+          <h3 class="modal__title">Distance Limit Exceeded</h3>
+          <button class="modal__close" (click)="onDistanceExceededCancel()">&times;</button>
+        </div>
+        <div class="modal__body">
+          <p>
+            This vendor is too far from the service location, send to manager for approval to use this vendor.
+          </p>
+          <p>
+            The selected vendor <strong>"{{ distanceExceededData()?.vendorName }}"</strong> is located
+            <strong>{{ distanceExceededData()?.distance | number:'1.2-2' }} miles</strong> from the job location.
+            This exceeds the configured distance limit of <strong>{{ distanceExceededData()?.ruleValue }} miles</strong>.
+          </p>
+          <p style="margin-top: 16px;">How would you like to proceed?</p>
+        </div>
+        <div class="modal__footer" style="flex-wrap: wrap; gap: 8px;">
+          <button class="btn btn--primary" (click)="onDistanceExceededSendApproval()">Send Approval to Manager</button>
+          <button class="btn btn--secondary" (click)="onDistanceExceededCancel()">Cancel and Select Another Vendor</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ================================================================
+       MODAL 4: Unassign All — Cancellation Email
+       ================================================================ -->
+  @if (showUnassignAllModal()) {
+    <div class="modal-overlay" (click)="$event.stopPropagation()">
+      <div class="modal modal--wide" (click)="$event.stopPropagation()">
+        <div class="modal__header">
+          <h3 class="modal__title">Unassign and Notify Vendors</h3>
+          <button
+            type="button"
+            class="modal__close"
+            (click)="onUnassignAllModalClose()"
+            aria-label="Close"
+          >
+            &times;
+          </button>
+        </div>
+        <div class="modal__body">
+          @if (woUnassignValidationMessage()) {
+            <div class="alert alert--danger" style="margin-bottom: 12px;">
+              {{ woUnassignValidationMessage() }}
+            </div>
+          }
+          <p>Select the vendors to send cancellation emails to:</p>
+          <div class="unassign-vendor-list">
+            <label class="checkbox-label">
+              <input type="checkbox" [checked]="woSelectAllUnassign()" (change)="onUnassignSelectAll()" />
+              <strong>Select All Vendors to send the Cancellation notes to</strong>
+            </label>
+            @for (v of woUnassignVendors(); track v.pKey) {
+              <label class="checkbox-label">
+                <input type="checkbox" [checked]="v.checked" (change)="onUnassignToggle(v.pKey)" />
+                {{ v.vendorName }}
+              </label>
+            }
+          </div>
+          <div class="form-group" style="margin-top: 12px;">
+            <label><strong>Cancellation Notes</strong></label>
+            <textarea
+              class="form-control"
+              rows="3"
+              [value]="woCancellationNotes()"
+              (input)="woCancellationNotes.set($any($event.target).value)"
+              placeholder="Enter cancellation notes"
+            ></textarea>
+          </div>
+        </div>
+        <div class="modal__footer">
+          <button class="btn btn--primary" (click)="onUnassignSendMail()">Send Mail</button>
+          <button class="btn btn--secondary" (click)="onUnassignDontSend()">Don't Send</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ================================================================
+       MODAL 5: New Trade Confirmation
+       ================================================================ -->
+  @if (showNewTradeModal()) {
+    <div class="modal-overlay" (click)="$event.stopPropagation()">
+      <div class="modal modal--trade-mismatch" (click)="$event.stopPropagation()">
+        <div class="modal__header">
+          <h3 class="modal__title">Trade Mismatch</h3>
+        </div>
+        <div class="modal__body">
+          <p>The selected vendor does not have the trade assigned to this job.</p>
+          <p>Do you want to add this trade to the vendor, or choose a different vendor?</p>
+        </div>
+        <div class="modal__footer modal__footer--stacked">
+          <button class="btn btn--primary" (click)="onNewTradeAdd()">Yes, add this trade to the vendor</button>
+          <button class="btn btn--secondary" (click)="onNewTradeChooseAnother()">Choose another vendor</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ================================================================
+       MODAL 6: Work Order Form — talked to vendor, schedule date, files
+       ================================================================ -->
+  @if (showWorkOrderModal()) {
+    <div class="modal-overlay" (click)="$event.stopPropagation()">
+      <div class="modal modal--wide wo-modal" (click)="$event.stopPropagation()">
+        <div class="modal__header">
+          <h3 class="modal__title">Send Work Order — {{ woSelectedVendorName() }}</h3>
+          <button class="modal__close" (click)="onWoClose()">&times;</button>
+        </div>
+        <div class="modal__body">
+          @if (woMessage()) {
+            <div class="alert alert--success">{{ woMessage() }}</div>
+          }
+
+          <!-- Talked to vendor + Schedule Date — side by side -->
+          <div class="wo-row">
+            <div class="wo-row__col">
+              <label class="wo-label">Have you spoken to the vendor?</label>
+              <div class="radio-group">
+                <label class="radio-group__item">
+                  <input type="radio" name="talkedToVendor" [checked]="woTalkedToVendor() === 1" (change)="woTalkedToVendor.set(1)" />
+                  Yes
+                </label>
+                <label class="radio-group__item">
+                  <input type="radio" name="talkedToVendor" [checked]="woTalkedToVendor() === 2" (change)="woTalkedToVendor.set(2)" />
+                  No
+                </label>
+              </div>
+            </div>
+            <div class="wo-row__col">
+              <label class="wo-label">Do you have a schedule date?</label>
+              <div class="radio-group">
+                <label class="radio-group__item">
+                  <input type="radio" name="haveScheduleDate" [checked]="woHaveScheduleDate() === true" (change)="woHaveScheduleDate.set(true)" />
+                  Yes
+                </label>
+                <label class="radio-group__item">
+                  <input type="radio" name="haveScheduleDate" [checked]="woHaveScheduleDate() === false" (change)="woHaveScheduleDate.set(false)" />
+                  No
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <!-- Schedule Date details -->
+          <div class="wo-section" style="border-top: none; padding-top: 0;">
+            @if (woHaveScheduleDate() === true) {
+              <div class="wo-date-picker">
+                <input type="datetime-local" class="form-control form-control--sm"
+                  [value]="woScheduleDateTime()"
+                  (change)="woScheduleDateTime.set($any($event.target).value); onWoConvertScheduleDate()" />
+              </div>
+              @if (woConvertedScheduleDate()) {
+                <p class="wo-converted-date">Vendor's time: <strong>{{ woConvertedScheduleDate() }}</strong></p>
+              }
+            }
+
+            <!-- ETA Limit & DNE Row -->
+            @if (woHaveScheduleDate() === false || woCurrentDNE() !== null) {
+              <div class="wo-inline-row" style="margin-top: 8px;">
+                @if (woHaveScheduleDate() === false) {
+                  <div class="form-group form-group--inline">
+                    <label>ETA Limit (days)</label>
+                    <input type="number" class="form-control form-control--sm" min="1" max="365"
+                      [value]="woEtaLimitDays()"
+                      (input)="woEtaLimitDays.set(+$any($event.target).value || null)" />
+                  </div>
+                }
+                @if (woCurrentDNE() !== null) {
+                  <span class="wo-dne-current">Current DNE: <strong>{{ woCurrentDNE() }}</strong></span>
+                  <div class="form-group form-group--inline">
+                    <label>Change DNE</label>
+                    <input type="number" class="form-control form-control--sm" step="0.01"
+                      [value]="woChangeDNE()"
+                      (input)="woChangeDNE.set(+$any($event.target).value || null)" />
+                  </div>
+                }
+              </div>
+            }
+          </div>
+
+          <!-- File Upload Section -->
+          <div class="wo-section">
+            <label class="wo-label">Attach Files to Work Order</label>
+
+            <!-- Drag and drop area -->
+            <div class="wo-drop-zone"
+              (drop)="onWoFilesDrop($event)"
+              (dragover)="onWoFilesDragOver($event)">
+              <p>Drag and drop files here, or click to browse</p>
+              <input type="file" multiple class="wo-file-input" (change)="onWoFilesSelect($event)" />
+            </div>
+
+            @if (woUploadedFiles().length > 0) {
+              <div class="wo-file-list">
+                <h5>Uploaded Files:</h5>
+                @for (f of woUploadedFiles(); track f.name; let i = $index) {
+                  <div class="wo-file-item">
+                    <span>{{ f.name }}</span>
+                    <button class="btn btn--sm btn--danger" (click)="onWoRemoveFile(i)">&times;</button>
+                  </div>
+                }
+              </div>
+            }
+
+            <!-- Job Files -->
+            @if (woJobFilesLoading()) {
+              <div class="wo-file-checkbox-group">
+                <h5>Job Files (Customer Documents):</h5>
+                <p class="wo-file-loading-text">Loading job files…</p>
+              </div>
+            }
+            @if (!woJobFilesLoading() && woJobFiles().length > 0) {
+              <div class="wo-file-checkbox-group">
+                <h5>Job Files (Customer Documents):</h5>
+                <app-attachment-thumbnail-grid
+                  [files]="woJobFiles()"
+                  [selectedKeys]="woSelectedJobFileKeys()"
+                  (toggle)="onToggleJobFile($event.fileKey, $event.checked)"
+                  (view)="onViewJobFile($event)"
+                ></app-attachment-thumbnail-grid>
+              </div>
+            }
+
+            <!-- Location Files -->
+            @if (woLocationFilesLoading()) {
+              <div class="wo-file-checkbox-group">
+                <h5>Location Files:</h5>
+                <p class="wo-file-loading-text">Loading location files…</p>
+              </div>
+            }
+            @if (!woLocationFilesLoading() && woLocationFiles().length > 0) {
+              <div class="wo-file-checkbox-group">
+                <h5>Location Files:</h5>
+                <app-attachment-thumbnail-grid
+                  [files]="woLocationFiles()"
+                  [selectedKeys]="woSelectedLocationFileKeys()"
+                  (toggle)="onToggleLocationFile($event.fileKey, $event.checked)"
+                  (view)="onViewLocationFile($event)"
+                ></app-attachment-thumbnail-grid>
+              </div>
+            }
+          </div>
+
+          <!-- Vendor Selection Survey -->
+          <div class="wo-section wo-survey-section">
+            <label class="wo-label">Vendor Selection Survey</label>
+            <p class="wo-survey-intro">Please complete this survey before continuing with the work order action.</p>
+
+            @if (woSurveyError()) {
+              <div class="wo-survey-error">{{ woSurveyError() }}</div>
+            }
+            @if (woSurveyLoading()) {
+              <p class="wo-survey-loading">Loading survey factors...</p>
+            }
+            @if (woSurveySaving()) {
+              <p class="wo-survey-loading">Saving survey information...</p>
+            }
+
+            <div class="wo-survey-grid" [class.wo-survey-grid--disabled]="woSurveySaving()">
+              <div class="wo-survey-options">
+                @if (!woSurveyLoading() && woSurveyOptions().length === 0) {
+                  <p class="wo-survey-empty">No survey factors are configured right now. You can still use Other reason.</p>
+                }
+                @for (opt of woSurveyOptions(); track opt.scoreCardResponseKey) {
+                  <label class="checkbox-label wo-survey-option">
+                    <input
+                      type="checkbox"
+                      [checked]="isWoSurveyOptionChecked(opt.reasonCode)"
+                      [disabled]="woSurveySaving()"
+                      (change)="onWoSurveyToggleOption(opt.reasonCode)"
+                    />
+                    {{ opt.displayLabel }}
+                  </label>
+                }
+                <label class="checkbox-label wo-survey-option">
+                  <input
+                    type="checkbox"
+                    [checked]="woSurveyOtherReason()"
+                    [disabled]="woSurveySaving()"
+                    (change)="onWoSurveyOtherReasonChange($any($event.target).checked)"
+                  />
+                  Other reason
+                </label>
+              </div>
+
+              <div class="wo-survey-remarks">
+                <label class="wo-label" for="woSurveyMainRemark">Remarks from admin</label>
+                <textarea
+                  id="woSurveyMainRemark"
+                  class="form-control wo-survey-main-remark"
+                  rows="10"
+                  maxlength="500"
+                  placeholder="Required: Please explain in your own words why you are selecting this vendor."
+                  [value]="woSurveyMainRemark()"
+                  [disabled]="woSurveySaving()"
+                  (input)="woSurveyMainRemark.set($any($event.target).value); onWoSurveyFieldChange()"
+                ></textarea>
+                <p class="wo-survey-help">Please explain in your own words why you are selecting this vendor.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal__footer wo-footer">
+          <button
+            class="btn wo-btn-no-attach"
+            [disabled]="woSaving() || woSurveySaving()"
+            (click)="onWoSubmitWithoutFiles()"
+          >
+            Send work order without any Attachments
+          </button>
+          <button
+            class="btn wo-btn-send"
+            [disabled]="woSaving() || woSurveySaving()"
+            (click)="onWoSubmitWithFiles()"
+          >
+            @if (woSaving()) { <span class="spinner-sm"></span> }
+            Select and send work order now
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ================================================================
+       MODAL 7: DNE Warning
+       ================================================================ -->
+  @if (showDNEWarningModal()) {
+    <div class="modal-overlay" (click)="$event.stopPropagation()">
+      <div class="modal modal--dne-warning" (click)="$event.stopPropagation()">
+        <div class="modal__header">
+          <h3 class="modal__title">DNE Warning</h3>
+          <button type="button" class="modal__close" (click)="onDNEGoBack()" aria-label="Close">&times;</button>
+        </div>
+        <div class="modal__body">
+          <p>The current DNE for this vendor is <strong>{{ woCurrentDNE() ?? 'N/A' }}</strong>.</p>
+          <p>You are about to save without changing it.</p>
+        </div>
+        <div class="modal__footer modal__footer--stacked">
+          <button type="button" class="btn btn--primary" (click)="onDNEProceed()">Proceed without changing</button>
+          <button type="button" class="btn btn--secondary" (click)="onDNEGoBack()">Go back to change DNE</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ================================================================
+       MODAL: Vendor Already Assigned Alert
+       ================================================================ -->
+  @if (showAlreadyAssignedModal()) {
+    <div class="modal-overlay" (click)="$event.stopPropagation()">
+      <div class="modal modal--compact" (click)="$event.stopPropagation()">
+        <div class="modal__header">
+          <h3 class="modal__title">Vendor Already Assigned</h3>
+          <button class="modal__close" (click)="showAlreadyAssignedModal.set(false)">&times;</button>
+        </div>
+        <div class="modal__body">
+          <p>This Vendor is already Assigned to this job.</p>
+        </div>
+        <div class="modal__footer">
+          <button class="btn btn--primary" (click)="showAlreadyAssignedModal.set(false)">OK</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ================================================================
+       MODAL: Assign Vendor — Reassign from Inactive
+       Two options: reset status/schedule or keep existing
+       ================================================================ -->
+  @if (showAssignVendorModal()) {
+    <div class="modal-overlay" (click)="$event.stopPropagation()">
+      <div class="modal" (click)="$event.stopPropagation()">
+        <div class="modal__header">
+          <h3 class="modal__title">Assign Vendor</h3>
+        </div>
+        <div class="modal__body">
+          @if (assignVendorModalMessage()) {
+            <p class="assign-vendor-modal-msg">{{ assignVendorModalMessage() }}</p>
+          }
+          @if (!assignVendorModalProcessing()) {
+            <div class="assign-vendor-options">
+              <div class="assign-vendor-option">
+                <button
+                  type="button"
+                  class="btn btn--primary btn--block"
+                  (click)="onAssignVendorWithReset()"
+                >
+                  Assign vendor and reset status and schedule date to new
+                </button>
+              </div>
+              <div class="assign-vendor-option">
+                <button
+                  type="button"
+                  class="btn btn--secondary btn--block"
+                  (click)="onAssignVendorWithoutReset()"
+                >
+                  Assign vendor and don't reset
+                </button>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ================================================================
+       UNASSIGN VENDOR MODALS (RemoveVendorProcess1 replication)
+       ================================================================ -->
+
+  <!-- Modal: Vendor Bill Exists -->
+  @if (showUnassignBillExistsModal()) {
+    <div class="modal-overlay" (click)="$event.stopPropagation()">
+      <div class="modal modal--unassign" (click)="$event.stopPropagation()">
+        <div class="modal__header">
+          <h3 class="modal__title">Vendor Bill Exists</h3>
+        </div>
+        <div class="modal__body">
+          <p class="unassign-modal-text">There is a vendor bill present for this vendor.</p>
+          <p class="unassign-modal-warning">Removing this vendor will also delete any associated vendor bills.</p>
+        </div>
+        <div class="modal__footer">
+          <button type="button" class="btn btn--secondary" (click)="onUnassignBillExistsCancel()">Cancel</button>
+          <button type="button" class="btn btn--danger" (click)="onUnassignBillExistsProceed()">Remove and delete</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Modal: Pending Estimate Approval -->
+  @if (showUnassignEstimateModal()) {
+    <div class="modal-overlay" (click)="$event.stopPropagation()">
+      <div class="modal modal--unassign" (click)="$event.stopPropagation()">
+        <div class="modal__header">
+          <h3 class="modal__title">
+            @if (unassignEstimateType() === 1) {
+              Vendor Estimates in Pending Approval
+            } @else {
+              Vendor Default for Customer Approval
+            }
+          </h3>
+        </div>
+        <div class="modal__body">
+          @if (unassignEstimateType() === 1) {
+            <p class="unassign-modal-text">This vendor has estimates in pending approval status.</p>
+            <p class="unassign-modal-question">Do you want to set the estimates to NOT APPROVED and proceed with removing this vendor?</p>
+          } @else {
+            <p class="unassign-modal-text">This vendor is set as default for customer approval of an estimate.</p>
+            <p class="unassign-modal-question">The estimate will remain but the default vendor setting will be cleared. Proceed?</p>
+          }
+        </div>
+        <div class="modal__footer">
+          <button type="button" class="btn btn--secondary" (click)="onUnassignEstimateNotNow()">Not Now</button>
+          <button type="button" class="btn btn--primary" (click)="onUnassignEstimateYes()">Yes</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Modal: Remove Vendor (confirmation, insufficient performance, optional email + note) -->
+  @if (showUnassignConfirmModal()) {
+    <div class="modal-overlay" (click)="$event.stopPropagation()">
+      <div class="modal modal--unassign" (click)="$event.stopPropagation()">
+        <div class="modal__header">
+          <h3 class="modal__title">Remove Vendor</h3>
+        </div>
+        <div class="modal__body">
+          <p class="unassign-modal-text">Are you sure you want to remove <strong>{{ unassignVendorName() }}</strong> from this job?</p>
+
+          <div class="unassign-insufficient-section">
+            <label class="checkbox-label">
+              <input
+                type="checkbox"
+                [checked]="unassignInsufficientPerformance()"
+                (change)="unassignInsufficientPerformance.set(!unassignInsufficientPerformance())"
+              />
+              Insufficient Performance
+            </label>
+            @if (unassignInsufficientPerformance()) {
+              <div class="unassign-reason-field">
+                <label for="unassignReason">Reason:</label>
+                <textarea
+                  id="unassignReason"
+                  class="form-control"
+                  rows="3"
+                  [value]="unassignInsufficientReason()"
+                  (input)="unassignInsufficientReason.set($any($event.target).value)"
+                  placeholder="Enter reason for insufficient performance..."
+                ></textarea>
+              </div>
+            }
+          </div>
+
+          <div class="unassign-email-section">
+            <label class="checkbox-label">
+              <input
+                type="checkbox"
+                [checked]="unassignSendCancellationEmail()"
+                (change)="unassignSendCancellationEmail.set(!unassignSendCancellationEmail())"
+              />
+              Send cancellation email to vendor
+            </label>
+          </div>
+
+          <div class="unassign-comment-field">
+            <label for="unassignComment">Notes (optional):</label>
+            <textarea
+              id="unassignComment"
+              class="form-control"
+              rows="3"
+              [value]="unassignEmailComment()"
+              (input)="unassignEmailComment.set($any($event.target).value)"
+              placeholder="Saved as a job note and included in the cancellation email when sent."
+            ></textarea>
+          </div>
+        </div>
+        <div class="modal__footer">
+          <button type="button" class="btn btn--secondary" (click)="onUnassignConfirmNo()">Cancel</button>
+          <button type="button" class="btn btn--danger" (click)="onUnassignConfirmYes()">Remove Vendor</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Modal: Select New Default Vendor -->
+  @if (showUnassignSelectDefaultModal()) {
+    <div class="modal-overlay" (click)="$event.stopPropagation()">
+      <div class="modal modal--unassign" (click)="$event.stopPropagation()">
+        <div class="modal__header">
+          <h3 class="modal__title">Unassign Vendor</h3>
+        </div>
+        <div class="modal__body">
+          <p class="unassign-modal-text">The vendor you are removing is the default vendor. Please select a new default vendor:</p>
+
+          @if (unassignMessage()) {
+            <p class="unassign-modal-error">{{ unassignMessage() }}</p>
+          }
+
+          <div class="unassign-vendor-radio-list">
+            @for (vendor of unassignNewDefaultOptions(); track vendor.jobVendorKey) {
+              <label class="radio-label">
+                <input
+                  type="radio"
+                  name="newDefaultVendor"
+                  [value]="vendor.jobVendorKey"
+                  [checked]="unassignSelectedNewDefault() === vendor.jobVendorKey"
+                  (change)="unassignSelectedNewDefault.set(vendor.jobVendorKey)"
+                />
+                {{ vendor.vendorName }}
+              </label>
+            }
+          </div>
+        </div>
+        <div class="modal__footer">
+          <button type="button" class="btn btn--secondary" (click)="onUnassignSelectDefaultClose()">Close</button>
+          <button type="button" class="btn btn--primary" (click)="onUnassignSelectDefaultSave()">Save as Default</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Modal: Send Cancellation Email -->
+  <!-- Reassign Inactive Vendor Modal -->
+  @if (showReassignModal()) {
+    <div class="modal-overlay" (click)="$event.stopPropagation()">
+      <div class="modal modal--reassign" (click)="$event.stopPropagation()">
+        <div class="modal__header">
+          <h3 class="modal__title">Assign Vendor</h3>
+        </div>
+        <div class="modal__body">
+          <p class="reassign-modal-text">
+            How would you like to reassign <strong>{{ reassignVendor()?.vendorName }}</strong>?
+          </p>
+          <div class="reassign-options">
+            <button
+              type="button"
+              class="btn btn--primary btn--block"
+              (click)="onReassignWithReset()"
+              [disabled]="reassignProcessing()"
+            >
+              Assign and Reset Status to "Pending ETA"
+            </button>
+            <button
+              type="button"
+              class="btn btn--secondary btn--block"
+              (click)="onReassignWithoutReset()"
+              [disabled]="reassignProcessing()"
+            >
+              Assign and Keep Current Status
+            </button>
+          </div>
+        </div>
+        <div class="modal__footer">
+          <button
+            type="button"
+            class="btn btn--tertiary"
+            (click)="onCancelReassign()"
+            [disabled]="reassignProcessing()"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Reassign Processing Overlay -->
+  @if (reassignProcessing()) {
+    <div class="modal-overlay modal-overlay--wait">
+      <div class="modal modal--compact">
+        <div class="modal__body">
+          <div class="spinner"></div>
+          <p class="wait-popup-message">Reassigning vendor...</p>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Unassign Processing Overlay -->
+  @if (unassignProcessing()) {
+    <div class="modal-overlay modal-overlay--wait">
+      <div class="modal modal--compact">
+        <div class="modal__body">
+          <div class="spinner"></div>
+          <p class="wait-popup-message">Processing unassignment...</p>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Saving overlay -->
+  @if (woSaving()) {
+    <div class="modal-overlay modal-overlay--wait">
+      <div class="modal modal--compact">
+        <div class="modal__body">
+          <div class="spinner"></div>
+          <p class="wait-popup-message">{{ woMessage() || 'Processing...' }}</p>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Vendor Login Email Modal -->
+  @if (loginEmailVendor(); as lv) {
+    <div class="modal-overlay" (click)="closeLoginEmailModal()">
+      <div class="modal modal--login-email" (click)="$event.stopPropagation()">
+        <div class="modal__header">
+          <h2 class="modal__title">Send Vendor Mail To Create Login</h2>
+          <button type="button" class="modal__close" (click)="closeLoginEmailModal()" aria-label="Close">×</button>
+        </div>
+        <div class="modal__body">
+          <!-- Note textarea -->
+          <div class="form-group">
+            <label class="login-email-label">Note</label>
+            <textarea
+              class="login-email-textarea"
+              placeholder="Optional note to include in the email…"
+              rows="3"
+              [value]="loginEmailNote()"
+              (input)="loginEmailNote.set($any($event.target).value)"
+            ></textarea>
+          </div>
+
+          <!-- Contact list -->
+          <div class="login-email-contacts">
+            <p class="login-email-contacts__heading">
+              <strong>{{ lv.vendorName }}</strong> — select contacts to send to:
+            </p>
+
+            @if (loginEmailContactsLoading()) {
+              <p class="login-email-empty">Loading contacts…</p>
+            } @else if (loginEmailContacts().length === 0) {
+              <p class="login-email-empty">No contacts found for this vendor.</p>
+            } @else {
+              @for (contact of loginEmailContacts(); track contact.value) {
+                <label
+                  class="login-email-contact"
+                  [class.login-email-contact--default]="contact.isDefault"
+                >
+                  <input
+                    type="checkbox"
+                    class="login-email-check"
+                    [checked]="isLoginContactSelected(contact.value)"
+                    (change)="toggleLoginEmailContact(contact.value)"
+                  />
+                  <span class="login-email-contact__name">{{ contact.text }}</span>
+                  @if (contact.email) {
+                    <span class="login-email-contact__email">({{ contact.email }})</span>
+                  } @else {
+                    <span class="login-email-contact__noemail">— no email on file</span>
+                  }
+                </label>
+              }
+            }
+          </div>
+        </div>
+        <div class="modal__footer">
+          <button
+            type="button"
+            class="btn btn--primary"
+            (click)="sendLoginEmails()"
+            [disabled]="loginEmailSending() || loginEmailContactsLoading() || loginEmailSelected().size === 0"
+          >
+            @if (loginEmailSending()) { Sending… } @else { Send }
+          </button>
+          <button type="button" class="btn btn--secondary" (click)="closeLoginEmailModal()">Close</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Store Hours Modal -->
+  @if (storeHoursModalOpen()) {
+    <div class="modal-overlay" (click)="storeHoursModalOpen.set(false)">
+      <div class="modal modal--store-hours" (click)="$event.stopPropagation()">
+        <div class="modal__header">
+          <h2 class="modal__title">
+            <svg width="16" height="16" viewBox="0 0 13 13" fill="none" aria-hidden="true" style="margin-right:6px;vertical-align:-2px">
+              <circle cx="6.5" cy="6.5" r="5.5" stroke="#475569" stroke-width="1.2"/>
+              <path d="M6.5 3.5v3l2 1.5" stroke="#475569" stroke-width="1.2" stroke-linecap="round"/>
+            </svg>
+            Store Hours
+          </h2>
+          <button
+            type="button"
+            class="modal__close"
+            (click)="storeHoursModalOpen.set(false)"
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+        <div class="modal__body">
+          @if (jobHeaderDetail()?.storeHours && jobHeaderDetail()!.storeHours!.length > 0) {
+            <div class="sh-modal-list">
+              @for (entry of jobHeaderDetail()!.storeHours!; track entry.day) {
+                <div class="sh-modal-row">
+                  <span class="sh-modal-day">{{ entry.day }}</span>
+                  <span class="sh-modal-hours">{{ entry.hours }}</span>
+                </div>
+              }
+            </div>
+          } @else {
+            <div class="sh-modal-empty">
+              <svg width="36" height="36" viewBox="0 0 13 13" fill="none" aria-hidden="true" class="sh-modal-empty__icon">
+                <circle cx="6.5" cy="6.5" r="5.5" stroke="#94a3b8" stroke-width="0.9"/>
+                <path d="M6.5 3.5v3l2 1.5" stroke="#94a3b8" stroke-width="0.9" stroke-linecap="round"/>
+              </svg>
+              <p class="sh-modal-empty__text">Store hours are not on file for this location.</p>
+              @if (jobHeaderDetail(); as hd) {
+                <a
+                  class="sh-modal-maps-link"
+                  [href]="getLocationHref(hd.locationAddress, hd.cityName, hd.stateName, hd.zipCode, hd.locationName)"
+                  target="_blank"
+                  rel="noopener"
+                >
+                  View on Google Maps ↗
+                </a>
+              }
+            </div>
+          }
+        </div>
+        <div class="modal__footer">
+          <button type="button" class="btn btn--secondary" (click)="storeHoursModalOpen.set(false)">Close</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Long-running operation overlay (e.g., sending approval emails) -->
+  @if (processingOverlayMessage()) {
+    <div class="modal-overlay modal-overlay--wait">
+      <div class="modal modal--compact">
+        <div class="modal__body">
+          <div class="spinner"></div>
+          <p class="wait-popup-message">{{ processingOverlayMessage() }}</p>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       JOB PRIORITY CHANGE MODAL
+  ════════════════════════════════════════════════════════════════════ -->
+  @if (jobPriorityChangeModalOpen()) {
+    <div class="modal-overlay" (click)="onCancelJobPriorityChange()">
+      <div class="modal modal--priority-change" (click)="$event.stopPropagation()" (mousedown)="$event.stopPropagation()">
+        <div class="modal__header">
+          <h2 class="modal__title">Confirm Job Priority Change</h2>
+          <button type="button" class="modal__close" aria-label="Close" (click)="onCancelJobPriorityChange()">&#x2715;</button>
+        </div>
+
+        @if (jobPriorityPreview(); as preview) {
+          <div class="modal__body job-priority-change-modal">
+            <div class="job-priority-change-summary">
+              <div class="job-priority-change-priority-badge job-priority-change-from">
+                <small>From</small>
+                <strong>{{ preview.oldPriorityName || 'Unknown' }}</strong>
+              </div>
+              <div class="job-priority-change-arrow" aria-hidden="true">&#8594;</div>
+              <div class="job-priority-change-priority-badge job-priority-change-to">
+                <small>To</small>
+                <strong>{{ preview.newPriorityName || 'Unknown' }}</strong>
+              </div>
+            </div>
+
+            @if (priorityChangeMessageLines().length > 0) {
+              <div class="job-priority-change-message">
+                @for (line of priorityChangeMessageLines(); track $index) {
+                  <p class="job-priority-change-message-line">{{ line }}</p>
+                }
+              </div>
+            }
+
+            @if (jobPriorityRevisedVendors().length > 0) {
+              <div class="job-priority-change-section-title">Vendor DNE change</div>
+              @for (vendor of jobPriorityRevisedVendors(); track vendor.jobVendorKey) {
+                <div class="job-priority-change-vendor-dne-card">
+                  <div class="job-priority-change-vendor-dne-name">{{ vendor.vendorName || 'Vendor' }}</div>
+                  <p class="job-priority-change-vendor-dne-message">
+                    Should the vendor's DNE be kept the same or changed?
+                  </p>
+                  <label class="job-priority-change-vendor-dne-option">
+                    <input
+                      type="radio"
+                      [name]="'vendor-dne-choice-' + vendor.jobVendorKey"
+                      [checked]="jobPriorityVendorDneChoices()[vendor.jobVendorKey] === 'keep'"
+                      (change)="onJobPriorityVendorDneChoiceChange(vendor.jobVendorKey, 'keep')"
+                    />
+                    Keep vendor's existing DNE of {{ formatPriorityCurrency(vendorExistingDneNumber(vendor)) }}
+                  </label>
+                  <label class="job-priority-change-vendor-dne-option">
+                    <input
+                      type="radio"
+                      [name]="'vendor-dne-choice-' + vendor.jobVendorKey"
+                      [checked]="jobPriorityVendorDneChoices()[vendor.jobVendorKey] === 'change'"
+                      (change)="onJobPriorityVendorDneChoiceChange(vendor.jobVendorKey, 'change')"
+                    />
+                    Change the DNE to {{ formatPriorityCurrency(preview.newVendorDne) }}
+                  </label>
+                </div>
+              }
+            }
+
+            @if (jobPriorityChangeStatus()) {
+              <p class="job-priority-change-status">{{ jobPriorityChangeStatus() }}</p>
+            }
+          </div>
+        }
+
+        <div class="modal__footer">
+          <button
+            type="button"
+            class="btn btn--secondary"
+            (click)="onCancelJobPriorityChange()"
+            [disabled]="jobPrioritySaving()"
+          >Cancel Changes</button>
+          <button
+            type="button"
+            class="btn btn--primary"
+            (click)="onConfirmJobPriorityChange($event)"
+            [disabled]="jobPrioritySaving()"
+          >
+            @if (jobPrioritySaving()) { <span class="spinner-sm"></span> Saving… }
+            @else { Continue }
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       DUPLICATE JOB MODAL
+  ════════════════════════════════════════════════════════════════════ -->
+  @if (duplicateModalOpen()) {
+    <div class="modal-overlay" (click)="onCloseDuplicateModal()">
+      <div class="modal modal--duplicate" (click)="$event.stopPropagation()">
+
+        <div class="modal__header">
+          <h2 class="modal__title">Duplicate this Job</h2>
+          <button type="button" class="modal__close" aria-label="Close" (click)="onCloseDuplicateModal()">&#x2715;</button>
+        </div>
+
+        <div class="modal__body">
+          <p class="duplicate-instructions">
+            Select a location to duplicate this job to. A new job will be created for the same customer with the same trade, description, and NTE values.
+          </p>
+
+          @if (duplicateMessage()) {
+            <div class="broadcast-success-msg">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <circle cx="8" cy="8" r="7.5" stroke="#22c55e"/>
+                <path d="M4.5 8l2.5 2.5 4.5-5" stroke="#22c55e" stroke-width="1.4" stroke-linecap="round"/>
+              </svg>
+              {{ duplicateMessage() }}
+              @if (duplicateJobResult()) {
+                <button type="button" class="link-btn link-btn--inline" (click)="navigateToDuplicatedJob()">
+                  Open new job &rarr;
+                </button>
+              }
+            </div>
+          }
+          @if (duplicateError()) {
+            <div class="broadcast-error-msg">{{ duplicateError() }}</div>
+          }
+
+          @if (duplicateLocLoading()) {
+            <div class="broadcast-loading">
+              <div class="spinner-sm"></div>
+              <span>Loading locations…</span>
+            </div>
+          } @else if (duplicateLocations().length === 0 && !duplicateError()) {
+            <p class="broadcast-empty">No locations found for this customer.</p>
+          } @else if (!duplicateMessage()) {
+            <!-- Search bar -->
+            <div class="duplicate-search-wrap">
+              <input
+                type="text"
+                class="duplicate-search-input"
+                placeholder="Search by location name or address..."
+                [value]="duplicateSearchQuery()"
+                (input)="duplicateSearchQuery.set($any($event.target).value)"
+              />
+              @if (duplicateSearchQuery()) {
+                <button
+                  type="button"
+                  class="duplicate-search-clear"
+                  aria-label="Clear search"
+                  (click)="duplicateSearchQuery.set('')"
+                >
+                  &#x2715;
+                </button>
+              }
+            </div>
+
+            @if (filteredDuplicateLocations().length === 0) {
+              <p class="broadcast-empty">No locations match your search.</p>
+            } @else {
+              <div class="duplicate-loc-list">
+                @for (loc of filteredDuplicateLocations(); track loc.locationKey) {
+                  <label class="duplicate-loc-row" [class.duplicate-loc-row--selected]="duplicateSelectedLoc() === loc.locationKey">
+                    <input
+                      type="radio"
+                      name="duplicateLoc"
+                      [value]="loc.locationKey"
+                      [checked]="duplicateSelectedLoc() === loc.locationKey"
+                      (change)="duplicateSelectedLoc.set(loc.locationKey)"
+                    />
+                    <div class="duplicate-loc-info">
+                      <span class="duplicate-loc-name">{{ loc.lname }}</span>
+                      @if (loc.address) {
+                        <span class="duplicate-loc-addr">{{ loc.address }}</span>
+                      }
+                    </div>
+                  </label>
+                }
+              </div>
+            }
+          }
+        </div>
+
+        <div class="modal__footer">
+          @if (!duplicateMessage()) {
+            <button type="button" class="btn btn--secondary" (click)="onCloseDuplicateModal()" [disabled]="duplicateSaving()">Cancel</button>
+            <button
+              type="button"
+              class="btn btn--primary"
+              [disabled]="duplicateSaving() || !duplicateSelectedLoc()"
+              (click)="onConfirmDuplicate()"
+            >
+              @if (duplicateSaving()) { <span class="spinner-sm"></span> Duplicating… }
+              @else { Duplicate Job }
+            </button>
+          } @else {
+            <button type="button" class="btn btn--secondary" (click)="onCloseDuplicateModal()">Close</button>
+          }
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Construction Trades Modal -->
+  @if (showTradeModal()) {
+    <div class="modal-overlay" (click)="showTradeModal.set(false)">
+      <div class="modal modal--trades" (click)="$event.stopPropagation()">
+        <div class="modal__header">
+          <h3 class="modal__title">Trades</h3>
+          <button type="button" class="modal__close" (click)="showTradeModal.set(false)" aria-label="Close">&times;</button>
+        </div>
+        <div class="modal__body">
+          <div class="trades-list">
+            @for (trade of tradeModalTrades(); track trade) {
+              <div class="trade-row">
+                <span class="trade-row__name">{{ trade }}</span>
+              </div>
+            }
+            @if (!tradeModalTrades().length) {
+              <p class="trades-empty">No trade information available.</p>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ================================================================
+       Admin Tech Check-In Modal
+       ================================================================ -->
+  @if (checkInModalVendor(); as vendor) {
+    <div class="modal-overlay" (click)="onCloseCheckInModal()">
+      <div class="modal modal--checkin" (click)="$event.stopPropagation()">
+
+        <div class="modal__header">
+          <h3 class="modal__title">Tech Check In</h3>
+          <button type="button" class="modal__close" (click)="onCloseCheckInModal()" aria-label="Close">&times;</button>
+        </div>
+
+        @if (!postCheckInState()) {
+
+          <!-- ── Step 1: Enter check-in details ───────────────── -->
+          <div class="modal__body">
+            <p class="ci-vendor-name">{{ vendor.vendorName }}</p>
+
+            @if (checkInError()) {
+              <div class="ci-error">{{ checkInError() }}</div>
+            }
+
+            <div class="ci-field">
+              <label class="ci-label">Check-in date and time</label>
+              <input
+                type="datetime-local"
+                class="ci-input"
+                [ngModel]="checkInDraft().checkInDate"
+                (ngModelChange)="setCheckInDate($event)"
+              />
+            </div>
+
+            <div class="ci-field">
+              <label class="ci-label">Number of techs</label>
+              <input
+                type="number"
+                class="ci-input ci-input--narrow"
+                min="1"
+                max="99"
+                [ngModel]="checkInDraft().noOfTech"
+                (ngModelChange)="setCheckInNoOfTech($event)"
+              />
+            </div>
+          </div>
+
+          <div class="modal__footer">
+            <button
+              type="button"
+              class="vc-btn vc-btn--primary"
+              [disabled]="checkInSaving()"
+              (click)="onSaveCheckIn()"
+            >
+              @if (checkInSaving()) { Saving… } @else { Save Check In }
+            </button>
+            <button type="button" class="vc-btn vc-btn--ghost" (click)="onCloseCheckInModal()">Cancel</button>
+          </div>
+
+        } @else {
+
+          <!-- ── Step 2: Send checkout email? ─────────────────── -->
+          <div class="modal__body">
+            <div class="ci-success-banner">
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+                <circle cx="9" cy="9" r="8" stroke="#16a34a" stroke-width="1.5"/>
+                <path d="M5.5 9l2.5 2.5 4.5-5" stroke="#16a34a" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <span>Tech checked in successfully.</span>
+            </div>
+
+            <p class="ci-send-label">Send a checkout link email to the vendor?</p>
+
+            @if (checkoutEmailError()) {
+              <div class="ci-error">{{ checkoutEmailError() }}</div>
+            }
+
+            <div class="ci-field">
+              <label class="ci-label">Vendor contacts</label>
+              @if (checkoutEmailContactsLoading()) {
+                <p class="login-email-empty">Loading contacts…</p>
+              } @else if (checkoutEmailContacts().length === 0) {
+                <p class="login-email-empty">No contacts with an email address found for this vendor.</p>
+              } @else {
+                @for (c of checkoutEmailContacts(); track c.value) {
+                  <label class="ci-check-row" [class.ci-check-row--default]="c.isDefault">
+                    <input
+                      type="checkbox"
+                      [checked]="isCheckoutEmailContactSelected(c.value)"
+                      (change)="toggleCheckoutEmailContact(c.value)"
+                    />
+                    {{ c.text }} ({{ c.email }})
+                  </label>
+                }
+              }
+            </div>
+
+            <label class="ci-label">Note (optional)</label>
+            <textarea
+              class="ci-textarea"
+              rows="3"
+              placeholder="Add a note for the vendor…"
+              [ngModel]="checkoutEmailNote()"
+              (ngModelChange)="checkoutEmailNote.set($event)"
+            ></textarea>
+          </div>
+
+          <div class="modal__footer">
+            <button
+              type="button"
+              class="vc-btn vc-btn--primary"
+              [disabled]="checkoutEmailSending() || checkoutEmailContactsLoading() || checkoutEmailSelectedContacts().size === 0"
+              (click)="onSendCheckoutEmail()"
+            >
+              @if (checkoutEmailSending()) { Sending… } @else { Send Checkout Email }
+            </button>
+            <button type="button" class="vc-btn vc-btn--ghost" (click)="onCloseCheckInModal()">Not Now</button>
+          </div>
+
+        }
+      </div>
+    </div>
+  }
+
+  <!-- ================================================================
+       Vendor Check-Out Modal
+       ================================================================ -->
+  @if (checkOutModalVendor(); as vendor) {
+    <div class="modal-overlay" (click)="onCloseCheckOutModal()">
+      <div class="modal modal--checkout" (click)="$event.stopPropagation()">
+
+        <div class="modal__header">
+          <h3 class="modal__title">Vendor Check Out</h3>
+          <button type="button" class="modal__close" (click)="onCloseCheckOutModal()" aria-label="Close">&times;</button>
+        </div>
+
+        <div class="modal__body">
+          <p class="ci-vendor-name">{{ vendor.vendorName }}</p>
+
+          @if (checkOutError()) {
+            <div class="ci-error">{{ checkOutError() }}</div>
+          }
+
+          <!-- Work performed? -->
+          <div class="ci-field">
+            <label class="ci-label">Work performed?</label>
+            <div class="ci-radio-row">
+              <label class="ci-radio">
+                <input
+                  type="radio"
+                  name="coWorkPerformed"
+                  [ngModel]="checkOutDraft().workPerformed"
+                  (ngModelChange)="setCheckOutWorkPerformed(true)"
+                  [value]="true"
+                /> YES
+              </label>
+              <label class="ci-radio">
+                <input
+                  type="radio"
+                  name="coWorkPerformed"
+                  [ngModel]="checkOutDraft().workPerformed"
+                  (ngModelChange)="setCheckOutWorkPerformed(false)"
+                  [value]="false"
+                /> NO
+              </label>
+            </div>
+          </div>
+
+          <!-- Check-out date -->
+          <div class="ci-field">
+            <label class="ci-label">Check-out date and time</label>
+            <input
+              type="datetime-local"
+              class="ci-input"
+              [ngModel]="checkOutDraft().checkOutDate"
+              (ngModelChange)="setCheckOutDate($event)"
+            />
+          </div>
+
+          <!-- Checkout status -->
+          <div class="ci-field">
+            <label class="ci-label">Status</label>
+            <div class="ci-status-options">
+              <label class="ci-radio">
+                <input type="radio" name="coStatus"
+                  [ngModel]="checkOutDraft().checkoutStatus"
+                  (ngModelChange)="setCheckOutStatus(5)"
+                  [value]="5"
+                /> COMPLETE
+              </label>
+              <label class="ci-radio">
+                <input type="radio" name="coStatus"
+                  [ngModel]="checkOutDraft().checkoutStatus"
+                  (ngModelChange)="setCheckOutStatus(6)"
+                  [value]="6"
+                /> ESTIMATING (Need Approval)
+              </label>
+              <label class="ci-radio">
+                <input type="radio" name="coStatus"
+                  [ngModel]="checkOutDraft().checkoutStatus"
+                  (ngModelChange)="setCheckOutStatus(7)"
+                  [value]="7"
+                /> NOT COMPLETE (Will Set Return ETA)
+              </label>
+              <label class="ci-radio">
+                <input type="radio" name="coStatus"
+                  [ngModel]="checkOutDraft().checkoutStatus"
+                  (ngModelChange)="setCheckOutStatus(8)"
+                  [value]="8"
+                /> ORDERING MATERIALS
+              </label>
+            </div>
+          </div>
+
+          <!-- Work details -->
+          <div class="ci-field">
+            <label class="ci-label">Work details (optional)</label>
+            <textarea
+              class="ci-textarea"
+              rows="3"
+              placeholder="Describe work performed…"
+              [ngModel]="checkOutDraft().workDetails"
+              (ngModelChange)="setCheckOutWorkDetails($event)"
+            ></textarea>
+          </div>
+        </div>
+
+        <div class="modal__footer">
+          <button
+            type="button"
+            class="vc-btn vc-btn--primary"
+            [disabled]="checkOutSaving()"
+            (click)="onSaveCheckOut()"
+          >
+            @if (checkOutSaving()) { Saving… } @else { Check Out }
+          </button>
+          <button type="button" class="vc-btn vc-btn--ghost" (click)="onCloseCheckOutModal()">Cancel</button>
+        </div>
+
+      </div>
+    </div>
+  }
+
+  <!-- ================================================================
+       SCORE BREAKDOWN MODAL
+       ================================================================ -->
+  @if (scoreModal(); as row) {
+    <div class="sm-backdrop" (click)="scoreModal.set(null)" role="dialog" aria-modal="true">
+      <div class="sm-modal" (click)="$event.stopPropagation()">
+
+        <div class="sm-modal__header">
+          <!-- Overall score badge — shown left of titles -->
+          <div class="sm-modal__score-badge" [style.color]="getScoreBarColor(row['scoreTier'] === 'N/A' || row['scoreTier'] == null ? (row['unscoredRankScore'] != null ? +row['unscoredRankScore'] : 0) : (row['score'] != null ? +row['score'] : 0))" [style.border-color]="getScoreBarColor(row['scoreTier'] === 'N/A' || row['scoreTier'] == null ? (row['unscoredRankScore'] != null ? +row['unscoredRankScore'] : 0) : (row['score'] != null ? +row['score'] : 0))">
+            <span class="sm-modal__score-num">
+              {{ row['scoreTier'] === 'N/A' || row['scoreTier'] == null
+                  ? (row['unscoredRankScore'] != null ? ($any(row['unscoredRankScore']) | number:'1.0-0') : '--')
+                  : (row['score'] != null ? ($any(row['score']) | number:'1.0-0') : '--') }}
+              @if (row['scoreTier'] === 'N/A' || row['scoreTier'] == null) {<sup>*</sup>}
+            </span>
+            <span class="sm-modal__score-lbl">Overall</span>
+          </div>
+
+          <div class="sm-modal__titles">
+            <h2 class="sm-modal__title">
+              @if (row['scoreTier'] === 'N/A' || row['scoreTier'] == null) {
+                Vendors with 5 or less Invoices Submitted
+              } @else {
+                Vendors with 5 or more Invoices Submitted
+              }
+            </h2>
+            <p class="sm-modal__subtitle">
+              @if (row['scoreTier'] === 'N/A' || row['scoreTier'] == null) {
+                These vendors have limited data, therefore we can't score them as accurately as we could with 5+ invoices.
+              } @else {
+                These vendors are scored based off of their historical data with RFI, those being cost, dependability, system use, communication, and behavior.
+              }
+            </p>
+          </div>
+          <button class="sm-modal__close" type="button" (click)="scoreModal.set(null)" aria-label="Close">&times;</button>
+        </div>
+
+        @if (row['aiExplanation']) {
+          <p class="sm-modal__ai-summary">{{ row['aiExplanation'] }}</p>
+        }
+
+        <!-- Bar chart -->
+        <div class="sm-chart">
+          <div class="sm-chart__yaxis">
+            <span>100</span>
+            <span>75</span>
+            <span>50</span>
+            <span>25</span>
+            <span>0</span>
+          </div>
+          <div class="sm-chart__grid">
+            <div class="sm-chart__gridline"></div>
+            <div class="sm-chart__gridline"></div>
+            <div class="sm-chart__gridline"></div>
+            <div class="sm-chart__gridline"></div>
+            <div class="sm-chart__gridline sm-chart__gridline--base"></div>
+          </div>
+          <div class="sm-chart__bars">
+            @for (bar of getScoreModalBars(row); track bar.label) {
+              <div class="sm-chart__col">
+                <div class="sm-chart__bar-wrap">
+                  <div
+                    class="sm-chart__bar"
+                    [class.sm-chart__bar--has-tip]="!!bar.explanation"
+                    [style.height.%]="bar.value"
+                    [style.background]="bar.color"
+                    [title]="bar.explanation ?? ''"
+                  >
+                    <span class="sm-chart__val">{{ bar.value }}</span>
+                  </div>
+                </div>
+                <span class="sm-chart__label" [title]="bar.explanation ?? ''">{{ bar.label }}</span>
+              </div>
+            }
+          </div>
+        </div>
+
+        @if (row['llmReasoning']) {
+          <div class="sm-modal__llm-section">
+            <h4 class="sm-modal__llm-heading">AI Response</h4>
+            <p class="sm-modal__llm">"{{ row['llmReasoning'] }}"</p>
+          </div>
+        }
+
+      </div>
+    </div>
+  }
+
+  <!-- ================================================================
+       Vendor Action Mail Modal (SendVendorMails)
+       ================================================================ -->
+  @if (vendorActionModal(); as va) {
+    <div class="modal-overlay" (click)="onCloseVendorActionModal()">
+      <div class="modal modal--wide" (click)="$event.stopPropagation()">
+        <div class="modal__header">
+          <h3 class="modal__title" [innerHTML]="va.ctx.modalTitle || 'Resend Vendor Action Mail'"></h3>
+          <button type="button" class="modal__close" (click)="onCloseVendorActionModal()">&times;</button>
+        </div>
+        <div class="modal__body">
+          <p class="ci-vendor-name">{{ va.vendor.vendorName }}</p>
+          @if (va.ctx.warningMessage) {
+            <div class="ci-error">{{ va.ctx.warningMessage }}</div>
+          }
+          @if (vendorActionError()) {
+            <div class="ci-error">{{ vendorActionError() }}</div>
+          }
+          @if (vendorActionResultHtml()) {
+            <div class="ci-success-banner" [innerHTML]="vendorActionResultHtml()"></div>
+          } @else {
+            <div class="ci-field">
+              <label class="ci-label">Vendor contacts</label>
+              @for (c of va.ctx.contacts; track c.contactKey) {
+                <label class="ci-check-row" [class.ci-check-row--default]="c.isDefault">
+                  <input type="checkbox"
+                    [checked]="vendorActionSelectedContacts().includes(c.contactKey)"
+                    (change)="toggleVendorActionContact(c.contactKey, $any($event.target).checked)" />
+                  {{ c.cname }} ({{ c.email }})
+                </label>
+              }
+            </div>
+            <div class="ci-field">
+              <label class="ci-label">Custom email</label>
+              <input type="email" class="ci-input" [ngModel]="vendorActionCustomEmail()" (ngModelChange)="vendorActionCustomEmail.set($event)" />
+            </div>
+            @if (va.ctx.estimates.length > 0) {
+              <div class="ci-field">
+                <label class="ci-label">Select estimate (optional)</label>
+                @for (e of va.ctx.estimates; track e.estimateKey) {
+                  <label class="ci-radio-row">
+                    <input type="radio" name="vaEstimate" [value]="e.estimateKey"
+                      [checked]="vendorActionSelectedEstimate() === e.estimateKey"
+                      (change)="vendorActionSelectedEstimate.set(e.estimateKey)" />
+                    {{ e.label }}
+                  </label>
+                }
+              </div>
+            }
+            <div class="ci-field">
+              <label class="ci-label">
+                Message to vendor
+                @if (va.action.actionId === 'estimate_upload_reject') {
+                  <span class="ci-required"> (required)</span>
+                }
+              </label>
+              <textarea class="ci-textarea" rows="6"
+                [ngModel]="vendorActionEmailNote()"
+                (ngModelChange)="vendorActionEmailNote.set($event)"
+                [attr.placeholder]="va.action.actionId === 'estimate_upload_reject' ? 'Explain why the estimate is being rejected…' : ''"
+              ></textarea>
+            </div>
+          }
+        </div>
+        <div class="modal__footer">
+          @if (!vendorActionResultHtml()) {
+            <button type="button" class="vc-btn vc-btn--primary" [disabled]="vendorActionSending()" (click)="onSendVendorActionMail()">
+              @if (vendorActionSending()) { Sending… } @else { Send }
+            </button>
+          }
+          <button type="button" class="vc-btn vc-btn--ghost" (click)="onCloseVendorActionModal()">Close</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Confirm ETA / Return ETA manually -->
+  @if (confirmEtaModal(); as ce) {
+    <div class="modal-overlay" (click)="onCloseConfirmEtaModal()">
+      <div class="modal modal--checkin" (click)="$event.stopPropagation()">
+        <div class="modal__header">
+          <h3 class="modal__title">{{ ce.isReturn ? 'Confirm Return ETA' : 'Confirm ETA' }} on behalf of Vendor</h3>
+          <button type="button" class="modal__close" (click)="onCloseConfirmEtaModal()">&times;</button>
+        </div>
+        <div class="modal__body">
+          <p class="ci-vendor-name">{{ ce.vendor.vendorName }}</p>
+          @if (confirmEtaError()) { <div class="ci-error">{{ confirmEtaError() }}</div> }
+          <div class="ci-field">
+            <label class="ci-label">{{ ce.isReturn ? 'Return ETA' : 'ETA' }} date and time</label>
+            <input type="datetime-local" class="ci-input"
+              [ngModel]="confirmEtaDraft().confirmedDate"
+              (ngModelChange)="setConfirmEtaDate($event)" />
+          </div>
+          <div class="ci-field">
+            <label class="ci-label">Note</label>
+            <textarea class="ci-textarea" rows="3"
+              [ngModel]="confirmEtaDraft().comment"
+              (ngModelChange)="setConfirmEtaComment($event)"></textarea>
+          </div>
+        </div>
+        <div class="modal__footer">
+          <button type="button" class="vc-btn vc-btn--primary" [disabled]="confirmEtaSaving()" (click)="onSaveConfirmEtaManually()">
+            @if (confirmEtaSaving()) { Saving… } @else { Confirm }
+          </button>
+          <button type="button" class="vc-btn vc-btn--ghost" (click)="onCloseConfirmEtaModal()">Cancel</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Approve Vendor / Additional Approval -->
+  @if (approveVendorModal(); as av) {
+    <div class="modal-overlay" (click)="onCloseApproveVendorModal()">
+      <div class="modal modal--wide" (click)="$event.stopPropagation()">
+        <div class="modal__header">
+          <h3 class="modal__title">{{ av.title }}</h3>
+          <button type="button" class="modal__close" (click)="onCloseApproveVendorModal()">&times;</button>
+        </div>
+        <div class="modal__body">
+          <p class="ci-vendor-name">{{ av.vendor.vendorName }}</p>
+          @if (approveVendorError()) { <div class="ci-error">{{ approveVendorError() }}</div> }
+          <div class="ci-field">
+            <label class="ci-label">Revised vendor DNE: {{ av.ctx.revVendorDne }}</label>
+          </div>
+          <div class="ci-field">
+            <label class="ci-label">Approval text</label>
+            <textarea class="ci-textarea" rows="4"
+              [ngModel]="approveVendorText()"
+              (ngModelChange)="approveVendorText.set($event)"></textarea>
+          </div>
+          @if (av.ctx.estimates.length > 0) {
+            <div class="ci-field">
+              <label class="ci-label">Estimate</label>
+              @for (e of av.ctx.estimates; track e.estimateKey) {
+                <label class="ci-radio-row">
+                  <input type="radio" name="avEstimate" [value]="e.estimateKey"
+                    [checked]="approveVendorSelectedEstimate() === e.estimateKey"
+                    (change)="approveVendorSelectedEstimate.set(e.estimateKey)" />
+                  {{ e.label }}
+                </label>
+              }
+            </div>
+          }
+          <div class="ci-field">
+            <label class="ci-label">Vendor contacts</label>
+            @for (c of av.ctx.contacts; track c.contactKey) {
+              <label class="ci-check-row" [class.ci-check-row--default]="c.isDefault">
+                <input type="checkbox"
+                  [checked]="approveVendorSelectedContacts().includes(c.contactKey)"
+                  (change)="toggleApproveVendorContact(c.contactKey, $any($event.target).checked)" />
+                {{ c.cname }} ({{ c.email }})
+              </label>
+            }
+          </div>
+          <div class="ci-field">
+            <label class="ci-label">Custom email</label>
+            <input type="email" class="ci-input" [ngModel]="approveVendorCustomEmail()" (ngModelChange)="approveVendorCustomEmail.set($event)" />
+          </div>
+          <div class="ci-field">
+            <label class="ci-label">Email note</label>
+            <textarea class="ci-textarea" rows="3"
+              [ngModel]="approveVendorEmailNote()"
+              (ngModelChange)="approveVendorEmailNote.set($event)"></textarea>
+          </div>
+        </div>
+        <div class="modal__footer">
+          <button type="button" class="vc-btn vc-btn--primary" [disabled]="approveVendorSending()" (click)="onSendAdditionalApproval()">
+            @if (approveVendorSending()) { Sending… } @else { Send Approval }
+          </button>
+          <button type="button" class="vc-btn vc-btn--ghost" (click)="onCloseApproveVendorModal()">Cancel</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Customer waiting-for-material reminder -->
+  @if (customerReminderModal(); as cr) {
+    <div class="modal-overlay" (click)="onCloseCustomerReminderModal()">
+      <div class="modal modal--wide" (click)="$event.stopPropagation()">
+        <div class="modal__header">
+          <h3 class="modal__title">{{ cr.ctx.modalTitle }}</h3>
+          <button type="button" class="modal__close" (click)="onCloseCustomerReminderModal()">&times;</button>
+        </div>
+        <div class="modal__body">
+          @if (customerReminderError()) { <div class="ci-error">{{ customerReminderError() }}</div> }
+          @if (customerReminderResultHtml()) {
+            <div class="ci-success-banner" [innerHTML]="customerReminderResultHtml()"></div>
+          } @else {
+            <div class="ci-field">
+              <label class="ci-label">Customer contacts</label>
+              @for (c of cr.ctx.contacts; track c.contactKey) {
+                <label class="ci-check-row" [class.ci-check-row--default]="c.isDefault">
+                  <input type="checkbox"
+                    [checked]="customerReminderSelectedContacts().includes(c.contactKey)"
+                    (change)="toggleCustomerReminderContact(c.contactKey, $any($event.target).checked)" />
+                  {{ c.cname }} ({{ c.email }})
+                </label>
+              }
+            </div>
+            <div class="ci-field">
+              <label class="ci-label">Custom email</label>
+              <input type="email" class="ci-input" [ngModel]="customerReminderCustomEmail()" (ngModelChange)="customerReminderCustomEmail.set($event)" />x ```` ``      
+            </div>
+            <div class="ci-field">
+              <label class="ci-label">Message</label>
+              <textarea class="ci-textarea" rows="4"
+                [ngModel]="customerReminderEmailNote()"
+                (ngModelChange)="customerReminderEmailNote.set($event)"></textarea>
+            </div>
+          }
+        </div>
+        <div class="modal__footer">
+          @if (!customerReminderResultHtml()) {
+            <button type="button" class="vc-btn vc-btn--primary" [disabled]="customerReminderSending()" (click)="onSendCustomerReminder()">
+              @if (customerReminderSending()) { Sending… } @else { Send Reminder }
+            </button>
+          }
+          <button type="button" class="vc-btn vc-btn--ghost" (click)="onCloseCustomerReminderModal()">Close</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  @if (onSiteEstimatePickerModal(); as picker) {
+    <div class="modal-overlay" (click)="onCloseOnSiteEstimatePickerModal()">
+      <div class="modal" (click)="$event.stopPropagation()">
+        <div class="modal__header">
+          <h3 class="modal__title">Update / Edit on-site approval</h3>
+          <button type="button" class="modal__close" (click)="onCloseOnSiteEstimatePickerModal()">&times;</button>
+        </div>
+        <div class="modal__body">
+          <p class="ci-vendor-name">{{ picker.vendor.vendorName }}</p>
+          <p class="ci-help">Select an estimate to open in the legacy admin portal.</p>
+          <div class="ci-field">
+            @for (est of picker.estimates; track est.invoiceKey) {
+              <button type="button" class="vc-btn vc-btn--outline vc-btn--block" (click)="onSelectOnSiteEstimate(est.invoiceKey)">
+                Estimate {{ est.totalAmount != null ? ('$' + (est.totalAmount | number:'1.2-2')) : est.invoiceKey }}
+              </button>
+            }
+          </div>
+        </div>
+        <div class="modal__footer">
+          <button type="button" class="vc-btn vc-btn--ghost" (click)="onCloseOnSiteEstimatePickerModal()">Cancel</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- On-Site Estimate Modal (Modern Implementation) -->
+  <app-on-site-estimate-modal #onSiteEstimateModal />
+
+  <!-- Recall review modal — shown when a job in Accounting (TriggerBit=66) is moved to any other status -->
+  <app-recall-review-modal
+    (confirmed)="onRecallReviewConfirmed($event)"
+    (cancelled)="onRecallReviewCancelled()"
+  ></app-recall-review-modal>
+
+</div>

@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>RFI V2 — Job Details Card</title>
+<style>
+  :root{
+    --label-blue:#2b5a82;
+    --accent:#1976d2;
+    --accent-dark:#125a9c;
+    --accent-soft:#eaf2fb;
+    --bg-page:#eef1f4;
+    --bg-card:#ffffff;
+    --border:#dfe3e8;
+    --border-soft:#eef0f3;
+    --text:#1c2b39;
+    --muted:#8a94a3;
+    --pill-bg:#f1f4f7;
+    --pill-text:#51616f;
+    --green:#2e8b57;
+    --amber:#b8860b;
+    --amber-bg:#fff8e6;
+    --amber-border:#f0d78c;
+    --shadow-menu:0 6px 20px rgba(16,34,53,.14), 0 1px 3px rgba(16,34,53,.08);
+    --radius:8px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;}
+  body{font-family:"Segoe UI",system-ui,Arial,sans-serif;background:var(--bg-page);color:var(--text);font-size:13px;}
+  .app{max-width:1400px;margin:0 auto;padding:14px 20px 60px;}
+
+  /* ---------- helper banners ---------- */
+  .usage{
+    background:var(--amber-bg);border:1px solid var(--amber-border);color:#6b5510;
+    border-radius:6px;padding:9px 13px;font-size:12px;margin-bottom:10px;line-height:1.5;
+  }
+  .usage b{color:#5a4400;}
+  .scope-note{
+    background:#eef4fb;border:1px solid #cfe0f2;color:#284b6e;
+    border-radius:6px;padding:8px 13px;font-size:12px;margin-top:8px;line-height:1.5;
+  }
+  .scope-note b{color:#1c3a58;}
+  .devtoggle-bar{display:flex;justify-content:flex-end;margin-bottom:6px;}
+  .devtoggle{
+    display:flex;align-items:center;gap:8px;font-size:12px;color:#556270;
+    background:var(--bg-card);border:1px solid var(--border);border-radius:20px;
+    padding:4px 12px;cursor:pointer;user-select:none;
+  }
+  .switch{width:30px;height:17px;background:#c7ccd2;border-radius:10px;position:relative;transition:.15s;}
+  .switch::after{content:"";position:absolute;width:13px;height:13px;background:#fff;border-radius:50%;top:2px;left:2px;transition:.15s;}
+  .devtoggle.on .switch{background:var(--amber);}
+  .devtoggle.on .switch::after{left:15px;}
+  .note{
+    display:none;background:var(--amber-bg);border:1px dashed var(--amber-border);color:#6b5510;
+    font-size:11px;line-height:1.45;padding:6px 9px;border-radius:5px;margin:8px 14px 0;
+  }
+  .devon .note{display:block;}
+  .note b{color:#5a4400;}
+
+  /* ---------- mock app-level tab bar (context only) ---------- */
+  .app-tabs{
+    display:flex;align-items:center;gap:2px;
+    background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);
+    padding:4px 8px;margin-bottom:8px;font-size:12.5px;color:#556270;overflow-x:auto;
+  }
+  .app-tab{padding:6px 12px;border-radius:6px;cursor:pointer;white-space:nowrap;font-weight:500;}
+  .app-tab:hover{background:#f2f5f8;}
+  .app-tab.active{background:#eef2f6;color:var(--text);font-weight:700;}
+  .app-tab.moved{color:var(--accent);font-weight:600;}
+  .app-tab.moved .newtag{
+    background:var(--accent);color:#fff;font-size:8.5px;font-weight:700;letter-spacing:.04em;
+    border-radius:7px;padding:1px 5px;margin-left:5px;vertical-align:2px;
+  }
+
+  /* ---------- in-page section nav (attached to card) ---------- */
+  .section-nav{
+    display:flex;align-items:center;gap:2px;flex-wrap:wrap;
+    padding:5px 12px;border-top:1px solid var(--border-soft);background:#fafbfc;
+    border-radius:0 0 var(--radius) var(--radius);
+  }
+  .section-nav .snlbl{
+    font-size:9.5px;font-weight:700;color:#9aa5b1;text-transform:uppercase;letter-spacing:.06em;
+    margin-right:6px;flex:none;
+  }
+  .snav-link{
+    font-size:11.5px;font-weight:600;color:#51616f;padding:4px 10px;border-radius:12px;
+    cursor:pointer;white-space:nowrap;transition:background .1s,color .1s;
+  }
+  .snav-link:hover{background:var(--accent-soft);color:var(--accent-dark);}
+  .snav-link .cnt{
+    background:#e4e8ec;color:#5b6b7a;font-size:10px;font-weight:700;
+    border-radius:8px;padding:0 6px;margin-left:4px;
+  }
+
+  /* ---------- card shell ---------- */
+  .card{
+    background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);
+    overflow:visible;box-shadow:0 1px 2px rgba(16,34,53,.04);
+  }
+  .card-head{
+    display:flex;align-items:center;gap:10px;padding:9px 14px;cursor:pointer;flex-wrap:wrap;min-height:46px;
+  }
+  .card-title{font-size:14px;font-weight:700;flex:none;letter-spacing:-.01em;}
+  .pill{
+    background:var(--pill-bg);color:var(--pill-text);font-size:11px;font-weight:600;
+    padding:3px 9px;border-radius:11px;flex:none;line-height:1.4;
+  }
+  .pill .plbl{color:#93a0ad;font-weight:600;margin-right:3px;text-transform:uppercase;font-size:9.5px;letter-spacing:.03em;}
+  .card-actions{display:flex;gap:7px;flex:none;margin-left:auto;}
+  .btn{
+    border:none;border-radius:5px;font-size:12px;font-weight:600;
+    padding:6px 13px;cursor:pointer;color:#fff;background:var(--accent);white-space:nowrap;
+    transition:background .12s, transform .06s;
+  }
+  .btn:hover{background:var(--accent-dark);}
+  .btn:active{transform:translateY(1px);}
+  .toggle-btn{
+    width:25px;height:25px;border:1px solid var(--border);border-radius:5px;background:#fff;
+    display:flex;align-items:center;justify-content:center;font-size:14px;color:#8a94a3;flex:none;
+    transition:border-color .12s,color .12s;
+  }
+  .card-head:hover .toggle-btn{border-color:var(--accent);color:var(--accent);}
+  .card.expanded .toggle-btn::before{content:"–";}
+  .card:not(.expanded) .toggle-btn::before{content:"+";}
+  .card-body{display:none;border-top:1px solid var(--border);}
+  .card.expanded .card-body{display:block;animation:bodyIn .16s ease-out;}
+  @keyframes bodyIn{from{opacity:.4;transform:translateY(-3px);}to{opacity:1;transform:none;}}
+
+  /* ---------- status dropdown (lives in header) ---------- */
+  .status-dd{position:relative;flex:none;}
+  .status-pill{
+    display:inline-flex;align-items:center;gap:6px;cursor:pointer;
+    font-size:11.5px;font-weight:700;padding:4px 10px;border-radius:12px;
+    border:1px solid transparent;transition:box-shadow .12s;
+    user-select:none;
+  }
+  .status-pill:hover{box-shadow:0 0 0 2px rgba(25,118,210,.18);}
+  .status-pill .dot{width:7px;height:7px;border-radius:50%;background:currentColor;}
+  .status-pill .car{font-size:9px;opacity:.65;}
+  .st-newjob{background:#e7f0fb;color:#1660a8;}
+  .st-scheduled{background:#e6f5f3;color:#0e7c6e;}
+  .st-inprogress{background:#fdf3e2;color:#a06a00;}
+  .st-onhold{background:#f0f1f3;color:#5b6b7a;}
+  .st-completed{background:#e9f6ec;color:#25753f;}
+  .st-cancelled{background:#fdecec;color:#b03636;}
+
+  /* ---------- generic dropdown menu ---------- */
+  .dd-menu{
+    position:absolute;top:calc(100% + 6px);left:0;min-width:200px;
+    background:#fff;border:1px solid var(--border);border-radius:8px;
+    box-shadow:var(--shadow-menu);z-index:60;padding:5px;
+    opacity:0;transform:translateY(-4px) scale(.98);pointer-events:none;
+    transition:opacity .12s ease, transform .12s ease;text-align:left;
+  }
+  .dd-menu.show{opacity:1;transform:none;pointer-events:auto;}
+  .dd-menu.right{left:auto;right:0;}
+  .dd-item{
+    display:flex;align-items:center;gap:8px;
+    padding:7px 10px;font-size:12.5px;font-weight:500;color:var(--text);
+    cursor:pointer;border-radius:5px;white-space:nowrap;
+  }
+  .dd-item:hover{background:var(--accent-soft);color:var(--accent-dark);}
+  .dd-item .dot{width:7px;height:7px;border-radius:50%;flex:none;}
+  .dd-item .check{margin-left:auto;color:var(--accent);font-weight:700;visibility:hidden;font-size:12px;}
+  .dd-item.selected{background:#f4f8fd;}
+  .dd-item.selected .check{visibility:visible;}
+
+  /* ---------- expanded grid ---------- */
+  .jd-grid{display:grid;grid-template-columns:0.95fr 1.15fr 1fr;}
+  .jd-col{padding:10px 14px 12px;border-right:1px solid var(--border-soft);min-width:0;}
+  .jd-col:last-child{border-right:none;}
+  .jd-col-title{
+    font-size:10.5px;font-weight:700;color:var(--label-blue);
+    text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px;
+    display:flex;align-items:center;gap:8px;min-height:20px;
+  }
+  .title-badge{
+    background:var(--pill-bg);color:var(--pill-text);font-size:10.5px;font-weight:700;
+    text-transform:none;letter-spacing:0;padding:2px 8px;border-radius:10px;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:70%;
+  }
+  .title-badge.link{background:var(--accent-soft);color:var(--accent);cursor:pointer;}
+  .title-badge.link:hover{text-decoration:underline;}
+
+  .kv{
+    display:flex;align-items:center;gap:8px;
+    padding:3px 4px;font-size:12.5px;border-bottom:1px solid var(--border-soft);
+    border-radius:4px;min-height:25px;
+  }
+  .kv:last-child{border-bottom:none;}
+  .kv:hover{background:#fafbfc;}
+  .kv .k{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.03em;flex:0 0 40%;min-width:0;}
+  .kv .v{color:var(--text);font-weight:500;flex:1;text-align:right;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .v.link{color:var(--accent);cursor:pointer;}
+  .v.link:hover{text-decoration:underline;}
+  .v.sub{color:var(--muted);font-weight:500;}
+  .icon-inline{font-size:10.5px;margin-right:3px;opacity:.85;}
+
+  /* inline field dropdown */
+  .fld-dd{position:relative;cursor:pointer;}
+  .fld-dd .v-val::after{content:"▾";color:#b3bcc5;font-size:9px;margin-left:5px;transition:color .12s;}
+  .fld-dd:hover .v-val::after{color:var(--accent);}
+  .fld-dd .v-val{display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;}
+
+  /* inline editable currency */
+  .v.editable{cursor:text;}
+  .kv:hover .v.editable{color:var(--accent-dark);}
+  .v.editable input{
+    width:90px;text-align:right;font:inherit;font-weight:600;color:var(--text);
+    border:1px solid var(--accent);border-radius:4px;padding:1px 5px;outline:none;
+    background:#fff;
+  }
+  .orig{
+    display:none;color:#aab3bd;text-decoration:line-through;
+    font-size:10.5px;font-weight:500;margin-right:6px;
+  }
+  .savedflash{color:var(--green) !important;transition:color .3s;}
+
+  /* ---------- notes accordion ---------- */
+  .jd-notes{padding:8px 14px 12px;display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+  .note-row{
+    border:1px solid var(--border-soft);border-radius:6px;overflow:hidden;background:#fbfcfd;
+    align-self:start;
+  }
+  .note-row.span2{grid-column:1 / -1;}
+  .note-head{display:flex;align-items:center;justify-content:space-between;padding:5px 10px;cursor:pointer;gap:8px;}
+  .note-head:hover{background:#f4f7fa;}
+  .note-title{font-size:10.5px;font-weight:700;color:var(--label-blue);text-transform:uppercase;letter-spacing:.04em;display:flex;align-items:center;gap:5px;white-space:nowrap;}
+  .note-title .req{color:#c94c4c;}
+  .note-empty-tag{font-size:11px;color:var(--muted);font-style:italic;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .note-chevron{color:var(--muted);font-size:10px;transition:transform .15s;flex:none;}
+  .note-row.open .note-chevron{transform:rotate(180deg);}
+  .note-body{display:none;padding:0 9px 8px;}
+  .note-row.open .note-body,.note-row.always-open .note-body{display:block;}
+  .note-body textarea{
+    width:100%;border:1px solid var(--border-soft);border-radius:5px;padding:6px 8px;
+    font-family:inherit;font-size:12.5px;color:var(--text);resize:vertical;min-height:30px;
+    transition:border-color .12s, box-shadow .12s;background:#fff;
+  }
+  .note-body textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 2px rgba(25,118,210,.12);}
+  .autosave-tag{font-size:10px;color:transparent;margin-top:2px;display:flex;align-items:center;gap:4px;height:12px;transition:color .15s;}
+  .autosave-tag.saving{color:var(--muted);}
+  .autosave-tag.saved{color:var(--green);}
+  .autosave-tag .dot{width:4px;height:4px;border-radius:50%;background:currentColor;}
+
+  .toast{
+    position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(10px);
+    background:#1c2b39;color:#fff;font-size:12.5px;padding:9px 16px;border-radius:6px;
+    opacity:0;pointer-events:none;transition:.2s;z-index:99;box-shadow:0 4px 16px rgba(0,0,0,.25);
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="usage">
+    <b>How this mockup works:</b> the card header is the collapsed state — Status is changeable right from the
+    header pill without expanding. Click the header or +/– to expand. Inside: ▾ fields open styled dropdowns,
+    blue values are links, $ values are click-to-edit, the four note boxes autosave as you type. Toggle
+    <b>Dev Notes</b> for rationale.
+  </div>
+
+  <div class="devtoggle-bar">
+    <div class="devtoggle" id="devToggle" onclick="toggleDev()">
+      <span>Dev Notes</span><span class="switch"></span>
+    </div>
+  </div>
+
+  <!-- App-level tabs (context only — shows where Notes & Activity moves to) -->
+  <div class="app-tabs">
+    <span class="app-tab">Add Job</span>
+    <span class="app-tab active">Assign Vendor</span>
+    <span class="app-tab">Selected Vendors</span>
+    <span class="app-tab">Customer & Vendor Invoicing</span>
+    <span class="app-tab moved">Notes &amp; Activity<span class="newtag">MOVED HERE</span></span>
+  </div>
+  <div class="note" style="margin:0 0 8px;">
+    <b>Notes &amp; Activity promoted to the app-level tab row:</b> it was sitting in the old Job Details header
+    row alongside section anchors, but it's not a section of this page — it's its own destination, used constantly,
+    and it's the target of the email-link behavior (clicking any email in this card starts a note there). It
+    belongs with the primary tabs. Tab names/order here are illustrative — Cole: match the real app-level tab set;
+    the only change being proposed is Notes &amp; Activity joining it.
+  </div>
+
+  <!-- ============ JOB DETAILS CARD ============ -->
+  <div class="card expanded" id="jobDetailsCard">
+
+    <div class="card-head" onclick="toggleCard(event)">
+      <span class="card-title">Job Details</span>
+
+      <span class="status-dd" onclick="event.stopPropagation()">
+        <span class="status-pill st-newjob" id="statusPill" onclick="toggleDD(this.parentElement)">
+          <span class="dot"></span><span id="statusText">New Job</span><span class="car">▾</span>
+        </span>
+        <div class="dd-menu">
+          <div class="dd-item selected" data-cls="st-newjob" onclick="pickStatus(event,this)"><span class="dot" style="background:#1660a8"></span>New Job<span class="check">✓</span></div>
+          <div class="dd-item" data-cls="st-scheduled" onclick="pickStatus(event,this)"><span class="dot" style="background:#0e7c6e"></span>Scheduled<span class="check">✓</span></div>
+          <div class="dd-item" data-cls="st-inprogress" onclick="pickStatus(event,this)"><span class="dot" style="background:#a06a00"></span>In Progress<span class="check">✓</span></div>
+          <div class="dd-item" data-cls="st-onhold" onclick="pickStatus(event,this)"><span class="dot" style="background:#5b6b7a"></span>On Hold<span class="check">✓</span></div>
+          <div class="dd-item" data-cls="st-completed" onclick="pickStatus(event,this)"><span class="dot" style="background:#25753f"></span>Completed<span class="check">✓</span></div>
+          <div class="dd-item" data-cls="st-cancelled" onclick="pickStatus(event,this)"><span class="dot" style="background:#b03636"></span>Cancelled<span class="check">✓</span></div>
+        </div>
+      </span>
+
+      <span class="pill">Air Methods</span>
+      <span class="pill">Electrical</span>
+      <span class="pill">Standard</span>
+      <span class="pill" id="pill-cust"><span class="plbl">Cust DNE</span><span class="pval">$1,000.00</span></span>
+      <span class="pill" id="pill-vendor"><span class="plbl">Vendor DNE</span><span class="pval">$200.00</span></span>
+
+      <div class="card-actions" onclick="event.stopPropagation()">
+        <button class="btn">Duplicate this Job</button>
+        <button class="btn">Broadcast to Vendors</button>
+        <button class="btn">Save</button>
+      </div>
+      <div class="toggle-btn"></div>
+    </div>
+    <div class="note" style="margin:0 14px 8px;">
+      <b>Status moved into the header:</b> it's now a live colored dropdown pill — changeable from any tab without
+      expanding the card, and it doubles as the at-a-glance state indicator (color-coded per status). This also
+      removes an entire row from the Job Info column. The other pills (customer, trade, priority, Customer DNE,
+      entry) keep the collapsed bar informative at ~46px.
+    </div>
+
+    <div class="card-body">
+      <div class="jd-grid">
+
+        <!-- ============ JOB INFO ============ -->
+        <div class="jd-col">
+          <div class="jd-col-title">Job Info <span class="title-badge">PO 25984</span></div>
+
+          <div class="kv"><span class="k">Account Mgr</span><span class="v">Alysha Ramirez</span></div>
+          <div class="kv"><span class="k">Entry → Compl.</span><span class="v">7-07-26 2:47AM <span class="sub">→ —</span></span></div>
+          <div class="kv fld-dd" onclick="event.stopPropagation();toggleDD(this)">
+            <span class="k">Trade</span>
+            <span class="v"><span class="v-val">Electrical (and Lighting)</span></span>
+            <div class="dd-menu right">
+              <div class="dd-item selected" onclick="pickDD(event,this)">Electrical (and Lighting)<span class="check">✓</span></div>
+              <div class="dd-item" onclick="pickDD(event,this)">HVAC<span class="check">✓</span></div>
+              <div class="dd-item" onclick="pickDD(event,this)">Plumbing<span class="check">✓</span></div>
+              <div class="dd-item" onclick="pickDD(event,this)">General Maintenance<span class="check">✓</span></div>
+              <div class="dd-item" onclick="pickDD(event,this)">Roofing<span class="check">✓</span></div>
+            </div>
+          </div>
+          <div class="kv fld-dd" onclick="event.stopPropagation();toggleDD(this)">
+            <span class="k">Priority</span>
+            <span class="v"><span class="v-val">Standard</span></span>
+            <div class="dd-menu right">
+              <div class="dd-item selected" onclick="pickDD(event,this)">Standard<span class="check">✓</span></div>
+              <div class="dd-item" onclick="pickDD(event,this)">Rush<span class="check">✓</span></div>
+              <div class="dd-item" onclick="pickDD(event,this)">Emergency<span class="check">✓</span></div>
+            </div>
+          </div>
+          <div class="kv dne-row" data-def="Default Vendor DNE *" data-rev="Revised Vendor DNE" data-original="200.00" data-pill="vendor" data-pillbase="Vendor DNE">
+            <span class="k dne-label">Default Vendor DNE *</span>
+            <span class="v editable" onclick="editDNE(event,this)"><span class="orig"></span><span class="cur">$200.00</span></span>
+          </div>
+        </div>
+
+        <!-- ============ CUSTOMER ============ -->
+        <div class="jd-col">
+          <div class="jd-col-title">Customer <span class="title-badge link" onclick="event.stopPropagation();showToast('→ Opens customer profile: Air Methods')">Air Methods ↗</span></div>
+
+          <div class="kv fld-dd" onclick="event.stopPropagation();toggleDD(this)">
+            <span class="k">Contact</span>
+            <span class="v"><span class="v-val">— Select contact —</span></span>
+            <div class="dd-menu right">
+              <div class="dd-item selected" onclick="pickDD(event,this)">— Select contact —<span class="check">✓</span></div>
+              <div class="dd-item" onclick="pickDD(event,this)">Alicia Davis<span class="check">✓</span></div>
+              <div class="dd-item" onclick="pickDD(event,this)">James Osei<span class="check">✓</span></div>
+              <div class="dd-item" onclick="pickDD(event,this)">Priya Nair<span class="check">✓</span></div>
+            </div>
+          </div>
+          <div class="kv"><span class="k">Title</span><span class="v">Area Manager</span></div>
+          <div class="kv"><span class="k">Email</span><span class="v link" onclick="event.stopPropagation();showToast('→ Notes & Activity: new note to Air Methods')"><span class="icon-inline">✉</span>customer.test2@retailfixit.com</span></div>
+          <div class="kv"><span class="k">Phone / Alt</span><span class="v link" onclick="event.stopPropagation();showToast('→ Initiates call')"><span class="icon-inline">☎</span>(000) 000-0000 <span class="sub">· Alt (000) 000-0000</span></span></div>
+          <div class="kv dne-row" data-def="Customer DNE *" data-rev="Revised Customer DNE" data-original="1000.00" data-pill="cust" data-pillbase="Cust DNE">
+            <span class="k dne-label">Customer DNE *</span>
+            <span class="v editable" onclick="editDNE(event,this)"><span class="orig"></span><span class="cur">$1,000.00</span></span>
+          </div>
+        </div>
+
+        <!-- ============ LOCATION ============ -->
+        <div class="jd-col">
+          <div class="jd-col-title">Location <span class="title-badge" title="Mercy Air 66, Crew Quarter">Mercy Air 66, Crew Quarter</span></div>
+
+          <div class="kv"><span class="k">Contact</span><span class="v">Alicia Davis</span></div>
+          <div class="kv"><span class="k">Phone</span><span class="v link" onclick="event.stopPropagation();showToast('→ Initiates call')"><span class="icon-inline">☎</span>(000) 000-0000</span></div>
+          <div class="kv"><span class="k">Email</span><span class="v link" onclick="event.stopPropagation();showToast('→ Notes & Activity: new note to Alicia Davis (Location)')"><span class="icon-inline">✉</span>customer.test2@retailfixit.com</span></div>
+          <div class="kv"><span class="k">Address</span><span class="v link" onclick="event.stopPropagation();showToast('→ Opens in Google Maps')">555 South Seventh Ave</span></div>
+          <div class="kv"><span class="k">City / TZ</span><span class="v">Barstow, CA 92311 <span class="sub">· PT</span></span></div>
+        </div>
+
+      </div>
+      <div class="note" style="margin:8px 14px 0;">
+        <b>Row consolidation:</b> Entry + Completion share one row; Phone + Alt share one row; City/State/Zip +
+        Timezone share one row. <b>DNE pairs are now one state-driven row each:</b> the field shows "Customer DNE
+        $1,000.00" until a revision is approved, then the <i>same row</i> becomes "Revised Customer DNE" with the
+        new amount, and the original shows as small muted strikethrough beside it (try it — click a $ amount and
+        enter a different number). Same for Vendor DNE. The header pill mirrors whichever state the field is in
+        ("Cust DNE" → "Rev Cust DNE"). One row of $ data per DNE instead of two — less to scan, and the label
+        itself tells you whether a revision happened. <b>Cole:</b> in the real app this label/state flip is driven
+        by the revision-approval event, not by merely typing a new number — the inline edit here just simulates it.
+        The muted original is optional; drop it if it reads as clutter. Job Info and Customer are now 5 rows each.
+      </div>
+
+      <!-- notes: 2-up grid so four boxes cost two rows of height, CSR spans full width -->
+      <div class="jd-notes">
+        <div class="note-row always-open span2">
+          <div class="note-head"><span class="note-title"><span class="req">*</span> Customer Service Request</span></div>
+          <div class="note-body">
+            <textarea rows="2" oninput="autosave(this)">Service Request: testing for the markup</textarea>
+            <div class="autosave-tag"><span class="dot"></span><span class="txt"></span></div>
+          </div>
+        </div>
+        <div class="note-row open">
+          <div class="note-head" onclick="toggleNote(this)"><span class="note-title">Special Instruction</span><span class="note-chevron">▾</span></div>
+          <div class="note-body">
+            <textarea rows="2" oninput="autosave(this)">Please call area manager to ensure you can get on-site / in prior to arrival.</textarea>
+            <div class="autosave-tag"><span class="dot"></span><span class="txt"></span></div>
+          </div>
+        </div>
+        <div class="note-row">
+          <div class="note-head" onclick="toggleNote(this)"><span class="note-title">Additional Approval</span><span class="note-empty-tag">Not required — click to add</span><span class="note-chevron">▾</span></div>
+          <div class="note-body">
+            <textarea rows="2" oninput="autosave(this)" placeholder="Add additional approval note…"></textarea>
+            <div class="autosave-tag"><span class="dot"></span><span class="txt"></span></div>
+          </div>
+        </div>
+        <div class="note-row span2">
+          <div class="note-head" onclick="toggleNote(this)"><span class="note-title">Location Special Instruction</span><span class="note-empty-tag">None on file — click to add</span><span class="note-chevron">▾</span></div>
+          <div class="note-body">
+            <textarea rows="2" oninput="autosave(this)" placeholder="Add location special instruction…"></textarea>
+            <div class="autosave-tag"><span class="dot"></span><span class="txt"></span></div>
+          </div>
+        </div>
+      </div>
+      <div class="note" style="margin:0 14px 12px;">
+        <b>Notes are now a 2-up grid:</b> Customer Service Request spans full width (it's the one that always has
+        content); Special Instruction and Additional Approval sit side-by-side; Location Special Instruction spans
+        below. Four boxes now cost roughly two rows of height instead of four. Empty boxes stay collapsed to one
+        line. All autosave on typing (debounced) — "Saving… → Saved" tag fades in under the box, invisible when idle.
+      </div>
+    </div>
+
+    <!-- In-page section nav: always visible (collapsed or expanded), jumps to the sections below on this tab -->
+    <div class="section-nav" onclick="event.stopPropagation()">
+      <span class="snlbl">On this page</span>
+      <span class="snav-link" onclick="showToast('↓ Scrolls to Selected Vendors')">Selected Vendors</span>
+      <span class="snav-link" onclick="showToast('↓ Scrolls to Sourcing Agent')">Sourcing Agent</span>
+      <span class="snav-link" onclick="showToast('↓ Scrolls to Internal Vendors in Radius')">Internal Vendors<span class="cnt">7</span></span>
+      <span class="snav-link" onclick="showToast('↓ Scrolls to Add Vendor to Job')">+ Add Vendor</span>
+    </div>
+  </div>
+  <!-- ============ END CARD ============ -->
+  <div class="note" style="margin:8px 0 0;">
+    <b>Section nav strip:</b> this replaces the navigation the old header-row tabs provided. The old row mixed two
+    different kinds of navigation — jumping to sections further down this page vs. going to other tabs entirely —
+    which is why Notes &amp; Activity felt misplaced there. Now: app-level destinations live in the top tab row;
+    <i>this</i> strip is purely "jump to a section below on this page" (smooth-scroll anchors). It's attached to the
+    bottom edge of the Job Details card so it's visible whether the card is collapsed or expanded, costs ~28px, and
+    its contents are <b>per-tab</b> — each tab renders its own section links here (the ones shown are Assign
+    Vendor's). Cole: these should smooth-scroll and ideally highlight the target section briefly on arrival.
+  </div>
+
+  <div class="scope-note">
+    <b>Scope:</b> only this Job Details card is in play here. On the live page it sits above Vendors,
+    Sourcing Agent, Add Vendor to Job, and Internal Vendors in Radius — those are unchanged and not
+    included in this handoff, so they're left out of this file entirely.
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+function toggleCard(e){ document.getElementById('jobDetailsCard').classList.toggle('expanded'); }
+function toggleDev(){
+  document.getElementById('devToggle').classList.toggle('on');
+  document.body.classList.toggle('devon');
+}
+function toggleNote(headEl){ headEl.parentElement.classList.toggle('open'); }
+
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(window._toastTimer);
+  window._toastTimer = setTimeout(()=>t.classList.remove('show'), 2200);
+}
+
+/* ---------- dropdowns ---------- */
+function closeAllDD(){
+  document.querySelectorAll('.dd-menu.show').forEach(m=>m.classList.remove('show'));
+}
+function toggleDD(wrapEl){
+  const menu = wrapEl.querySelector('.dd-menu');
+  const isOpen = menu.classList.contains('show');
+  closeAllDD();
+  if(!isOpen) menu.classList.add('show');
+}
+function pickDD(e, itemEl){
+  e.stopPropagation();
+  const menu = itemEl.parentElement;
+  const wrap = menu.closest('.fld-dd');
+  menu.querySelectorAll('.dd-item').forEach(i=>i.classList.remove('selected'));
+  itemEl.classList.add('selected');
+  const label = itemEl.childNodes[0].nodeValue.trim();
+  wrap.querySelector('.v-val').textContent = label;
+  menu.classList.remove('show');
+  showToast('Set to: ' + label);
+}
+function pickStatus(e, itemEl){
+  e.stopPropagation();
+  const menu = itemEl.parentElement;
+  menu.querySelectorAll('.dd-item').forEach(i=>i.classList.remove('selected'));
+  itemEl.classList.add('selected');
+  const label = itemEl.childNodes[1].nodeValue ? itemEl.childNodes[1].nodeValue.trim() : itemEl.textContent.replace('✓','').trim();
+  const pill = document.getElementById('statusPill');
+  pill.className = 'status-pill ' + itemEl.dataset.cls;
+  document.getElementById('statusText').textContent = label;
+  menu.classList.remove('show');
+  showToast('Status → ' + label);
+}
+document.addEventListener('click', closeAllDD);
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeAllDD(); });
+
+/* ---------- DNE single-row state behavior ---------- */
+function parseMoney(s){ return parseFloat(String(s).replace(/[^0-9.]/g,'')) || 0; }
+function fmtMoney(n){ return '$' + n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function editDNE(e, el){
+  e.stopPropagation();
+  if(el.querySelector('input')) return;
+  const row = el.closest('.dne-row');
+  const cur = el.querySelector('.cur');
+  const old = cur.textContent.trim();
+  cur.style.display='none';
+  const inp = document.createElement('input');
+  inp.type='text'; inp.value=old;
+  el.appendChild(inp);
+  inp.focus(); inp.select();
+  function commit(){
+    let n = parseMoney(inp.value); if(!n) n = parseMoney(old);
+    const orig = parseMoney(row.dataset.original);
+    const revised = Math.abs(n - orig) > 0.004;
+    cur.textContent = fmtMoney(n);
+    const lbl = row.querySelector('.dne-label');
+    const origEl = el.querySelector('.orig');
+    if(revised){
+      lbl.textContent = row.dataset.rev;
+      origEl.textContent = fmtMoney(orig);
+      origEl.style.display='inline';
+    } else {
+      lbl.textContent = row.dataset.def;
+      origEl.style.display='none';
+    }
+    const pill = document.getElementById('pill-' + row.dataset.pill);
+    if(pill){
+      pill.querySelector('.plbl').textContent = (revised ? 'Rev ' : '') + row.dataset.pillbase;
+      pill.querySelector('.pval').textContent = fmtMoney(n);
+    }
+    inp.remove(); cur.style.display='';
+    el.classList.add('savedflash');
+    setTimeout(()=>el.classList.remove('savedflash'), 700);
+    showToast(revised ? (row.dataset.rev + ': ' + fmtMoney(n) + ' (was ' + fmtMoney(orig) + ')') : ('Saved: ' + fmtMoney(n)));
+  }
+  inp.addEventListener('blur', commit);
+  inp.addEventListener('keydown', ev=>{
+    if(ev.key==='Enter') inp.blur();
+    if(ev.key==='Escape'){ inp.value = old; inp.blur(); }
+  });
+}
+
+/* ---------- autosave ---------- */
+function autosave(el){
+  const tag = el.parentElement.querySelector('.autosave-tag');
+  tag.classList.remove('saved'); tag.classList.add('saving');
+  tag.querySelector('.txt').textContent = 'Saving…';
+  clearTimeout(el._t);
+  el._t = setTimeout(()=>{
+    tag.classList.remove('saving'); tag.classList.add('saved');
+    tag.querySelector('.txt').textContent = 'Saved';
+    clearTimeout(el._t2);
+    el._t2 = setTimeout(()=>{ tag.classList.remove('saved'); tag.querySelector('.txt').textContent=''; }, 2000);
+  }, 600);
+}
+</script>
+</body>
+</html>

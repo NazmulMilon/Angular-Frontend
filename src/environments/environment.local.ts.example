@@ -1,0 +1,25 @@
+/**
+ * Copy this file to `environment.local.ts` (gitignored) for local `ng serve` against
+ * hosted DEV legacy (ProjectRCS) + hosted DEV Job Ops — no local API required.
+ *
+ *   copy src\environments\environment.local.ts.example src\environments\environment.local.ts
+ *   npm run start:hosted-dev
+ *
+ * Do not commit `environment.local.ts`. Deployments use azure-dev / uat / production configs.
+ *
+ * For local ProjectRCS on :2063, use legacyAdminBaseUrl `/legacy-admin` (proxied by `proxy.conf.hosted-dev.json`).
+ */
+export const environment = {
+  production: false,
+  apiBaseUrl: 'https://service-rfi-job-operation-api-dev.retailfixitapp.com',
+  emailServiceApiUrl: 'https://service-rfi-email-api-dev.retailfixitapp.com',
+  legacyAdminBaseUrl: '/legacy-admin',
+  authToken: '',
+  /** Shared key for RFISystemData/SystemSetupData endpoints (see HANDOFF-SystemSetupData-Auth-Change.md). */
+  rfiApiKey: 'PsVw2X5WKO/wMelUwD/4ZJgHiADv2dKasUklS/BP3afDmze+UjFWoL9xhws1OdNO',
+  vendorPartnerRegistrationUrl:
+    'https://admin-dev.retailfixitapp.com/MgtNewVendorRequest/GetRegisteredForJob?JobKey',
+  vendorPortalBaseUrl: 'https://vendor-dev.retailfixitapp.com',
+  vendorLoginWithTaskOptionsUrl:
+    'https://vendor-dev.retailfixitapp.com/VendorLogin/LoginByRCSadminWithTaskOptions?JobKey=',
+};

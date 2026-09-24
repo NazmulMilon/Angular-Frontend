@@ -1,0 +1,474 @@
+.add-job {
+  --aj-bg: #f4f6f9;
+  --aj-card: #ffffff;
+  --aj-ink: #17202e;
+  --aj-muted: #5b6b80;
+  --aj-line: #dde4ec;
+  --aj-primary: #1f5edb;
+  --aj-primary-ink: #ffffff;
+  --aj-primary-soft: #eaf1ff;
+  --aj-danger: #c6303e;
+  --aj-ok: #177245;
+  --aj-radius: 10px;
+  --aj-shadow: 0 1px 2px rgba(23, 32, 46, 0.06), 0 4px 14px rgba(23, 32, 46, 0.05);
+
+  color: var(--aj-ink);
+  line-height: 1.45;
+
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  // ---------- Load / error state ----------
+  .aj-state {
+    padding: 48px 28px;
+    text-align: center;
+    font-size: 0.9rem;
+    color: var(--aj-muted);
+    &--err {
+      color: var(--aj-danger);
+    }
+  }
+
+  // ---------- Cards / sections ----------
+  .card {
+    background: var(--aj-card);
+    border: 1px solid var(--aj-line);
+    border-radius: var(--aj-radius);
+    box-shadow: var(--aj-shadow);
+    margin-bottom: 20px;
+    overflow: hidden;
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+  .card-head {
+    padding: 16px 22px 0;
+    h2 {
+      font-size: 1rem;
+      font-weight: 600;
+    }
+    p {
+      font-size: 0.82rem;
+      color: var(--aj-muted);
+      margin-top: 2px;
+    }
+  }
+  .card-body {
+    padding: 18px 22px 22px;
+  }
+
+  // ---------- Fields ----------
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  @media (max-width: 640px) {
+    .grid-2 {
+      grid-template-columns: 1fr;
+    }
+  }
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 16px;
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+  label {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--aj-ink);
+    .req {
+      color: var(--aj-danger);
+    }
+    .opt {
+      color: var(--aj-muted);
+      font-weight: 500;
+    }
+  }
+  .hint {
+    font-size: 0.75rem;
+    color: var(--aj-muted);
+  }
+  select,
+  input[type='text'],
+  input[type='number'],
+  input[type='datetime-local'],
+  input[type='time'],
+  textarea {
+    width: 100%;
+    font: inherit;
+    color: var(--aj-ink);
+    border: 1px solid var(--aj-line);
+    border-radius: 8px;
+    padding: 9px 12px;
+    background: #fff;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  select:focus,
+  input:focus,
+  textarea:focus {
+    outline: none;
+    border-color: var(--aj-primary);
+    box-shadow: 0 0 0 3px rgba(31, 94, 219, 0.15);
+  }
+  textarea {
+    min-height: 96px;
+    resize: vertical;
+  }
+  ::placeholder {
+    color: #9aa7b8;
+  }
+
+  .with-action {
+    display: flex;
+    gap: 8px;
+    select {
+      flex: 1;
+    }
+  }
+  .icon-btn {
+    flex: 0 0 auto;
+    width: 40px;
+    height: 40px;
+    border: 1px solid var(--aj-line);
+    border-radius: 8px;
+    background: #fff;
+    font-size: 1.1rem;
+    color: var(--aj-primary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s;
+    &:hover {
+      background: var(--aj-primary-soft);
+    }
+    &:focus-visible {
+      outline: 2px solid var(--aj-primary);
+      outline-offset: 2px;
+    }
+  }
+
+  // invalid state
+  .field.invalid select,
+  .field.invalid input,
+  .field.invalid textarea {
+    border-color: var(--aj-danger);
+    box-shadow: 0 0 0 3px rgba(198, 48, 62, 0.12);
+  }
+  .field .err {
+    display: none;
+    font-size: 0.75rem;
+    color: var(--aj-danger);
+  }
+  .field.invalid .err {
+    display: block;
+  }
+
+  // ---------- Vendor ETA window ----------
+  .eta-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    input {
+      width: 88px;
+      flex: 0 0 auto;
+      text-align: center;
+    }
+  }
+  .eta-unit {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--aj-ink);
+    min-width: 38px;
+  }
+  .eta-source {
+    margin-left: auto;
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: var(--aj-bg);
+    color: var(--aj-muted);
+    border: 1px solid var(--aj-line);
+    white-space: nowrap;
+    &.custom {
+      background: var(--aj-primary-soft);
+      color: var(--aj-primary);
+      border-color: transparent;
+    }
+  }
+
+  // ---------- Modals (Add Job itself, and the nested Add service location modal) ----------
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(23, 32, 46, 0.45);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    &.open {
+      display: flex;
+    }
+    // The location sub-modal opens on top of the Add Job modal — must stack above it.
+    &.location-overlay {
+      z-index: 110;
+    }
+  }
+  .modal {
+    background: #fff;
+    border-radius: 12px;
+    max-width: 640px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+    display: flex;
+    flex-direction: column;
+  }
+  // The Add Job modal itself is a larger panel than the location sub-modal, since it hosts a
+  // full multi-section form rather than a single address form.
+  .modal-overlay:not(.location-overlay) > .modal {
+    max-width: 760px;
+  }
+  .modal-head {
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--aj-line);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 0 0 auto;
+    background: #fff;
+    h3 {
+      font-size: 1.05rem;
+      font-weight: 600;
+    }
+    .spacer {
+      flex: 1;
+    }
+  }
+  .modal-close {
+    border: none;
+    background: none;
+    font-size: 1.3rem;
+    line-height: 1;
+    color: var(--aj-muted);
+    cursor: pointer;
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    &:hover {
+      background: var(--aj-bg);
+    }
+  }
+  .modal-body {
+    padding: 22px 24px;
+    overflow-y: auto;
+    flex: 1 1 auto;
+  }
+  .modal-foot {
+    padding: 16px 24px;
+    border-top: 1px solid var(--aj-line);
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    justify-content: flex-end;
+    flex: 0 0 auto;
+    background: #fff;
+    .status {
+      font-size: 0.82rem;
+      color: var(--aj-muted);
+      margin-right: auto;
+    }
+  }
+  .checkbox-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 16px;
+    font-size: 0.85rem;
+    input {
+      margin-top: 3px;
+      accent-color: var(--aj-primary);
+    }
+    .lbl {
+      font-weight: 700;
+      color: var(--aj-primary);
+    }
+    .desc {
+      color: var(--aj-muted);
+      display: block;
+      margin-top: 3px;
+      font-weight: 400;
+    }
+  }
+
+  // ---------- Store hours (Add service location modal) ----------
+  table.store-hours {
+    margin-top: 8px;
+    th {
+      padding: 6px 8px;
+    }
+    td {
+      padding: 6px 8px;
+      border-bottom: none;
+    }
+    input[type='time'] {
+      width: auto;
+      padding: 6px 8px;
+    }
+    input[type='checkbox'] {
+      accent-color: var(--aj-primary);
+      cursor: pointer;
+    }
+  }
+
+  // ---------- Documents ----------
+  .dropzone {
+    display: block;
+    border: 1.5px dashed #b9c6d6;
+    border-radius: 8px;
+    padding: 26px;
+    text-align: center;
+    color: var(--aj-muted);
+    font-size: 0.88rem;
+    cursor: pointer;
+    background: #fafcfe;
+    transition: border-color 0.15s, background 0.15s;
+    strong {
+      color: var(--aj-primary);
+    }
+    &:hover {
+      border-color: var(--aj-primary);
+      background: var(--aj-primary-soft);
+    }
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 14px;
+    font-size: 0.85rem;
+  }
+  th {
+    text-align: left;
+    font-weight: 600;
+    color: var(--aj-muted);
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--aj-line);
+  }
+  td {
+    padding: 9px 10px;
+    border-bottom: 1px solid var(--aj-line);
+  }
+  tr:last-child td {
+    border-bottom: none;
+  }
+  .empty-row td {
+    color: var(--aj-muted);
+    text-align: center;
+    padding: 18px;
+  }
+  .doc-type-chip {
+    display: inline-block;
+    font-size: 0.72rem;
+    font-weight: 600;
+    background: var(--aj-primary-soft);
+    color: var(--aj-primary);
+    border-radius: 999px;
+    padding: 2px 10px;
+  }
+  .remove-link {
+    color: var(--aj-danger);
+    background: none;
+    border: none;
+    font: inherit;
+    font-size: 0.8rem;
+    cursor: pointer;
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+
+  // ---------- Buttons ----------
+  .btn {
+    font: inherit;
+    font-weight: 600;
+    border-radius: 8px;
+    cursor: pointer;
+    padding: 10px 22px;
+    border: 1px solid transparent;
+    transition: background 0.15s, box-shadow 0.15s;
+    &:focus-visible {
+      outline: 2px solid var(--aj-primary);
+      outline-offset: 2px;
+    }
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+  }
+  .btn-primary {
+    background: var(--aj-primary);
+    color: var(--aj-primary-ink);
+    &:hover {
+      background: #1a51bd;
+    }
+  }
+  .btn-ghost {
+    background: #fff;
+    border-color: var(--aj-line);
+    color: var(--aj-ink);
+    &:hover {
+      background: var(--aj-bg);
+    }
+  }
+
+  // ---------- Toast ----------
+  // Fixed to the viewport (not the modal) so it can still be seen briefly after the modal closes
+  // on a successful save.
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(8px);
+    background: var(--aj-ink);
+    color: #fff;
+    font-size: 0.85rem;
+    padding: 10px 18px;
+    border-radius: 8px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s, transform 0.2s;
+    z-index: 120;
+    &.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+    &.ok {
+      background: var(--aj-ok);
+    }
+    &.err {
+      background: var(--aj-danger);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      transition: none !important;
+    }
+  }
+}

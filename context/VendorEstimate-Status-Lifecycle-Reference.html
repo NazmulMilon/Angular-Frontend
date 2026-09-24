@@ -1,0 +1,914 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vendor Estimate Status Lifecycle — Full Replication Reference</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --surface: #1a2332;
+      --surface2: #243044;
+      --border: #2d3a4f;
+      --text: #e6edf3;
+      --muted: #8b9cb3;
+      --accent: #58a6ff;
+      --accent2: #3fb950;
+      --warn: #d29922;
+      --danger: #f85149;
+      --code-bg: #161b22;
+      --purple: #bc8cff;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      line-height: 1.6;
+      color: var(--text);
+      background: var(--bg);
+      margin: 0;
+      padding: 2rem;
+      max-width: 1200px;
+      margin-inline: auto;
+    }
+    h1 { color: var(--accent); border-bottom: 2px solid var(--border); padding-bottom: .5rem; }
+    h2 { color: var(--accent2); margin-top: 2.5rem; border-left: 4px solid var(--accent2); padding-left: .75rem; }
+    h3 { color: var(--warn); margin-top: 1.5rem; }
+    h4 { color: var(--muted); margin-top: 1rem; }
+    p, li { color: var(--text); }
+    a { color: var(--accent); }
+    code, pre {
+      font-family: "SF Mono", Consolas, monospace;
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+    }
+    code { padding: .1em .35em; font-size: .9em; }
+    pre { padding: 1rem; overflow-x: auto; font-size: .85em; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1rem 0;
+      font-size: .9em;
+    }
+    th, td {
+      border: 1px solid var(--border);
+      padding: .6rem .8rem;
+      text-align: left;
+      vertical-align: top;
+    }
+    th { background: var(--surface2); color: var(--accent); }
+    tr:nth-child(even) { background: var(--surface); }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.25rem;
+      margin: 1rem 0;
+    }
+    .note {
+      border-left: 4px solid var(--warn);
+      background: rgba(210, 153, 34, .08);
+      padding: .75rem 1rem;
+      margin: 1rem 0;
+      border-radius: 0 6px 6px 0;
+    }
+    .danger {
+      border-left: 4px solid var(--danger);
+      background: rgba(248, 81, 73, .08);
+      padding: .75rem 1rem;
+      margin: 1rem 0;
+      border-radius: 0 6px 6px 0;
+    }
+    .ok {
+      border-left: 4px solid var(--accent2);
+      background: rgba(63, 185, 80, .08);
+      padding: .75rem 1rem;
+      margin: 1rem 0;
+      border-radius: 0 6px 6px 0;
+    }
+    .flow-box {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      padding: 1rem;
+      font-family: monospace;
+      white-space: pre;
+      overflow-x: auto;
+      font-size: .78em;
+      line-height: 1.4;
+    }
+    .toc a { text-decoration: none; }
+    .toc li { margin: .35rem 0; }
+    .tag {
+      display: inline-block;
+      padding: .15em .5em;
+      border-radius: 4px;
+      font-size: .75em;
+      font-weight: 600;
+      margin-right: .25rem;
+    }
+    .tag-get { background: #1f6feb33; color: #58a6ff; }
+    .tag-post { background: #23863633; color: #3fb950; }
+    .tag-db { background: #8957e533; color: #bc8cff; }
+    .tag-modal { background: #9e6a0333; color: #d29922; }
+    .tag-ui { background: #da363333; color: #ff7b72; }
+    .status-pill {
+      display: inline-block;
+      padding: .2em .65em;
+      border-radius: 999px;
+      font-size: .8em;
+      font-weight: 700;
+      font-family: monospace;
+    }
+    .s0 { background: #da363333; color: #ff7b72; }
+    .s1 { background: #23863633; color: #3fb950; }
+    .s2 { background: #1f6feb33; color: #58a6ff; }
+    .s3 { background: #f8514933; color: #f85149; }
+    .s4 { background: #8957e533; color: #bc8cff; }
+    .s5 { background: #9e6a0333; color: #d29922; }
+    .s99 { background: #6e768133; color: #8b9cb3; }
+    ul.compact li { margin: .25rem 0; }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+    @media (max-width: 800px) { .grid-2 { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+
+<h1>Vendor Estimate Status Lifecycle — Full Replication Reference</h1>
+<p><strong>Primary sources:</strong>
+  <code>MgtVendorEstimateController.cs</code> (legacy edit),
+  <code>MdtVendorEstimateNewController.cs</code> (current wizard),
+  <code>ManageVendorEstimates.cs</code>,
+  <code>ManageVendorInvoice.cs</code> (<code>SaveVendorEstimate</code>),
+  <code>MgtVendorInvoiceController.UpdateVendorEstimate</code>,
+  <code>InvoiceCreator.cs</code>
+</p>
+<p><strong>Purpose:</strong> Document every estimate status, what happens after each transition, which UI/modals appear, what data is posted, and which tables are inserted/updated — so V2 can replicate without guessing.</p>
+
+<nav class="card toc">
+  <h3>Table of Contents</h3>
+  <ol>
+    <li><a href="#overview">Overview &amp; Two Edit Paths</a></li>
+    <li><a href="#status-dictionary">Status Dictionary (Status codes 0–5, 99)</a></li>
+    <li><a href="#flags">Companion Flags on VendorEstimate</a></li>
+    <li><a href="#lifecycle-map">Full Lifecycle Map</a></li>
+    <li><a href="#create">Creating an Estimate (Status → 4 or 2)</a></li>
+    <li><a href="#wizard-buttons">Wizard Final Buttons (Approve / Send to Customer)</a></li>
+    <li><a href="#status-1">Status 1 — Estimate Approved</a></li>
+    <li><a href="#status-2">Status 2 — Pending Approval</a></li>
+    <li><a href="#status-0">Status 0 — Reject / Resubmit</a></li>
+    <li><a href="#status-3">Status 3 — Not Approved / Declined</a></li>
+    <li><a href="#status-4">Status 4 — Submitted / Pending Review</a></li>
+    <li><a href="#status-5">Status 5 — Change Order / Pending Review</a></li>
+    <li><a href="#manual-status">Manual Status Change Screen (UpdateVendorEstimate)</a></li>
+    <li><a href="#additional-approval">Post-Approve: Additional Approval Panel</a></li>
+    <li><a href="#legacy-edit">Legacy Edit Path (MgtVendorEstimateController)</a></li>
+    <li><a href="#modals">All Modals / Soft Confirmations</a></li>
+    <li><a href="#tables">Tables Touched (cheat sheet)</a></li>
+    <li><a href="#payloads">Payload Shapes</a></li>
+    <li><a href="#auto-approval">Customer-Estimate Auto-Approval of Vendor Estimate</a></li>
+    <li><a href="#gotchas">Gotchas &amp; Non-Obvious Rules</a></li>
+  </ol>
+</nav>
+
+<!-- ============================================================ -->
+<h2 id="overview">1. Overview &amp; Two Edit Paths</h2>
+<div class="card">
+  <p>A <strong>Vendor Estimate</strong> is stored as one header row in <code>VendorEstimate</code> plus line items in:</p>
+  <ul>
+    <li><code>VendorEstimateDetail</code> — materials / trip charges (non-labor)</li>
+    <li><code>VendorEstimateDetail1</code> — labor hours</li>
+  </ul>
+  <p>Status lives in <code>VendorEstimate.Status</code> (int). Display labels are derived in <code>ManageVendorInvoice.GetVendorEstimateList</code>.</p>
+
+  <div class="note">
+    <strong>⚠️ Two parallel edit UIs exist:</strong>
+    <ul>
+      <li><strong>Current (Job Main Tab):</strong> <code>MdtVendorEstimateNew</code> → <code>CreateEstimate</code> / <code>EditEstimate</code> wizard. This is what admins use day-to-day.</li>
+      <li><strong>Legacy:</strong> <code>MgtVendorEstimateController.Edit</code> + <code>ManageVendorEstimates.SaveEstimateForEdit</code>. Same tables, older form; still referenced by some redirects to <code>DetailVendorEstimate</code>.</li>
+      <li><strong>Status dropdown screen:</strong> <code>MgtVendorInvoice/UpdateVendorEstimate</code> — the authoritative place to manually set Status 0/1/2/3/4/5 via <code>SaveVendorEstimate</code>.</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="status-dictionary">2. Status Dictionary</h2>
+<p>Canonical mapping from <code>ManageVendorInvoice.GetVendorEstimateList</code> (line ~229):</p>
+<table>
+  <tr>
+    <th>Code</th>
+    <th>UI Label</th>
+    <th>How you typically get here</th>
+    <th>Terminal?</th>
+  </tr>
+  <tr>
+    <td><span class="status-pill s0">0</span></td>
+    <td>Estimate Reject/Resubmit</td>
+    <td>Admin selects this on UpdateVendorEstimate; email sent to vendor to resubmit</td>
+    <td>No — vendor can resubmit</td>
+  </tr>
+  <tr>
+    <td><span class="status-pill s1">1</span></td>
+    <td>Estimate Approved</td>
+    <td>Wizard “Approve vendor Estimate”, UpdateVendorEstimate “Estimate Approved”, Main-tab quick approve, or auto-approval from customer estimate</td>
+    <td>Yes (until edited → 5)</td>
+  </tr>
+  <tr>
+    <td><span class="status-pill s2">2</span></td>
+    <td>Pending Approval</td>
+    <td>Wizard “Send to Customer for Approval”; ETA auto-skeleton; manual set; customer-estimate handoff</td>
+    <td>No</td>
+  </tr>
+  <tr>
+    <td><span class="status-pill s3">3</span></td>
+    <td>Not Approved / Declined</td>
+    <td>Admin declines; sibling cancelled when one is approved; vendor unassigned</td>
+    <td>Usually yes (invoice-from-incurred can follow)</td>
+  </tr>
+  <tr>
+    <td><span class="status-pill s4">4</span></td>
+    <td>Vendor Estimate Submitted/pending review</td>
+    <td>Brand-new estimate just created from wizard/email submit</td>
+    <td>No</td>
+  </tr>
+  <tr>
+    <td><span class="status-pill s5">5</span></td>
+    <td>Change Order Request/Pending review</td>
+    <td>Any edit/save of an existing estimate (resets approval)</td>
+    <td>No — needs re-approval</td>
+  </tr>
+  <tr>
+    <td><span class="status-pill s99">99</span></td>
+    <td>(legacy / UI-only / treated as “needs attention”)</td>
+    <td>Seen in old GetEstimateForEdit model; queries for pending often include <code>Status == 99</code> OR <code>IsNew == true</code></td>
+    <td>—</td>
+  </tr>
+</table>
+
+<div class="note">
+  At submit, <code>SaveVendorEstimate</code> does <code>model.Status = Convert.ToInt32(inv.ItemName)</code>. The dropdown <code>Value</code> <em>is</em> the Status code. <code>IsApproved</code> / <code>IsCancelled</code> / <code>IsNew</code> are set separately per branch.
+</div>
+
+<!-- ============================================================ -->
+<h2 id="flags">3. Companion Flags on VendorEstimate</h2>
+<table>
+  <tr><th>Field</th><th>Meaning</th></tr>
+  <tr><td><code>IsApproved</code></td><td><code>true</code> only when Status=1 (approved path). Cleared when edited or sent pending.</td></tr>
+  <tr><td><code>IsCancelled</code></td><td><code>true</code> on Status=0 (reject/resubmit). <em>Not</em> set for Status=3 declines.</td></tr>
+  <tr><td><code>IsNew</code></td><td><code>true</code> on fresh submit / after edit save (makes list row blue highlight <code>#97BFF5</code>). Cleared when status decision is made.</td></tr>
+  <tr><td><code>IsSeen</code></td><td>Cleared to <code>false</code> on edit so dashboard treats it as unseen again.</td></tr>
+  <tr><td><code>IsEdited</code></td><td>Set <code>true</code> when admin/vendor edits line items; shows audit warning banner.</td></tr>
+  <tr><td><code>EditedByVendor</code></td><td>If set, blocks customer-estimate auto-approval of this vendor estimate.</td></tr>
+  <tr><td><code>OtherRemark</code></td><td>Human-readable status narrative (appended with admin remarks).</td></tr>
+  <tr><td><code>ApprovedBy</code> / <code>OtherDate</code></td><td>Who last changed status + UTC timestamp.</td></tr>
+  <tr><td><code>MutiEstiIdentifier</code> / <code>MCEstimate</code></td><td>Multi-option estimate grouping. Approving one declines siblings (Status=3).</td></tr>
+  <tr><td><code>OnsiteApproval</code></td><td>If true and approved, sends “Proceed with Repairs” message to vendor.</td></tr>
+  <tr><td><code>CreatedInvoiceForIncurredAfterDeclined</code></td><td>Set when admin builds a vendor invoice from incurred lines of a declined estimate.</td></tr>
+  <tr><td><code>IsDelete</code> / <code>DeletedFor</code></td><td>Soft delete via DeleteEstimate — separate from Status=3.</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2 id="lifecycle-map">4. Full Lifecycle Map</h2>
+<div class="flow-box">
+                         ┌─────────────────────────────────┐
+                         │  No estimate yet                │
+                         │  Main Tab: “Provide on-site     │
+                         │  approval” (GetOnSiteButtonLabel│
+                         │  flag=1) → CreateEstimate       │
+                         └───────────────┬─────────────────┘
+                                         │ save create
+                                         ▼
+                              Status <span style="color:#bc8cff">4</span> Submitted/pending review
+                         (or Status <span style="color:#58a6ff">2</span> if skeleton created on ETA set)
+                                         │
+              ┌──────────────────────────┼──────────────────────────┐
+              │                          │                          │
+              ▼                          ▼                          ▼
+   Edit any line item          Manual dropdown           Wizard final buttons
+   (SaveEditNewEstimate /      UpdateVendorEstimate      (Create/EditEstimate)
+    legacy Edit POST)          Status = chosen code
+              │
+              ▼
+         Status <span style="color:#d29922">5</span> Change Order
+         IsApproved=false, IsNew=true
+              │
+   ┌──────────┴──────────┐
+   │                     │
+   ▼                     ▼
+ “Send to Customer”   “Approve vendor Estimate”
+ SetEstimateTo-        SetEstimateToApproved
+ VendingApproval
+   │                     │
+   ▼                     ▼
+ Status <span style="color:#58a6ff">2</span>              Status <span style="color:#3fb950">1</span>
+ → CreateNew           → #frmAdditionalApprovalToVendor
+   (customer est)        (panel, not modal)
+                         → SaveVendorApprovalData
+                         → EmailWorkOrderToVendor
+                                         │
+                                         │ sibling estimates
+                                         ▼
+                              other estimates → Status <span style="color:#f85149">3</span>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="create">5. Creating an Estimate</h2>
+
+<h3>5.1 Wizard create — <code>SaveCreateNewEstimate</code></h3>
+<p><span class="tag tag-post">POST</span> <code>/MdtVendorEstimateNew/SaveCreateNewEstimate</code> (or equivalent in <code>ManageVendorEstimates.SaveCreateNewEstimate</code>)</p>
+<table>
+  <tr><th>Field set</th><th>Value</th></tr>
+  <tr><td>Status</td><td><span class="status-pill s4">4</span></td></tr>
+  <tr><td>IsApproved / IsCancelled</td><td>false</td></tr>
+  <tr><td>IsNew / IsSeen</td><td>true / false</td></tr>
+  <tr><td>MCEstimate / MutiEstiIdentifier</td><td>0 / self InvoiceKey</td></tr>
+  <tr><td>InvoiceNo</td><td>sequential via <code>GetInvoiceNoForInvoice</code></td></tr>
+</table>
+<p><strong>Tables written:</strong></p>
+<ul class="compact">
+  <li><span class="tag tag-db">INSERT</span> <code>VendorEstimate</code></li>
+  <li><span class="tag tag-db">INSERT</span> <code>VendorEstimateDetail</code> / <code>VendorEstimateDetail1</code> per line</li>
+  <li><span class="tag tag-db">DELETE</span> matching <code>JobActionNeeded</code> where ActionID ∈ {1, 21, 71} for Job+Vendor</li>
+  <li><span class="tag tag-db">INSERT</span> general note via <code>SaveGeneralNotewithDB</code> (“Created Estimate”)</li>
+</ul>
+
+<h3>5.2 Auto skeleton on ETA — <code>SaveEstimateOnETAset</code></h3>
+<p>Creates a minimal trip + 1hr labor estimate automatically.</p>
+<ul class="compact">
+  <li>Status = <span class="status-pill s2">2</span> Pending Approval</li>
+  <li>Labor: Standard or Overtime rate based on emergency JobType GUID <code>fc078fd5-5ddc-4088-8a9f-d982436e20fd</code></li>
+  <li>Same ActionNeeded cleanup + note (“Service Call Min Vendor Estimate”)</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="wizard-buttons">6. Wizard Final Buttons</h2>
+<p>On Create/Edit final step (<code>CreateEstimate.cshtml</code> / <code>EditEstimate.cshtml</code>):</p>
+
+<table>
+  <tr>
+    <th>Button</th>
+    <th>Client path</th>
+    <th>Result</th>
+  </tr>
+  <tr>
+    <td><code>#btnSave</code><br/>“Send to Customer for Approval”</td>
+    <td>
+      1. Block if Gross == 0 (inline message, <strong>not</strong> a modal)<br/>
+      2. POST save create/edit<br/>
+      3. <span class="tag tag-get">GET</span> <code>SetEstimateToVendingApproval?EstimateKey=</code><br/>
+      4. Redirect → <code>MgtVendorEstimateToCustomerEstimate/CreateNew/{key}</code>
+    </td>
+    <td>Status → <span class="status-pill s2">2</span></td>
+  </tr>
+  <tr>
+    <td><code>#btnAdditionalApproval</code><br/>“Approve vendor Estimate”</td>
+    <td>
+      1. Block if Gross == 0<br/>
+      2. Soft 65%-of-Customer-DNE check (see Modals)<br/>
+      3. POST save create/edit<br/>
+      4. <span class="tag tag-get">GET</span> <code>SetEstimateToApproved?EstimateKey=</code><br/>
+      5. Reveal <code>#frmAdditionalApprovalToVendor</code> panel
+    </td>
+    <td>Status → <span class="status-pill s1">1</span></td>
+  </tr>
+</table>
+
+<h3>6.1 Edit save first resets to Status 5</h3>
+<p><code>SaveEditNewEstimate</code> (and legacy <code>SaveEstimateForEdit</code>) always:</p>
+<ol>
+  <li>Archives to <code>VendorEstimateArchive</code> + <code>VendorEstimateArchiveDetail</code></li>
+  <li>Sets header: <code>Status=5</code>, <code>IsApproved=false</code>, <code>IsNew=true</code>, <code>IsSeen=false</code>, <code>IsEdited=true</code></li>
+  <li>Upserts detail rows (new rows get <code>NewLineAddedAfterEdit = "Change Order Item"</code>)</li>
+  <li>Writes “Edit Estimate” note</li>
+</ol>
+<p>Then the button branch immediately moves Status to 2 or 1.</p>
+
+<div class="payload card">
+  <h4>DetailList row shape (wizard POST)</h4>
+<pre>DetailList[] = {
+  ChargeTypeKey,   // item name / charge type (also on tr id)
+  ItemName,        // display HTML of col 0
+  CostIncurred,    // "0" incurred / "1" proposed (attr on col 0)
+  Description,     // col 1 HTML
+  Display,         // display level (attr on col 1)
+  Rate,            // col 2
+  hour,            // labor hours (attr on col 2)
+  Qty,             // col 3
+  Labor,           // "labor" | other (attr on col 3)
+  Total,           // col 4
+  tech,            // tech count (attr on col 4)
+  DetailKey        // real GUID, or "YYY" for brand-new line
+}</pre>
+  <p>Plus header fields: <code>JobKey</code>, <code>VendorKey</code>, <code>VendorEstimateKey</code>, <code>EnteredDate</code>, <code>FormFunc</code>.</p>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="status-1">7. Status 1 — Estimate Approved</h2>
+
+<div class="ok"><strong>Meaning:</strong> This is the live approved estimate for the vendor on the job. Only one should remain “live”; siblings are declined.</div>
+
+<h3>7.A Wizard path — <code>SetEstimateToApproved</code></h3>
+<p><span class="tag tag-get">GET</span> <code>/MdtVendorEstimateNew/SetEstimateToApproved?EstimateKey={guid}</code></p>
+
+<p><strong>Writes / updates:</strong></p>
+<table>
+  <tr><th>Table / field</th><th>Change</th></tr>
+  <tr><td><code>VendorEstimate</code></td><td>
+    Status=1, IsApproved=true, IsCancelled=false, IsNew=false,
+    MutiEstiIdentifier=InvoiceKey, MCEstimate bumped,
+    OtherRemark="Approved => … APPROVED VENDOR ESTIMATE.",
+    ApprovedBy=login name, OtherDate=UtcNow
+  </td></tr>
+  <tr><td><code>VendorEstimateDetail</code> / <code>Detail1</code> (active)</td><td><code>ApprovedByCustomer = 1</code></td></tr>
+  <tr><td>Sibling <code>VendorEstimate</code> same Job+Vendor</td><td>Status=3, IsApproved=false, remark declined-by-approval, MutiEstiIdentifier=approved key</td></tr>
+  <tr><td><code>JobVendor.RevVendorDNE</code></td><td>= sum of estimate (<code>VendorHelper.GetVendorEstimateTotal</code>)</td></tr>
+  <tr><td><code>Job.RevVendorDNE</code></td><td>Mirrored if this JobVendor IsDefault</td></tr>
+  <tr><td>Notes (RCSmessaging)</td><td>“Vendor estimate … has been approved…”</td></tr>
+  <tr><td><code>CancelAllRegardingVendorEstimates(..., formoption=1)</code></td><td>
+    Deletes <code>JobActionNeeded</code> ActionID ∈ {50, 61}; clears highlight factor 8 / EstimateResponse flags
+  </td></tr>
+</table>
+
+<p><strong>Return <code>flag</code> to UI:</strong></p>
+<ul>
+  <li><code>1</code> — job status trigger is NOT 4 or 17 → show full Additional Approval panel (all options)</li>
+  <li><code>2</code> — job already checkout-adjacent → pre-select checkout radio (#2) + call <code>WhenCheckoutIsSelected()</code></li>
+  <li><code>0</code> — error message shown inline</li>
+</ul>
+
+<p><span class="tag tag-ui">UI next</span> Not a Bootstrap modal — an inline panel <code>#frmAdditionalApprovalToVendor</code> is shown (see §14).</p>
+
+<h3>7.B Manual path — UpdateVendorEstimate ItemName="1"</h3>
+<p><code>ManageVendorInvoice.SaveVendorEstimate</code> when <code>inv.ItemName == "1"</code>:</p>
+<ul class="compact">
+  <li>Same approval + sibling decline + RevVendorDNE + CancelAll (formoption 1)</li>
+  <li>Writes <code>JobStatusHistory</code> via <code>UpdateVendorEstimateJobStatusHistoryAsync</code> (“Estimate Approved” / “Quote Approved” / “Received Additional Approval” by job stage)</li>
+  <li><strong>Vendor deposit side-effect:</strong> if <code>VendorDepositSet</code> exists and no deposit <code>JobBill</code> yet → <code>AccountingHelper.SaveVendorBills</code> creates deposit bill</li>
+  <li>If <code>OnsiteApproval==true</code> → admin→vendor message “Proceed with Repairs…”</li>
+  <li>Redirect → <code>DetailVendorEstimate/{MutiEstiIdentifier}</code></li>
+</ul>
+
+<h3>7.C Main Job Tab quick-approve</h3>
+<ul>
+  <li><span class="tag tag-get">GET</span> <code>/MgtJob/SetTheEstimateApproved?EstimateKey&amp;NewEstimateAmt&amp;NewApprovalRemarks</code> — Status=1 + note; does <em>not</em> update RevVendorDNE or cancel siblings</li>
+  <li><span class="tag tag-get">GET</span> <code>/MgtJob/SetTheEstimateApprovedForOption1</code> — same without amount/remarks</li>
+</ul>
+<p>Used from <code>JobMainTabSave.js</code> with an approval-progress message modal area (<code>#msgForEstApprovalModal</code>).</p>
+
+<h3>7.D Auto-approval from customer estimate</h3>
+<p>See §19 — sets Status=1 when customer estimate is approved and 80% / EditedByVendor / toggle rules pass.</p>
+
+<!-- ============================================================ -->
+<h2 id="status-2">8. Status 2 — Pending Approval</h2>
+
+<div class="ok"><strong>Meaning:</strong> Waiting on customer (or admin standing in for customer). Not yet an approved DNE.</div>
+
+<h3>How you get here</h3>
+<table>
+  <tr><th>Path</th><th>What happens</th></tr>
+  <tr>
+    <td>Wizard “Send to Customer”</td>
+    <td>
+      <code>SetEstimateToVendingApproval</code>: Status=2, IsApproved=false, IsNew=false,
+      OtherRemark pending text, detail ApprovedByCustomer=1, siblings → Status=3,
+      CancelAll formoption=<strong>2</strong>, note written, then redirect to customer-estimate CreateNew
+    </td>
+  </tr>
+  <tr>
+    <td>UpdateVendorEstimate ItemName="2"</td>
+    <td>Pending Approval remark + CancelAll(2) + JobStatusHistory “pending approval” — <em>no</em> email / no CreateNew redirect by itself</td>
+  </tr>
+  <tr>
+    <td><code>ChangeEstimateStatus</code></td>
+    <td>After customer estimate created from VE — force VE back to Status=2</td>
+  </tr>
+  <tr>
+    <td>ETA skeleton</td>
+    <td><code>SaveEstimateOnETAset</code> creates Status=2 up front</td>
+  </tr>
+  <tr>
+    <td>SaleEstimated modal</td>
+    <td><span class="tag tag-modal">MODAL</span> “Do you want to change status of vendor estimate to pending approval now?” → ChangeEstimateStatus</td>
+  </tr>
+</table>
+
+<p><strong>Tables:</strong> <code>VendorEstimate</code> update; sibling estimates may be Status=3; notes; ActionNeeded cleanup depending on CancelAll option.</p>
+
+<!-- ============================================================ -->
+<h2 id="status-0">9. Status 0 — Estimate Reject / Resubmit</h2>
+
+<div class="danger"><strong>Meaning:</strong> Admin rejected with instructions to revise. <code>IsCancelled = true</code> (unusual — cancelled flag used here, not for Status=3).</div>
+
+<p>Only from <code>SaveVendorEstimate</code> when <code>ItemName == "0"</code>:</p>
+<ol>
+  <li>OtherRemark = “Rejected for resubmission::” + AdminRemark</li>
+  <li>IsApproved=false, IsCancelled=<strong>true</strong>, IsNew=false, Status=0</li>
+  <li>JobStatusKey → <code>GlobalClass.GetJobStatus(8)</code> on Job (if default vendor) and JobVendor</li>
+  <li>CancelAll formoption=1</li>
+  <li>Note with inline estimate HTML</li>
+  <li><strong>Emails vendor</strong> via <code>SendEditVendorEstimateMailToVendor(InvoiceKey, VendorKey, AdminRemark)</code></li>
+  <li>JobStatusHistory: “Rejected for resubmission” (or Quote/Onsite variants)</li>
+</ol>
+
+<p><span class="tag tag-ui">UI</span> No special modal beyond the status dropdown + AdminRemark CKEditor on <code>UpdateVendorEstimate</code>.</p>
+
+<!-- ============================================================ -->
+<h2 id="status-3">10. Status 3 — Not Approved / Declined</h2>
+
+<div class="danger"><strong>Meaning:</strong> Dead path for this estimate. Displayed as red “DECLINED” banner in InvoiceCreator.</div>
+
+<h3>Entry paths</h3>
+<table>
+  <tr><th>Path</th><th>Side effects</th></tr>
+  <tr>
+    <td>UpdateVendorEstimate ItemName="3"</td>
+    <td>
+      Multi-choice shuffle if MCEstimate==1 (re-point MutiEstiIdentifier to another sibling).<br/>
+      CancelAll(1). Thank-you decline email to vendor if no other live estimates remain.<br/>
+      JobStatusHistory “Estimate Declined”.
+    </td>
+  </tr>
+  <tr>
+    <td>Approving another estimate (wizard or SaveVendorEstimate "1")</td>
+    <td>Siblings auto Status=3 with decline remark — <em>no</em> thank-you email per sibling</td>
+  </tr>
+  <tr>
+    <td>Vendor unassigned</td>
+    <td>
+      <code>UnwindTheEstimateForDeletedVendor</code>: estimates where Status∈{2,99} → Status=3,
+      remark “vendor has been unassigned”, CancelAll(1), note.
+      Modal on CreateVendor: warn if pending estimates exist before unassign.
+    </td>
+  </tr>
+</table>
+
+<p><strong>Optional follow-up:</strong> Admin can create a vendor invoice from incurred lines only → sets <code>CreatedInvoiceForIncurredAfterDeclined = true</code> on the declined VE (invoice tables written separately).</p>
+
+<!-- ============================================================ -->
+<h2 id="status-4">11. Status 4 — Submitted / Pending Review</h2>
+<p>Initial state after wizard create (or manual set). Flags: IsApproved=false, IsCancelled=false, IsNew typically true on create.</p>
+<p>From UpdateVendorEstimate ItemName="4": updates remark + CancelAll(2) + JobStatusHistory “pending review” — keeps it waiting for admin review without approving.</p>
+
+<!-- ============================================================ -->
+<h2 id="status-5">12. Status 5 — Change Order Request / Pending Review</h2>
+<p>Triggered whenever an existing estimate is edited/saved:</p>
+<ul>
+  <li><code>SaveEditNewEstimate</code></li>
+  <li>Legacy <code>SaveEstimateForEdit</code> (also sets Job/JobVendor JobStatusKey via <code>GetJobStatus(9)</code> — change-order-ish job status)</li>
+  <li>Legacy line-item add/delete on <code>MgtVendorEstimateController.Edit</code> POST</li>
+  <li>Manual Status=5 from UpdateVendorEstimate</li>
+</ul>
+
+<p><strong>UI display:</strong> InvoiceCreator wraps Status==5 in <code>alert-changeorder</code> styling.</p>
+
+<p><strong>Archive first:</strong> every meaningful edit calls <code>SaveVendorEstimateOriginalVersion</code> → snapshot into:</p>
+<ul class="compact">
+  <li><code>VendorEstimateArchive</code> (Version = count+1, OriginalInvoiceKey = live key)</li>
+  <li><code>VendorEstimateArchiveDetail</code> (materials + labor flattened)</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="manual-status">13. Manual Status Change Screen</h2>
+<p><span class="tag tag-get">GET</span> <code>/MgtVendorInvoice/UpdateVendorEstimate/{InvoiceKey}</code><br/>
+<span class="tag tag-post">POST</span> same action with <code>VendorInvoiceClass</code> + <code>save</code></p>
+
+<p><strong>Dropdown Id:</strong> <code>#Itemname</code> (maps to <code>ItemName</code> / Status code):</p>
+<table>
+  <tr><th>Value</th><th>Text</th></tr>
+  <tr><td>4</td><td>Vendor Estimate Submitted/pending review</td></tr>
+  <tr><td>2</td><td>Pending Approval</td></tr>
+  <tr><td>5</td><td>Change Order Request/Pending review</td></tr>
+  <tr><td>1</td><td>Estimate Approved</td></tr>
+  <tr><td>0</td><td>Estimate Reject/Resubmit</td></tr>
+  <tr><td>3</td><td>Not Approved/ Declined</td></tr>
+</table>
+
+<p>Also posts <code>AdminRemark</code> (CKEditor). Core worker: <code>manage.SaveVendorEstimate(model, depositMsg)</code>.</p>
+
+<p>Success redirect: <code>DetailVendorEstimate/{data.key}</code> where key is usually <code>MutiEstiIdentifier</code>.</p>
+
+<!-- ============================================================ -->
+<h2 id="additional-approval">14. Post-Approve: Additional Approval Panel</h2>
+<p><span class="tag tag-ui">NOT a modal</span> — inline panel <code>#frmAdditionalApprovalToVendor</code> revealed after Status=1 from wizard.</p>
+
+<table>
+  <tr>
+    <th>Radio value</th>
+    <th>Label</th>
+    <th>Hidden <code>fifthAppropalOption</code></th>
+    <th>Server id1Type (email template / InvoiceType)</th>
+    <th>Preflight</th>
+  </tr>
+  <tr>
+    <td>1</td><td>Set Return ETA buttons</td><td>"1"</td><td>34</td>
+    <td>None. On success redirect id3=15</td>
+  </tr>
+  <tr>
+    <td>2</td><td>Check-out button</td><td>"2"</td><td>5</td>
+    <td>
+      <code>CheckBeforeCheckout</code>. If not checked in → show check-in subform
+      (<code>SaveTechCheckIn</code>) before Send appears.
+    </td>
+  </tr>
+  <tr>
+    <td>4</td><td>CREATE INVOICE button</td><td>"4"</td><td>10</td>
+    <td>
+      <code>CheckBeforeSendingCreateInvoice</code>. If checked-in → force check-out
+      subform first. Else show Send (with warning if never completed checkout).
+    </td>
+  </tr>
+  <tr>
+    <td>5</td><td>Save approved amount &amp; Close (no email)</td><td>"55" ⚠️</td><td>—</td>
+    <td>
+      Uses radio val "5" for client branch →
+      <code>GET /MgtJob/SaveVendorRevisedDNE</code> then redirect EditJob.
+      <strong>No email.</strong>
+    </td>
+  </tr>
+</table>
+
+<p><span class="tag tag-post">POST</span> <code>/MdtVendorEstimateNew/SaveVendorApprovalData</code></p>
+<pre>{
+  fifthAppropalOption,  // maps to id1Type
+  JobKey,
+  VendorKey,
+  ApprovalText,         // CKEditor HTML prepended
+  RevVendorDNE          // from #JobKey3 = Gross total
+}</pre>
+
+<p><strong>DB effects:</strong></p>
+<ul class="compact">
+  <li>Resolves latest non-deleted <code>JobWorkOrder</code> for Job+Vendor</li>
+  <li>May set Job/JobVendor JobStatusKey to trigger 17 or 4 (checkout path)</li>
+  <li>Updates <code>JobWorkOrder.VendorDNE</code>, <code>JobVendor.RevVendorDNE</code>, maybe <code>Job.RevVendorDNE</code></li>
+  <li>Prepends ApprovalText onto WorkOrder.AdditionalApproval, Job.AdditionalApproval, JobVendor.JobDescription</li>
+  <li><span class="tag tag-db">INSERT</span> <code>JobResendAdditionRecall</code> (ResendAdditionRecall=2)</li>
+  <li>JobStatusHistory via <code>_jobStatusService.UpdateJobStatus</code></li>
+  <li>Redirect → <code>/JobWorkOrder/EmailWorkOrderToVendor/{WorkOrderKey}?id1={id1Type}&amp;id3={0|15}</code></li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="legacy-edit">15. Legacy Edit Path — MgtVendorEstimateController</h2>
+<p><span class="tag tag-get">GET</span> <code>/MgtVendorEstimate/Edit/{id}</code><br/>
+<span class="tag tag-post">POST</span> same — multipurpose form (save / add labor / add material / delete)</p>
+
+<table>
+  <tr><th>POST branch</th><th>What it does</th><th>Tables</th></tr>
+  <tr>
+    <td><code>save</code> non-empty</td>
+    <td><code>SaveEstimateForEdit</code> → Status=5, IsEdited=true, Job status trigger 9, clear ActionNeeded 1/21/71, note, redirect DetailVendorEstimate</td>
+    <td>VendorEstimate, Job, JobVendor, JobActionNeeded, notes</td>
+  </tr>
+  <tr>
+    <td>Add / update labor or material</td>
+    <td>
+      First mutation archives via <code>SaveVendorEstimateOriginalVersion</code>
+      (once per session flag <code>GlobalClass.VendorEstimateEdited</code>).
+      Sets IsEdited=true + JobStatusKey level 9.
+    </td>
+    <td>VendorEstimateDetail(1), VendorEstimateArchive*, Job, JobVendor</td>
+  </tr>
+  <tr>
+    <td>DelLabor / DelMaterial</td>
+    <td>Hard <code>Remove</code> detail row (legacy differs from new soft-delete via MarkNotNeededCmt)</td>
+    <td>detail tables</td>
+  </tr>
+</table>
+
+<p><strong>File uploads</strong> (same controller): <code>UploadFiles</code> / <code>UploadFiles1</code> / <code>UploadFiles2</code> / <code>SaveFile</code> → blob via <code>JobFileSetup.SaveJobBillVendorUploads</code> + <code>JobBillVendorUploads</code> rows (DocumentType GUIDs s1/s2/s3).</p>
+
+<div class="note">
+  Legacy hard-deletes line items. New wizard soft-deletes with <code>MarkNotNeededCmt = "No Longer Needed (remove charges)"</code>. Replicate the soft-delete behavior in V2.
+</div>
+
+<!-- ============================================================ -->
+<h2 id="modals">16. All Modals / Soft Confirmations</h2>
+<table>
+  <tr>
+    <th>UI element</th>
+    <th>Type</th>
+    <th>When</th>
+    <th>Blocks?</th>
+  </tr>
+  <tr>
+    <td>Zero-estimate message in <code>#msgConfirmFinal</code></td>
+    <td>Inline</td>
+    <td>Gross == 0 on Save/Approve</td>
+    <td>Yes — no POST</td>
+  </tr>
+  <tr>
+    <td>65% Customer DNE warning</td>
+    <td>Inline soft confirm (button val flip 0→1)</td>
+    <td>Approve: Gross &gt; 65% of Customer DNE</td>
+    <td>Soft — requires second click</td>
+  </tr>
+  <tr>
+    <td><code>#frmAdditionalApprovalToVendor</code></td>
+    <td>Inline panel</td>
+    <td>After Status=1 from wizard</td>
+    <td>—</td>
+  </tr>
+  <tr>
+    <td>Check-in / Check-out subforms</td>
+    <td>Inline panels</td>
+    <td>Radios 2 / 4 require tech state</td>
+    <td>Hides Send until satisfied</td>
+  </tr>
+  <tr>
+    <td><code>#ModalForExceedingCustomerDNE</code></td>
+    <td><span class="tag tag-modal">MODAL</span></td>
+    <td>UpdateVendorEstimate approve when VE total ≥ 80% of Customer DNE (or ≥ DNE)</td>
+    <td>Yes — “cannot be approved right now”</td>
+  </tr>
+  <tr>
+    <td><code>#ModalAlertForCustomerEstimateSent</code></td>
+    <td><span class="tag tag-modal">MODAL</span></td>
+    <td>Customer estimate already sent</td>
+    <td>Warn OK</td>
+  </tr>
+  <tr>
+    <td>Multi-estimate picker (<code>SetModalForMultipleEstimateOption</code>)</td>
+    <td><span class="tag tag-modal">MODAL</span></td>
+    <td>GetOnSiteButtonLabel flag=4</td>
+    <td>User must SelectThis → EditEstimate</td>
+  </tr>
+  <tr>
+    <td>Pending-approval confirm (SaleEstimated / EIndex)</td>
+    <td><span class="tag tag-modal">MODAL</span></td>
+    <td>“change status to pending approval now?”</td>
+    <td>Yes until confirmed → ChangeEstimateStatus</td>
+  </tr>
+  <tr>
+    <td>Unassign vendor warning (CreateVendor)</td>
+    <td>Inline danger alert</td>
+    <td>Pending VE will move to NOT APPROVED</td>
+    <td>User choice Yes / Not Now</td>
+  </tr>
+  <tr>
+    <td><code>#ModalForDNEChangedWithNoEstimatePresent</code></td>
+    <td><span class="tag tag-modal">MODAL</span></td>
+    <td>Main tab DNE change with no estimate</td>
+    <td>Related to DNE save, not Status per se</td>
+  </tr>
+  <tr>
+    <td><code>alert(... no longer valid ...)</code></td>
+    <td>Browser alert</td>
+    <td>EditEstimate tempHeader "99"</td>
+    <td>Hides form</td>
+  </tr>
+  <tr>
+    <td>Approval progress <code>#msgForEstApprovalModal</code></td>
+    <td>Modal messaging area</td>
+    <td>Main-tab SetTheEstimateApproved*</td>
+    <td>Wait messaging</td>
+  </tr>
+</table>
+
+<!-- ============================================================ -->
+<h2 id="tables">17. Tables Touched (cheat sheet)</h2>
+
+<div class="grid-2">
+  <div class="card">
+    <h4>Always involved</h4>
+    <ul class="compact">
+      <li><code>VendorEstimate</code> — header + Status</li>
+      <li><code>VendorEstimateDetail</code> — materials/trip</li>
+      <li><code>VendorEstimateDetail1</code> — labor</li>
+      <li>Notes / messaging tables via <code>ManageJobMessegingSetup</code></li>
+    </ul>
+  </div>
+  <div class="card">
+    <h4>On edit / versioning</h4>
+    <ul class="compact">
+      <li><code>VendorEstimateArchive</code></li>
+      <li><code>VendorEstimateArchiveDetail</code></li>
+    </ul>
+  </div>
+  <div class="card">
+    <h4>On approve (1)</h4>
+    <ul class="compact">
+      <li><code>JobVendor.RevVendorDNE</code></li>
+      <li><code>Job.RevVendorDNE</code> (default vendor)</li>
+      <li><code>JobActionNeeded</code> (delete 50/61)</li>
+      <li><code>VendorDepositSet</code> → maybe <code>JobBill</code> deposit</li>
+      <li><code>JobStatusHistory</code></li>
+    </ul>
+  </div>
+  <div class="card">
+    <h4>Additional approval email path</h4>
+    <ul class="compact">
+      <li><code>JobWorkOrder</code> (AdditionalApproval, VendorDNE)</li>
+      <li><code>Job</code> / <code>JobVendor</code> description &amp; status</li>
+      <li><code>JobResendAdditionRecall</code></li>
+      <li><code>VendorCheckInOut</code> (preflight)</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h4>Customer-estimate handoff</h4>
+    <ul class="compact">
+      <li><code>JobSalesInvoice</code></li>
+      <li><code>JobSalesOrderToVEstimate</code></li>
+      <li><code>JobSalesInvoiceEstimateStatus</code></li>
+      <li><code>ActionNeededCustomerApproval</code></li>
+    </ul>
+  </div>
+  <div class="card">
+    <h4>Files</h4>
+    <ul class="compact">
+      <li><code>TempFileStock</code> (staging)</li>
+      <li><code>JobBillVendorUploads</code></li>
+      <li>Blob storage via JobFileSetup</li>
+      <li><code>DocumentType</code> (DocumentForID=2006)</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="payloads">18. Payload Shapes</h2>
+
+<h3>SetEstimateToApproved / SetEstimateToVendingApproval</h3>
+<pre>GET ?EstimateKey={VendorEstimate.InvoiceKey}
+→ DataReturn { flag, mess, key? }</pre>
+
+<h3>SaveVendorApprovalData</h3>
+<pre>POST {
+  fifthAppropalOption: int,  // 1|2|3|4 (55 is client-only for option 5)
+  JobKey, VendorKey,
+  ApprovalText: html string,
+  RevVendorDNE: decimal
+}
+→ DataReturn { key: WorkOrderKey, flag: id1Type|99, mess }</pre>
+
+<h3>UpdateVendorEstimate POST</h3>
+<pre>VendorInvoiceClass {
+  InvoiceKey, JobKey, VendorKey,
+  ItemName: "0"|"1"|"2"|"3"|"4"|"5",  // becomes Status
+  AdminRemark: html,
+  ... display fields
+}
++ save = "Submit"</pre>
+
+<h3>Main-tab GetOnSiteButtonLabel</h3>
+<pre>→ { flag: 1|2|3|4, key?: InvoiceKey }
+1 = create new
+2 = skeleton only → “Provide on-site approval” → EditEstimate
+3 = real single estimate → “Update existing…” → EditEstimate
+4 = multi → modal picker → EditEstimate</pre>
+
+<!-- ============================================================ -->
+<h2 id="auto-approval">19. Customer-Estimate Auto-Approval of Vendor Estimate</h2>
+<p>When admin/customer approves a <code>JobSalesInvoice</code> estimate that is linked to vendor estimate(s):</p>
+<ol>
+  <li><code>Customer.ToggleApproveVendorEstimate</code> must be <code>true</code></li>
+  <li>Link via <code>JobSalesOrderToVEstimate</code> OR <code>JobSalesInvoice.VendoeEstimateKey</code></li>
+  <li><strong>80% rule:</strong> vendor total &lt; 80% of approved customer amount</li>
+  <li><code>EditedByVendor</code> must be null</li>
+  <li><code>Status != 3</code></li>
+</ol>
+<p>On success: VendorEstimate Status=1, RevVendorDNE updated, CancelAll siblings, note logged.<br/>
+Source: <code>UtilityTasks.cs</code> (customer approve path). Full detail in repo docs <code>Vendor-Auto-Approval-Logic.md</code>.</p>
+
+<!-- ============================================================ -->
+<h2 id="gotchas">20. Gotchas &amp; Non-Obvious Rules</h2>
+
+<div class="danger">
+  <ul>
+    <li><strong>Editing always un-approves.</strong> SaveEdit → Status=5 before any re-approve/pending step. Never leave an edited estimate at Status=1.</li>
+    <li><strong>Soft vs hard delete.</strong> New wizard soft-deletes (MarkNotNeededCmt). Legacy controller hard-deletes rows.</li>
+    <li><strong>IsCancelled=true only on Status 0</strong>, not on Status 3.</li>
+    <li><strong>Only one live estimate per Job+Vendor</strong> when approving — siblings forced to Status=3.</li>
+    <li><strong>CancelAllRegardingVendorEstimates</strong> does NOT cancel estimate rows; it clears ActionNeeded {50,61} + highlight flags. Sibling Status=3 is a separate loop.</li>
+    <li><strong>Option 5 hidden field is "55"</strong> but client branch checks radio value <code>"5"</code>.</li>
+    <li><strong>65% (wizard approve)</strong> is soft warn; <strong>80% (UpdateVendorEstimate / auto-approve)</strong> is hard block / fail auto-approve. Different thresholds!</li>
+    <li><strong>No ambient DB transaction.</strong> Each step saves independently — partial failure can leave Status mid-lifecycle.</li>
+    <li><strong>Job status trigger 9</strong> on legacy edit = change-order-related job status; new wizard relies more on Status=5 on the estimate itself.</li>
+    <li><strong>Detail ApprovedByCustomer=1</strong> is set even when Status=2 (“send to customer”) — name is misleading; it marks lines as selected for the flow.</li>
+    <li><strong>GetEstimateForEdit</strong> sets model.Status=99 for the legacy view model only — may not persist to DB until save.</li>
+  </ul>
+</div>
+
+<!-- ============================================================ -->
+<h2>Key Source Files</h2>
+<table>
+  <tr><th>File</th><th>Role</th></tr>
+  <tr><td><code>Controllers/MdtVendorEstimateNewController.cs</code></td><td>Create/Edit wizard, SetEstimateTo*, SaveVendorApprovalData</td></tr>
+  <tr><td><code>Controllers/MgtVendorEstimateController.cs</code></td><td>Legacy Edit + uploads</td></tr>
+  <tr><td><code>Controllers/MgtVendorInvoiceController.cs</code></td><td>UpdateVendorEstimate status dropdown, Detail views</td></tr>
+  <tr><td><code>DatabaseInteraction/ManageVendorInvoice.cs</code></td><td>SaveVendorEstimate (all status branches), CancelAll, list Status labels</td></tr>
+  <tr><td><code>DatabaseInteraction/ManageVendorEstimates.cs</code></td><td>Create, ETA skeleton, archive, legacy save, attachments</td></tr>
+  <tr><td><code>Views/MdtVendorEstimateNew/CreateEstimate.cshtml</code> / <code>EditEstimate.cshtml</code></td><td>Wizard buttons + Additional Approval panel</td></tr>
+  <tr><td><code>Views/MgtVendorInvoice/UpdateVendorEstimate.cshtml</code></td><td>Status dropdown + DNE modals</td></tr>
+  <tr><td><code>Scripts/FormFunc/AdditionalApproval.js</code></td><td>SaveAdditionalApproval branching</td></tr>
+  <tr><td><code>Scripts/NewVendorEstimate1.js</code></td><td>Wizard hydration / line CRUD</td></tr>
+  <tr><td><code>Helper/InvoiceCreator.cs</code></td><td>Status banners APPROVED / DECLINED / change-order</td></tr>
+</table>
+
+<p style="margin-top:3rem;color:var(--muted);font-size:.85em;">
+  Generated for Admin Portal V2 replication. Cross-check live code if Status handling changes — Status labels and SaveVendorEstimate branches in ManageVendorInvoice.cs are the source of truth for code meanings.
+</p>
+
+</body>
+</html>

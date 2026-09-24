@@ -1,0 +1,245 @@
+/* Same palette/.panel/.sec-head/.badge/.btn convention as invoice-customer-card and
+   vendor-payable-card (each standalone component redeclares these on :host). */
+:host {
+  --blue: #2563eb;
+  --blue-lt: #eff6ff;
+  --green: #16a34a;
+  --green-lt: #f0fdf4;
+  --amber: #d97706;
+  --amber-lt: #fffbeb;
+  --red: #dc2626;
+  --red-lt: #fef2f2;
+  --ink: #0f172a;
+  --ink2: #475569;
+  --ink3: #94a3b8;
+  --line: #e2e8f0;
+  --card: #ffffff;
+
+  display: block;
+  font-family: 'Segoe UI', system-ui, -apple-system, Arial, sans-serif;
+  font-size: 13px;
+  color: var(--ink);
+}
+
+.panel {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+
+.sec-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line);
+  background: #fafbfc;
+  flex-wrap: wrap;
+
+  .n {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--ink2);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 800;
+    flex-shrink: 0;
+  }
+  h3 {
+    font-size: 13px;
+    font-weight: 800;
+    margin: 0;
+  }
+  .sub {
+    font-size: 11px;
+    color: var(--ink2);
+    font-weight: 400;
+  }
+}
+
+.body {
+  padding: 12px 14px;
+}
+
+.loading-row,
+.error-row {
+  padding: 14px;
+  font-size: 12px;
+  color: var(--ink2);
+}
+.error-row {
+  color: var(--red);
+}
+
+.recap-line {
+  font-size: 11.5px;
+  color: var(--ink3);
+  margin-bottom: 8px;
+}
+.recap-line.ok {
+  color: var(--green);
+}
+
+.section-label {
+  font-size: 10.5px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--ink2);
+}
+
+.vendor-rows {
+  margin-top: 7px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.vendor-row {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 11px;
+}
+.vendor-row-head {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.vendor-line {
+  font-size: 11px;
+  margin-top: 4px;
+}
+.vendor-line.blocker {
+  color: var(--red);
+}
+.vendor-line.ok-line {
+  color: var(--green);
+}
+
+.invoice-rows {
+  margin-top: 5px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.invoice-row {
+  font-size: 11.5px;
+  color: var(--ink2);
+}
+.ok-text {
+  color: var(--green);
+  font-weight: 600;
+}
+
+.muted {
+  color: var(--ink3);
+  font-size: 10.5px;
+}
+
+.badge {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  padding: 2.5px 8px;
+  border-radius: 10px;
+  display: inline-block;
+}
+.b-blue {
+  background: var(--blue-lt);
+  color: var(--blue);
+}
+.b-gray {
+  background: #f1f5f9;
+  color: var(--ink2);
+}
+.b-green {
+  background: var(--green-lt);
+  color: var(--green);
+}
+.b-red {
+  background: var(--red-lt);
+  color: var(--red);
+}
+
+/* ---------- finalize gates panel (complete-screen-v2.html's .send-panel/.gate) ---------- */
+.finalize-panel {
+  padding: 12px 14px;
+  border-top: 1px solid var(--line);
+  background: #fafbfc;
+}
+.finalize-panel.ready {
+  background: var(--green-lt);
+}
+.finalize-panel h3 {
+  font-size: 14px;
+  margin: 0 0 8px;
+}
+.gates {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+.gate {
+  font-size: 11.5px;
+  color: var(--red);
+  display: flex;
+  gap: 6px;
+}
+.gate.ok {
+  color: var(--green);
+}
+.gate .dot {
+  flex-shrink: 0;
+}
+.route-note {
+  font-size: 11.5px;
+  color: var(--ink2);
+  margin-bottom: 10px;
+}
+
+.fully-finalized-line {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--green);
+  background: var(--green-lt);
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  padding: 9px 12px;
+  text-align: center;
+}
+
+.btn {
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink);
+  border-radius: 7px;
+  padding: 6px 11px;
+  font-size: 11.5px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-block;
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.btn.xl {
+  width: 100%;
+  padding: 11px;
+  font-size: 13px;
+  font-weight: 800;
+  text-align: center;
+}
+.btn.green {
+  background: var(--green);
+  border-color: var(--green);
+  color: #fff;
+}

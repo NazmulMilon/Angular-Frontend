@@ -1,0 +1,11 @@
+{
+  "/legacy-admin": {
+    "target": "http://localhost:2063",
+    "secure": false,
+    "changeOrigin": true,
+    "logLevel": "warn",
+    "pathRewrite": {
+      "^/legacy-admin": ""
+    }
+  }
+}

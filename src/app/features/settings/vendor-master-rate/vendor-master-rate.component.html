@@ -1,0 +1,88 @@
+<div class="page">
+  <nav class="breadcrumb">
+    <a routerLink="/settings" class="breadcrumb__link">Settings</a>
+    <span class="breadcrumb__sep">/</span>
+    <span class="breadcrumb__current">Vendor Master Rate</span>
+  </nav>
+
+  <div class="page__header">
+    <h1 class="page__title">Vendor Master Rate</h1>
+    <p class="page__subtitle">Company-wide standard and emergency vendor labor rates.</p>
+  </div>
+
+  @if (error()) {
+    <div class="error-banner">{{ error() }}</div>
+  }
+
+  @if (loading()) {
+    <div class="loading-note">Loading rates…</div>
+  } @else {
+  <form (ngSubmit)="save()">
+    <div class="rate-cols">
+      <!-- ── Standard ── -->
+      <div class="panel">
+        <div class="panel__head">Standard Rates</div>
+        <div class="panel__body">
+          <div class="field">
+            <label class="field__label" for="stdTrip">Trip Charge</label>
+            <div class="money">
+              <span class="money__prefix">$</span>
+              <input id="stdTrip" type="number" class="field__input field__input--money" [ngModel]="stdTrip()" (ngModelChange)="stdTrip.set($event)" name="stdTrip" required min="0" step="0.01" />
+            </div>
+          </div>
+          <div class="field">
+            <label class="field__label" for="stdHourly">Hourly Rate</label>
+            <div class="money">
+              <span class="money__prefix">$</span>
+              <input id="stdHourly" type="number" class="field__input field__input--money" [ngModel]="stdHourly()" (ngModelChange)="stdHourly.set($event)" name="stdHourly" required min="0" step="0.01" />
+            </div>
+          </div>
+          <div class="field">
+            <label class="field__label" for="stdHelper">Helper Hourly Rate</label>
+            <div class="money">
+              <span class="money__prefix">$</span>
+              <input id="stdHelper" type="number" class="field__input field__input--money" [ngModel]="stdHelper()" (ngModelChange)="stdHelper.set($event)" name="stdHelper" min="0" step="0.01" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Emergency ── -->
+      <div class="panel panel--emg">
+        <div class="panel__head panel__head--emg">Emergency Rates</div>
+        <div class="panel__body">
+          <div class="field">
+            <label class="field__label" for="emgTrip">Trip Charge</label>
+            <div class="money">
+              <span class="money__prefix">$</span>
+              <input id="emgTrip" type="number" class="field__input field__input--money" [ngModel]="emgTrip()" (ngModelChange)="emgTrip.set($event)" name="emgTrip" required min="0" step="0.01" />
+            </div>
+          </div>
+          <div class="field">
+            <label class="field__label" for="emgHourly">Hourly Rate</label>
+            <div class="money">
+              <span class="money__prefix">$</span>
+              <input id="emgHourly" type="number" class="field__input field__input--money" [ngModel]="emgHourly()" (ngModelChange)="emgHourly.set($event)" name="emgHourly" required min="0" step="0.01" />
+            </div>
+          </div>
+          <div class="field">
+            <label class="field__label" for="emgHelper">Helper Hourly Rate</label>
+            <div class="money">
+              <span class="money__prefix">$</span>
+              <input id="emgHelper" type="number" class="field__input field__input--money" [ngModel]="emgHelper()" (ngModelChange)="emgHelper.set($event)" name="emgHelper" min="0" step="0.01" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button type="button" class="btn btn--primary" [disabled]="!canSave" (click)="save()">{{ saving() ? 'Saving…' : 'Save' }}</button>
+      <a routerLink="/settings" class="btn btn--secondary">Go Back</a>
+      @if (saved()) {
+        <span class="save-flash">Saved successfully</span>
+      }
+    </div>
+  </form>
+  }
+</div>

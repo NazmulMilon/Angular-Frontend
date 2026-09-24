@@ -1,0 +1,130 @@
+<div class="page">
+  <nav class="breadcrumb">
+    <a routerLink="/settings" class="breadcrumb__link">Settings</a>
+    <span class="breadcrumb__sep">/</span>
+    <span class="breadcrumb__current">Job Status</span>
+  </nav>
+
+  @if (error()) {
+    <div class="error-banner">{{ error() }}</div>
+  }
+
+  <!-- ── Form panel (legacy: full-width form on top) ── -->
+  <div class="panel">
+    <div class="panel__head">
+      Add New Job Status
+      @if (editingId() !== null) { <span class="panel__edit-tag">Editing</span> }
+    </div>
+    <div class="panel__body">
+      <form (ngSubmit)="save()">
+        <div class="form-grid">
+          <div class="field">
+            <label class="field__label" for="adminLabel">Label Visible to RCS Admin</label>
+            <input id="adminLabel" type="text" class="field__input" [ngModel]="formAdmin()" (ngModelChange)="formAdmin.set($event)" (blur)="syncLabels()" name="adminLabel" required placeholder="e.g. New Request" />
+          </div>
+          <div class="field">
+            <label class="field__label" for="level">Display Level</label>
+            <input id="level" type="number" class="field__input" [ngModel]="formLevel()" (ngModelChange)="formLevel.set($event)" name="level" required min="1" placeholder="#" />
+          </div>
+          <div class="field">
+            <label class="field__label" for="customerLabel">Label Visible to Customer</label>
+            <input id="customerLabel" type="text" class="field__input" [ngModel]="formCustomer()" (ngModelChange)="formCustomer.set($event)" name="customerLabel" placeholder="e.g. Received" />
+          </div>
+          <div class="field">
+            <label class="field__label" for="vendorLabel">Label Visible to Vendor</label>
+            <input id="vendorLabel" type="text" class="field__input" [ngModel]="formVendor()" (ngModelChange)="formVendor.set($event)" name="vendorLabel" placeholder="e.g. Pending" />
+          </div>
+          <div class="field field--full">
+            <label class="field__label" for="trigger">Trigger Details</label>
+            <textarea id="trigger" class="field__textarea" rows="2" [ngModel]="formTrigger()" (ngModelChange)="formTrigger.set($event)" name="trigger" required placeholder="What triggers this status..."></textarea>
+          </div>
+          <div class="field">
+            <label class="field__label">Is Active</label>
+            <div class="radio-group">
+              <label class="radio" [class.radio--active]="formActive()">
+                <input type="radio" name="active" [value]="true" [ngModel]="formActive()" (ngModelChange)="formActive.set($event)" />
+                <span>Active</span>
+              </label>
+              <label class="radio" [class.radio--inactive]="!formActive()">
+                <input type="radio" name="active" [value]="false" [ngModel]="formActive()" (ngModelChange)="formActive.set($event)" />
+                <span>Inactive</span>
+              </label>
+            </div>
+          </div>
+          <div class="field">
+            <div class="field__label-row">
+              <label class="field__label">Select Usergroup</label>
+              <button type="button" class="select-all-btn" (click)="toggleSelectAllGroups()">{{ allGroupsChecked ? 'Clear all' : 'Select all' }}</button>
+            </div>
+            <div class="group-grid">
+              @for (g of usergroups(); track g.key) {
+                <label class="group-check" [class.group-check--checked]="isGroupChecked(g.key)">
+                  <input type="checkbox" [checked]="isGroupChecked(g.key)" (change)="toggleGroup(g.key)" />
+                  <span>{{ g.name }}</span>
+                </label>
+              }
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
+    <div class="panel__footer">
+      <button type="button" class="btn btn--primary" [disabled]="!canSave" (click)="save()">{{ editingId() === null ? 'Save' : 'Update' }}</button>
+      <button type="button" class="btn btn--secondary" (click)="clearForm()">Clear</button>
+    </div>
+  </div>
+
+  <!-- ── Grid ── -->
+  <div class="list-head">
+    <h3 class="list-title">Existing Job Statuses</h3>
+    <input type="search" class="list-search" [ngModel]="search()" (ngModelChange)="search.set($event)" name="search" placeholder="Search by label…" />
+  </div>
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th class="th--num">SL</th>
+          <th>RCS Admin View</th>
+          <th>Customer View</th>
+          <th>Vendor View</th>
+          <th class="th--level">Level</th>
+          <th>Trigger Detail</th>
+          <th>Usergroups</th>
+          <th class="th--active">Active</th>
+          <th class="th--actions"></th>
+        </tr>
+      </thead>
+      <tbody>
+        @if (loading()) {
+          <tr><td colspan="9" class="td--empty">Loading job statuses…</td></tr>
+        } @else {
+        @for (row of filteredRows(); track row.id; let idx = $index) {
+          <tr [class.tr--active]="editingId() === row.id" [class.tr--muted]="!row.isActive">
+            <td class="td--num">{{ idx + 1 }}</td>
+            <td class="td--label">{{ row.adminLabel }}</td>
+            <td>{{ row.customerLabel || '—' }}</td>
+            <td>{{ row.vendorLabel || '—' }}</td>
+            <td class="td--level"><span class="level-badge">{{ row.level }}</span></td>
+            <td class="td--trigger">{{ preview(row.triggerDetails) }}</td>
+            <td class="td--groups">
+              @for (k of row.usergroupKeys; track k) {
+                <span class="group-badge">{{ groupName(k) }}</span>
+              }
+            </td>
+            <td class="td--active">
+              @if (row.isActive) { <span class="pill pill--yes">Y</span> } @else { <span class="pill pill--no">N</span> }
+            </td>
+            <td class="td--actions">
+              <button type="button" class="icon-btn" title="Edit" (click)="selectRow(row)">
+                <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M10.586 1.586a2 2 0 0 1 2.828 2.828L5.5 12.328l-3.6.9.9-3.6 7.786-8.042Z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+            </td>
+          </tr>
+        } @empty {
+          <tr><td colspan="9" class="td--empty">{{ search().trim() ? 'No job statuses match your search.' : 'No job statuses defined.' }}</td></tr>
+        }
+        }
+      </tbody>
+    </table>
+  </div>
+</div>

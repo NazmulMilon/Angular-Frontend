@@ -1,0 +1,77 @@
+@if (isOpen()) {
+  <div class="modal-overlay" (click)="onOverlayClick($event)">
+    <div class="modal modal--sbs-status" role="dialog" aria-modal="true" aria-labelledby="sbsModalTitle">
+      <div class="modal__header">
+        <h3 class="modal__title" id="sbsModalTitle">
+          ↩ Send Back to Service
+          @if (po()) {
+            <span class="modal__po">— PO {{ po() }}</span>
+          }
+          ·
+          @if (isCompleted()) {
+            <span class="badge b-complete">✓ RETURNED BY AM</span>
+          } @else {
+            <span class="badge b-amber">⏳ AWAITING ACCOUNT MANAGER</span>
+          }
+        </h3>
+        <button type="button" class="modal__close" (click)="onClose()" aria-label="Close">&times;</button>
+      </div>
+
+      <div class="modal__body">
+        @if (errorMessage()) {
+          <div class="sbs-error">{{ errorMessage() }}</div>
+        }
+
+        <div class="sbs-status-box">
+          <b>Sent by:</b> {{ state().startedByName || 'Unknown' }}
+          @if (state().startedOn) {
+            · {{ state().startedOn | date: 'M/d/yyyy h:mm a' }}
+          }
+          <br />
+          <b>Reason sent:</b> "{{ state().reason }}"
+
+          @if (isCompleted()) {
+            <hr class="sbs-divider" />
+            <b>Account Manager's remark:</b>
+            @if (state().responseByAttendee) {
+              <div class="sbs-remark">{{ state().responseByAttendee }}</div>
+            } @else {
+              <span class="muted">No remark was left.</span>
+            }
+            <div class="sbs-attended-meta">
+              — {{ state().attendedByName || 'Unknown' }}
+              @if (state().attendedOn) {
+                · {{ state().attendedOn | date: 'M/d/yyyy h:mm a' }}
+              }
+            </div>
+          }
+        </div>
+
+        <b class="sbs-label">Notes to Accounting related to this</b>
+        <div class="sbs-related-notes">
+          @if (state().notes.length === 0) {
+            <span class="muted">None yet.</span>
+          } @else {
+            @for (note of state().notes; track note.noteKey) {
+              <div class="note pink">
+                <div class="meta">
+                  {{ note.addedByName || 'Unknown' }} · {{ note.addedOn | date: 'M/d/yyyy h:mm a' }}
+                </div>
+                <div [innerHTML]="note.comment"></div>
+              </div>
+            }
+          }
+        </div>
+      </div>
+
+      <div class="modal__footer">
+        <button type="button" class="btn" (click)="onClose()">Close</button>
+        @if (isCompleted()) {
+          <button type="button" class="btn green sm" [disabled]="isAcknowledging()" (click)="acknowledge()">
+            ✓ Acknowledge &amp; clear
+          </button>
+        }
+      </div>
+    </div>
+  </div>
+}

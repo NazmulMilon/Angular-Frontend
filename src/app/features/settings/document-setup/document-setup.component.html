@@ -1,0 +1,91 @@
+<div class="page">
+  <nav class="breadcrumb">
+    <a routerLink="/settings" class="breadcrumb__link">Settings</a>
+    <span class="breadcrumb__sep">/</span>
+    <span class="breadcrumb__current">Document Setup</span>
+  </nav>
+
+  <div class="page__header">
+    <h1 class="page__title">Document Setup</h1>
+    <p class="page__subtitle">Company-wide email subjects, document headers, and email body templates.</p>
+  </div>
+
+  @if (error()) {
+    <div class="error-banner">{{ error() }}</div>
+  }
+
+  @if (loading()) {
+    <div class="loading-note">Loading document setup…</div>
+  } @else {
+  <form (ngSubmit)="save()">
+    <!-- ── Email Subjects ── -->
+    <div class="panel">
+      <div class="panel__head">Email Subjects</div>
+      <div class="panel__body">
+        <div class="field">
+          <label class="field__label" for="woSubject">Work Order Email Subject</label>
+          <textarea id="woSubject" class="field__textarea" rows="2" [ngModel]="workOrderSubject()" (ngModelChange)="workOrderSubject.set($event)" name="woSubject"></textarea>
+        </div>
+        <div class="field">
+          <label class="field__label" for="invSubject">Invoice Email Subject</label>
+          <textarea id="invSubject" class="field__textarea" rows="2" [ngModel]="invoiceSubject()" (ngModelChange)="invoiceSubject.set($event)" name="invSubject"></textarea>
+        </div>
+        <div class="field">
+          <label class="field__label" for="estSubject">Estimates Email Subject</label>
+          <textarea id="estSubject" class="field__textarea" rows="2" [ngModel]="estimateSubject()" (ngModelChange)="estimateSubject.set($event)" name="estSubject"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Document Headers ── -->
+    <div class="panel">
+      <div class="panel__head">Document Headers</div>
+      <div class="panel__body">
+        <div class="field">
+          <label class="field__label">Work Order Header</label>
+          <app-rich-text-editor [ngModel]="workOrderHeader()" (ngModelChange)="workOrderHeader.set($event)" name="woHeader" placeholder="Work order header…" />
+        </div>
+        <div class="field">
+          <label class="field__label">Invoice Header</label>
+          <app-rich-text-editor [ngModel]="invoiceHeader()" (ngModelChange)="invoiceHeader.set($event)" name="invHeader" placeholder="Invoice header…" />
+        </div>
+        <div class="field">
+          <label class="field__label">Estimate Header</label>
+          <app-rich-text-editor [ngModel]="estimateHeader()" (ngModelChange)="estimateHeader.set($event)" name="estHeader" placeholder="Estimate header…" />
+        </div>
+        <div class="field">
+          <label class="field__label">Sign Off Sheet — Sign In and Out</label>
+          <app-rich-text-editor [ngModel]="signOffSheet()" (ngModelChange)="signOffSheet.set($event)" name="signOff" placeholder="Sign off sheet…" />
+        </div>
+        <div class="field">
+          <label class="field__label">Quote Configuration</label>
+          <app-rich-text-editor [ngModel]="quoteConfiguration()" (ngModelChange)="quoteConfiguration.set($event)" name="quote" placeholder="Quote configuration…" />
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Email Bodies ── -->
+    <div class="panel">
+      <div class="panel__head">Email Bodies</div>
+      <div class="panel__body">
+        <div class="field">
+          <label class="field__label">Email Body for Estimate</label>
+          <app-rich-text-editor [ngModel]="estimateEmailBody()" (ngModelChange)="estimateEmailBody.set($event)" name="estBody" placeholder="Estimate email body…" />
+        </div>
+        <div class="field">
+          <label class="field__label">Email Body for Invoice</label>
+          <app-rich-text-editor [ngModel]="invoiceEmailBody()" (ngModelChange)="invoiceEmailBody.set($event)" name="invBody" placeholder="Invoice email body…" />
+        </div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button type="submit" class="btn btn--primary" [disabled]="saving()">{{ saving() ? 'Saving…' : 'Save' }}</button>
+      <a routerLink="/settings" class="btn btn--secondary">Cancel</a>
+      @if (saved()) {
+        <span class="save-flash">Saved successfully</span>
+      }
+    </div>
+  </form>
+  }
+</div>

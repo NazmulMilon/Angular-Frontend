@@ -1,0 +1,112 @@
+<div class="page">
+  <nav class="breadcrumb">
+    <a routerLink="/settings" class="breadcrumb__link">Settings</a>
+    <span class="breadcrumb__sep">/</span>
+    <span class="breadcrumb__current">Vendor Grid Setup</span>
+  </nav>
+
+  <div class="page__header">
+    <h1 class="page__title">Vendor Grid Setup</h1>
+    <p class="page__subtitle">Configure which job statuses appear under each dashboard grid on the vendor dashboard.</p>
+  </div>
+
+  @if (error()) {
+    <div class="error-banner">{{ error() }}</div>
+  }
+
+  <div class="layout">
+    <!-- ── Left: association builder ── -->
+    <div class="builder-card">
+      <div class="builder-card__title">Add Statuses to a Grid</div>
+
+      <div class="field">
+        <label class="field__label" for="gridSelect">Grid Name</label>
+        <select
+          id="gridSelect"
+          class="field__select"
+          [ngModel]="selectedGridKey()"
+          (ngModelChange)="onGridChange($event)"
+        >
+          <option [ngValue]="null">— Select a grid —</option>
+          @for (grid of grids(); track grid.gridKey) {
+            <option [ngValue]="grid.gridKey">{{ grid.gridName }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="field">
+        <label class="field__label">Job Statuses</label>
+        @if (selectedGridKey() === null) {
+          <div class="status-hint">Select a grid to choose its statuses.</div>
+        } @else if (availableStatuses().length === 0) {
+          <div class="status-hint">All statuses are already assigned to this grid.</div>
+        } @else {
+          <div class="status-list">
+            @for (status of availableStatuses(); track status.id) {
+              <label class="status-item" [class.status-item--checked]="isChecked(status.id)">
+                <input
+                  type="checkbox"
+                  [checked]="isChecked(status.id)"
+                  (change)="toggleStatus(status.id)"
+                />
+                <span class="status-item__label">{{ status.name }}</span>
+              </label>
+            }
+          </div>
+        }
+      </div>
+
+      <div class="builder-card__actions">
+        <button type="button" class="btn btn--primary" [disabled]="!canSave" (click)="save()">
+          Add to Grid
+        </button>
+      </div>
+    </div>
+
+    <!-- ── Right: dashboard structure ── -->
+    <div class="structure-card">
+      <div class="structure-card__title">Dashboard Structure</div>
+
+      @if (associations().length === 0) {
+        <div class="empty">
+          <p class="empty__text">No grid associations yet</p>
+          <p class="empty__hint">Add statuses to a grid using the panel on the left.</p>
+        </div>
+      } @else {
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Grid Name</th>
+                <th>Job Status</th>
+                <th class="th--actions"></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of associations(); track row.detailKey) {
+                <tr>
+                  <td class="td--grid">{{ row.gridName }}</td>
+                  <td>
+                    <span class="status-badge">{{ row.jobStatusName }}</span>
+                  </td>
+                  <td class="td--actions">
+                    <button
+                      type="button"
+                      class="icon-btn icon-btn--delete"
+                      title="Remove"
+                      (click)="removeAssociation(row)"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3.5 3.5l7 7M10.5 3.5l-7 7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+                    </button>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </div>
+  </div>
+</div>
+
+<app-confirm-dialog />

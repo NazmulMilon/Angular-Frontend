@@ -1,0 +1,1248 @@
+// ════════════════════════════════════════════════════════════════════════════
+// Notes & Activity Tab Styles
+// Modern, responsive design with unread indicators
+// ════════════════════════════════════════════════════════════════════════════
+
+@use '../../../shared/styles/app-tabs';
+
+// CSS Variables (theming)
+:host {
+  display: block;
+  max-width: 100%;
+  overflow-x: hidden;
+  --na-primary: #3b82f6;
+  --na-primary-hover: #2563eb;
+  --na-success: #22c55e;
+  --na-danger: #ef4444;
+  --na-warning: #f59e0b;
+  --na-surface: #ffffff;
+  --na-surface-alt: #f8fafc;
+  --na-border: #e2e8f0;
+  --na-text-primary: #1e293b;
+  --na-text-secondary: #64748b;
+  --na-text-muted: #94a3b8;
+  --na-unread: #ef4444;
+  --na-radius: 10px;
+  --na-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --na-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+// Container
+.na-container {
+  max-width: none;
+  margin: 0;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.na-page-header {
+  display: flex;
+  align-items: center;
+}
+
+.na-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border: 1px solid var(--na-border);
+  border-radius: 8px;
+  background: var(--na-surface);
+  color: var(--na-text-primary);
+  font-size: 0.875rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  box-shadow: var(--na-shadow-sm);
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+
+  &:hover {
+    background: var(--na-surface-alt);
+    border-color: #cbd5e1;
+    color: var(--na-primary-hover);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--na-primary);
+    outline-offset: 2px;
+  }
+}
+
+.na-back-btn__icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+// Loading Overlay
+.na-loading-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.9);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+
+  span {
+    color: var(--na-text-secondary);
+    font-size: 0.95rem;
+    font-weight: 500;
+  }
+}
+
+.na-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--na-border);
+  border-top-color: var(--na-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+// Post-save / post-email success modal (high z-index, centered)
+.na-success-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(3px);
+}
+
+.na-success-modal {
+  width: 100%;
+  max-width: 420px;
+  padding: 28px 24px 24px;
+  background: var(--na-surface);
+  border-radius: var(--na-radius);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--na-border);
+  text-align: center;
+}
+
+.na-success-modal__icon {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 12px;
+  color: var(--na-success);
+  svg {
+    width: 100%;
+    height: 100%;
+  }
+}
+
+.na-success-modal__title {
+  margin: 0 0 12px;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--na-text-primary);
+}
+
+.na-success-modal__message {
+  margin: 0 0 24px;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--na-text-secondary);
+  word-break: break-word;
+}
+
+.na-success-modal__btn {
+  min-width: 120px;
+  padding: 10px 20px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #fff;
+  background: var(--na-primary);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s;
+
+  &:hover {
+    background: var(--na-primary-hover);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--na-primary);
+    outline-offset: 2px;
+  }
+}
+
+// Alerts
+.na-alert {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  border-radius: var(--na-radius);
+  font-size: 0.9rem;
+  font-weight: 500;
+  animation: slideIn 0.3s ease;
+
+  &--success {
+    background: #dcfce7;
+    color: #166534;
+    border: 1px solid #bbf7d0;
+  }
+
+  &--danger {
+    background: #fef2f2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+  }
+}
+
+.na-alert__icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.na-alert__close {
+  margin-left: auto;
+  background: none;
+  border: none;
+  font-size: 1.25rem;
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity 0.15s;
+
+  &:hover {
+    opacity: 1;
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+// Tabs Container
+.na-tabs-container {
+  background: var(--na-surface);
+  border-radius: var(--na-radius);
+  border: 1px solid var(--na-border);
+  overflow: hidden;
+  box-shadow: var(--na-shadow-sm);
+}
+
+// Tab Navigation
+.na-tabs {
+  display: flex;
+  background: var(--na-surface-alt);
+  border-bottom: 1px solid var(--na-border);
+  overflow-x: auto;
+  scrollbar-width: thin;
+
+  &::-webkit-scrollbar {
+    height: 4px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: var(--na-border);
+    border-radius: 2px;
+  }
+}
+
+.na-tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 24px;
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--na-text-secondary);
+  white-space: nowrap;
+  transition: all 0.2s ease;
+  position: relative;
+
+  &:hover {
+    color: var(--na-text-primary);
+    background: rgba(0, 0, 0, 0.02);
+  }
+
+  &--active {
+    color: var(--na-primary);
+    border-bottom-color: var(--na-primary);
+  }
+
+  &--unread {
+    &::before {
+      content: '';
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      width: 8px;
+      height: 8px;
+      background: var(--na-unread);
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+  }
+}
+
+.na-tab__label {
+  pointer-events: none;
+}
+
+.na-tab__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  background: var(--na-unread);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  border-radius: 10px;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+// Vendor Selector
+.na-vendor-selector {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  background: var(--na-surface-alt);
+  border-bottom: 1px solid var(--na-border);
+
+  label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--na-text-secondary);
+  }
+
+  select {
+    flex: 1;
+    max-width: 400px;
+    padding: 8px 12px;
+    border: 1px solid var(--na-border);
+    border-radius: 6px;
+    font-size: 0.9rem;
+    color: var(--na-text-primary);
+    background: var(--na-surface);
+    cursor: pointer;
+    transition: border-color 0.15s;
+
+    &:hover, &:focus {
+      border-color: var(--na-primary);
+      outline: none;
+    }
+  }
+}
+
+// Tab Content
+.na-tab-content {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.na-tab-content--compose {
+  min-width: 0;
+}
+
+// Section Title
+.na-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--na-text-primary);
+  margin: 0 0 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.na-icon {
+  width: 18px;
+  height: 18px;
+  color: var(--na-primary);
+}
+
+// Pinned Section
+.na-pinned-section {
+  padding: 16px;
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border-radius: var(--na-radius);
+  border: 1px solid #fcd34d;
+}
+
+// Empty State
+.na-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  text-align: center;
+  color: var(--na-text-muted);
+
+  p {
+    margin: 16px 0 4px;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--na-text-secondary);
+  }
+
+  span {
+    font-size: 0.85rem;
+  }
+}
+
+.na-empty-icon {
+  width: 64px;
+  height: 64px;
+  color: var(--na-border);
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// Responsive Styles
+// ════════════════════════════════════════════════════════════════════════════
+
+@media (max-width: 1024px) {
+  .na-container {
+    padding: 16px;
+    gap: 16px;
+  }
+}
+
+@media (max-width: 768px) {
+  .na-container {
+    padding: 12px;
+    gap: 12px;
+  }
+
+  .na-tabs-container {
+    border-radius: 8px;
+  }
+
+  .na-tabs {
+    justify-content: flex-start;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
+  }
+
+  .na-tab {
+    padding: 12px 16px;
+    font-size: 0.85rem;
+    flex-shrink: 0;
+    scroll-snap-align: start;
+    min-height: 44px;
+
+    &--unread::before {
+      top: 6px;
+      right: 4px;
+      width: 6px;
+      height: 6px;
+    }
+  }
+
+  .na-tab__badge {
+    min-width: 18px;
+    height: 18px;
+    font-size: 0.65rem;
+  }
+
+  .na-vendor-selector {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    padding: 12px 16px;
+
+    select {
+      max-width: 100%;
+      width: 100%;
+      font-size: 16px;
+      min-height: 44px;
+      padding: 10px 12px;
+    }
+  }
+
+  .na-tab-content {
+    padding: 12px;
+    gap: 12px;
+  }
+
+  .na-tab-content--compose {
+    padding: 0;
+    gap: 0;
+  }
+
+  :host ::ng-deep .na-compose-accordion {
+    display: block;
+    min-width: 0;
+  }
+
+  :host ::ng-deep .na-compose-accordion .accordion {
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  :host ::ng-deep .na-compose-accordion .accordion__header {
+    min-height: 44px;
+    border-bottom: 1px solid var(--na-border);
+  }
+
+  :host ::ng-deep .na-compose-accordion .accordion__title {
+    white-space: normal;
+  }
+
+  :host ::ng-deep .na-compose-accordion .accordion__content,
+  :host ::ng-deep .na-compose-accordion .accordion__body {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  :host ::ng-deep .na-compose-accordion app-note-editor {
+    display: block;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .na-back-btn {
+    width: 100%;
+    justify-content: center;
+    min-height: 44px;
+    padding: 10px 14px;
+  }
+
+  .na-empty-state {
+    padding: 32px 16px;
+  }
+
+  .na-empty-icon {
+    width: 48px;
+    height: 48px;
+  }
+
+  .na-success-modal-overlay {
+    padding: max(12px, env(safe-area-inset-top, 12px)) 12px max(12px, env(safe-area-inset-bottom, 12px));
+  }
+
+  .na-success-modal {
+    max-height: min(88dvh, calc(100dvh - 24px));
+    overflow-y: auto;
+  }
+
+  .na-success-modal__btn {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  :host ::ng-deep app-accordion .accordion {
+    border-radius: 8px;
+  }
+
+  :host ::ng-deep app-accordion .accordion__header {
+    flex-wrap: wrap;
+    padding: 12px 14px;
+    min-height: auto;
+  }
+
+  :host ::ng-deep app-accordion .accordion__title {
+    flex: 1 1 auto;
+    min-width: 0;
+    white-space: normal;
+    word-break: break-word;
+    line-height: 1.3;
+  }
+
+  :host ::ng-deep app-accordion .accordion__header-actions {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .na-container {
+    padding: 8px;
+    gap: 10px;
+  }
+
+  .na-alert {
+    padding: 12px 14px;
+    font-size: 0.85rem;
+    gap: 10px;
+  }
+
+  .na-tabs {
+    gap: 0;
+  }
+
+  .na-tab {
+    padding: 10px 12px;
+    font-size: 0.8rem;
+    gap: 6px;
+  }
+
+  .na-tab-content {
+    padding: 12px;
+    gap: 12px;
+  }
+
+  .na-section-title {
+    font-size: 0.85rem;
+  }
+
+  .na-pinned-section {
+    padding: 12px;
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// Dark Mode Support (for future)
+// ════════════════════════════════════════════════════════════════════════════
+
+@media (prefers-color-scheme: dark) {
+  :host {
+    // Can be enabled when dark mode is implemented
+    // --na-surface: #1e293b;
+    // --na-surface-alt: #0f172a;
+    // --na-border: #334155;
+    // --na-text-primary: #f1f5f9;
+    // --na-text-secondary: #94a3b8;
+    // --na-text-muted: #64748b;
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// Grid Sections (Notes To Accounting, Pinned Notes, Job Notes and Activity)
+// ════════════════════════════════════════════════════════════════════════════
+
+.na-grid-section {
+  background: var(--na-surface);
+  border: 1px solid var(--na-border);
+  border-radius: var(--na-radius);
+  overflow: hidden;
+  box-shadow: var(--na-shadow-sm);
+}
+
+.na-grid-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background: var(--na-surface-alt);
+  border-bottom: 1px solid var(--na-border);
+}
+
+.na-grid-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--na-text-primary);
+
+  .na-icon {
+    width: 22px;
+    height: 22px;
+    color: var(--na-primary);
+  }
+}
+
+.na-grid-count {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--na-text-muted);
+  padding: 4px 12px;
+  background: var(--na-surface);
+  border-radius: 20px;
+  border: 1px solid var(--na-border);
+}
+
+.na-empty-state--compact {
+  padding: 24px;
+  text-align: center;
+  
+  p {
+    margin: 0;
+    color: var(--na-text-muted);
+    font-size: 0.9rem;
+  }
+}
+
+// Print styles
+@media print {
+  .na-loading-overlay,
+  .na-alert,
+  .na-tabs {
+    display: none !important;
+  }
+
+  .na-container {
+    padding: 0;
+  }
+
+  .na-tab-content {
+    padding: 0;
+  }
+
+  .na-grid-section {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}
+
+/* ============================================================
+   App header — mirrors the global chrome in app.scss, which is
+   hidden on the /notes-activity route. Shown only when standalone.
+   ============================================================ */
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 24px;
+  background: #fff;
+  border-bottom: 1px solid var(--border-color, #e2e8f0);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.app-header__left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  flex-shrink: 0;
+}
+
+.app-header__brand {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.app-header__logo {
+  display: block;
+  height: 50px;
+  width: auto;
+  border-radius: 4px;
+}
+
+.app-header__legacy-link {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 14px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-secondary, #64748b);
+  text-decoration: none;
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 6px;
+  white-space: nowrap;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+
+  &:hover {
+    background: var(--surface-alt, #f1f5f9);
+    color: var(--text-primary, #1e293b);
+    border-color: #cbd5e1;
+  }
+}
+
+.app-header__nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.nav-link {
+  padding: 6px 14px;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-secondary, #64748b);
+  text-decoration: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background 0.15s ease, color 0.15s ease;
+
+  &:hover {
+    background: var(--surface-alt, #f1f5f9);
+    color: var(--text-primary, #1e293b);
+  }
+}
+
+.app-header__version {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary, #94a3b8);
+  background: var(--surface-alt, #f1f5f9);
+  padding: 3px 10px;
+  border-radius: 12px;
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// ACCOUNTING VARIANT — reskin for the Move-to-Accounting "Notes & Activity"
+// popup only. Scoped under `.na--accounting-variant` (set on .na-container by
+// [designVariant]="'accounting'"), so the default look used everywhere else
+// (Assign Vendor's popup, the standalone /job/:jobKey/notes-activity route)
+// is completely unaffected. Matches the design system + renderNotesModal()
+// markup in complete-screen-v2.html: --blue #2563eb, --ink #0f172a,
+// --ink2 #475569, --ink3 #94a3b8, --line #e2e8f0, --pink #db2777/--pink-lt
+// #fdf2f8, --green #16a34a, Segoe UI, 13px base.
+//
+// AccordionComponent, NotesGridComponent, NoteEditorComponent and
+// ContactSelectorComponent are separate standalone components with their own
+// view encapsulation — only ::ng-deep from this stylesheet (the documented,
+// still-supported escape hatch for exactly this "reskin a child's internals
+// from one ancestor context" need) can reach their internal markup.
+// ════════════════════════════════════════════════════════════════════════════
+
+// Doubled class on the root selector below (.na--accounting-variant.na--accounting-variant)
+// is deliberate defensive specificity: every ::ng-deep rule in this block reaches into a
+// separately-encapsulated child (app-accordion / app-note-editor / app-contact-selector /
+// app-notes-grid) that ships its own same-class-name rules in its own component stylesheet.
+// Angular's emulated encapsulation normally gives an ancestor ::ng-deep selector *more*
+// specificity than the child's own scoped rule (the child's [_ngcontent-*] attribute is
+// only one extra selector; ours adds one for the ancestor class too), so this override
+// should already win on specificity alone — but doubling the class costs nothing and
+// removes any doubt/order-dependence if a future Angular/Vite build ever changes how
+// component styles get concatenated.
+.na--accounting-variant.na--accounting-variant {
+  font-family: 'Segoe UI', system-ui, -apple-system, Arial, sans-serif;
+  font-size: 13px;
+  color: #0f172a;
+  padding: 0;
+  gap: 12px;
+
+  // ---- top-level containers: flatten the "card with shadow" look to the
+  // spec's plain bordered-panel look ----
+  .na-tabs-container {
+    border-radius: 9px;
+    border-color: #e2e8f0;
+    box-shadow: none;
+  }
+
+  ::ng-deep .accordion {
+    border-radius: 9px;
+    border-color: #e2e8f0;
+    box-shadow: none;
+
+    &:hover {
+      box-shadow: none;
+    }
+  }
+
+  ::ng-deep .accordion__header {
+    padding: 9px 13px;
+    background: #fafbfc;
+    font-size: 12.5px;
+    font-weight: 700;
+    color: #0f172a;
+
+    &:hover {
+      background: #f4f6f8;
+    }
+  }
+
+  ::ng-deep .accordion__badge {
+    background: #eff6ff;
+    color: #2563eb;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 9px;
+  }
+
+  ::ng-deep .accordion__chevron {
+    color: #94a3b8;
+  }
+
+  // ---- filter tabs: underline style, blue active state ----
+  .na-tabs {
+    background: transparent;
+    border-bottom: 1px solid #e2e8f0;
+  }
+
+  .na-tab {
+    padding: 8px 14px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #475569;
+    border-bottom: 2.5px solid transparent;
+
+    &:hover {
+      background: transparent;
+      color: #0f172a;
+    }
+
+    &--active {
+      color: #2563eb;
+      border-bottom-color: #2563eb;
+    }
+
+    &--unread::before {
+      background: #dc2626;
+    }
+  }
+
+  .na-tab__badge {
+    background: #fef2f2;
+    color: #dc2626;
+    border-radius: 50%;
+  }
+
+  .na-vendor-selector {
+    background: #fafbfc;
+    border-bottom-color: #e2e8f0;
+
+    select {
+      border-radius: 7px;
+      font-size: 12px;
+    }
+  }
+
+  .na-tab-content {
+    padding: 12px;
+  }
+
+  // Spec renders empty states as a single plain muted line (<div class="muted">
+  // No notes yet.</div>), not an icon + heading + helper-text block. Keep the
+  // existing markup (an icon-based empty state is used app-wide elsewhere and
+  // rewriting its structure here isn't worth the churn) but flatten its look
+  // within this variant only: hide the icon/subtext, and set the remaining
+  // line to the spec's .muted treatment (color:var(--ink3), no extra weight).
+  .na-empty-state {
+    padding: 12px 13px;
+    color: #94a3b8;
+    text-align: left;
+    display: block;
+
+    .na-empty-icon {
+      display: none;
+    }
+
+    p {
+      color: #94a3b8;
+      font-size: 11.5px;
+      font-weight: 400;
+    }
+
+    span {
+      display: none;
+    }
+  }
+
+  .na-empty-state--compact {
+    padding: 12px;
+  }
+
+  // ---- Compose Note editor (app-note-editor) ----
+  ::ng-deep app-note-editor {
+    .editor-container {
+      padding: 12px;
+    }
+
+    .editor-wrapper,
+    .NgxEditor__Wrapper {
+      border-radius: 7px;
+      border-color: #e2e8f0;
+    }
+
+    .upload-area {
+      border-radius: 7px;
+      border-color: #e2e8f0;
+      background: #fff;
+      color: #94a3b8;
+      font-size: 11.5px;
+    }
+
+    .editor-field label {
+      font-size: 10px;
+      letter-spacing: 0.5px;
+      color: #475569;
+    }
+
+    .editor-field input,
+    .editor-field select {
+      border-radius: 7px;
+      border-color: #e2e8f0;
+      font-size: 12px;
+    }
+
+    .pin-checkbox {
+      border: 1px solid #e2e8f0;
+      border-radius: 7px;
+      padding: 7px 10px;
+      font-size: 12px;
+    }
+
+    .sender-choice {
+      border: 1px solid #e2e8f0;
+      border-radius: 7px;
+      padding: 8px 10px;
+
+      &__label {
+        font-size: 11.5px;
+        font-weight: 700;
+        color: #0f172a;
+      }
+
+      &__required {
+        color: #dc2626;
+      }
+
+      &__hint {
+        font-size: 10px;
+        color: #94a3b8;
+      }
+    }
+
+    .contact-section h4,
+    .attachments-section h4 {
+      font-size: 10px;
+      letter-spacing: 0.5px;
+      color: #2563eb;
+      font-weight: 700;
+    }
+
+    .file-item {
+      font-size: 11.5px;
+    }
+
+    // buttons: match .btn / .btn.primary / .btn.green from the spec
+    .btn,
+    .btn--secondary {
+      border: 1px solid #e2e8f0;
+      background: #fff;
+      color: #0f172a;
+      border-radius: 7px;
+      padding: 6px 11px;
+      font-size: 11.5px;
+      font-weight: 600;
+
+      &:hover {
+        background: #f8fafc;
+        border-color: #cbd5e1;
+      }
+    }
+
+    .btn--primary {
+      background: #2563eb;
+      border-color: #2563eb;
+      color: #fff;
+
+      &:hover {
+        background: #1d4ed8;
+      }
+    }
+
+    .btn--success {
+      background: #16a34a;
+      border-color: #16a34a;
+      color: #fff;
+
+      &:hover {
+        background: #15803d;
+      }
+    }
+  }
+
+  // ---- Recipient groups (app-contact-selector) ----
+  ::ng-deep app-contact-selector {
+    .contact-selector {
+      font-size: 11.5px;
+    }
+
+    .contact-group {
+      border: 1px solid #e2e8f0;
+      border-radius: 7px;
+      background: #f8fafc;
+      margin-bottom: 4px;
+    }
+
+    .group-header {
+      padding: 6px 10px;
+      font-size: 11.5px;
+      font-weight: 700;
+    }
+
+    .group-toggle {
+      color: #2563eb;
+    }
+
+    .contact-badge {
+      border-radius: 10px;
+      font-size: 9.5px;
+    }
+  }
+
+  // ---- Notes To Accounting / Pinned Notes / feed cards: `.note` card look
+  // (white bg, thin border, colored 3px LEFT border, pink variant for
+  // accounting notes, blue "sys" variant for system rows) ----
+  // NOTE: app-notes-grid (used by all three sections) currently renders
+  // `table.notes-table`, not a `.note-card` list — `.notes-list`/`.note-card`
+  // are dead CSS inside notes-grid.component.ts's own stylesheet (no such
+  // element exists in its template). This rule is kept, scoped, and harmless
+  // in case that dead markup is ever revived, but it currently matches
+  // nothing on screen; the real card-vs-table decision for the feed is
+  // handled below under `app-notes-grid .notes-table`.
+  ::ng-deep .note-card {
+    border: 1px solid #e2e8f0;
+    border-left: 3px solid #94a3b8;
+    border-radius: 7px;
+    background: #fff;
+    box-shadow: none;
+    font-size: 12px;
+
+    &:hover {
+      box-shadow: none;
+    }
+
+    &--pinned {
+      background: #fff;
+      border-left-color: #2563eb;
+    }
+  }
+
+  ::ng-deep .note-badge--pinned {
+    background: #db2777;
+    color: #fff;
+  }
+
+  // ---- Job Notes and Activity feed grid (app-notes-grid) ----
+  ::ng-deep app-notes-grid {
+    .notes-grid-container {
+      padding: 9px 13px;
+      gap: 10px;
+    }
+
+    .search-box {
+      border-radius: 7px;
+      border-color: #e2e8f0;
+      padding: 6px 10px;
+
+      input {
+        font-size: 12px;
+      }
+    }
+
+    .action-btn {
+      border-radius: 6px;
+      border-color: #e2e8f0;
+      font-size: 11px;
+      padding: 4.5px 9px;
+    }
+
+    // table.grid look: bordered cells, #f8fafc uppercase header
+    .notes-table {
+      font-size: 11.5px;
+
+      th,
+      td {
+        padding: 7px 9px;
+        border-color: #e2e8f0;
+      }
+
+      th {
+        background: #f8fafc;
+        font-size: 10px;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        color: #475569;
+        font-weight: 700;
+      }
+    }
+
+    .entity-pill {
+      border-radius: 10px;
+      font-size: 9.5px;
+      font-weight: 700;
+    }
+
+    .pill--admin {
+      background: #eff6ff;
+      color: #2563eb;
+    }
+
+    .pill--customer {
+      background: #fdf2f8;
+      color: #db2777;
+    }
+
+    .pill--vendor {
+      background: #f0fdf4;
+      color: #16a34a;
+    }
+
+    .btn-control {
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      background: #fff;
+      color: #0f172a;
+      border-color: #e2e8f0;
+
+      &:hover {
+        background: #f8fafc;
+        border-color: #cbd5e1;
+      }
+    }
+
+    .btn-viewed {
+      background: #2563eb;
+      border-color: #2563eb;
+      color: #fff;
+    }
+
+    .btn-pin--active {
+      background: #fdf2f8;
+      border-color: #fbcfe8;
+      color: #db2777;
+    }
+  }
+}

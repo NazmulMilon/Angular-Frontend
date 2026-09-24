@@ -1,0 +1,144 @@
+@if (isOpen()) {
+  <div class="modal-overlay">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="vieModalTitle">
+      <div class="modal-head">
+        <h3 id="vieModalTitle">
+          🧾 Vendor Invoice {{ data()?.invoiceNo }} — {{ data()?.vendorName }}
+          <span class="badge b-amber" style="margin-left:6px">EDIT MODE</span>
+        </h3>
+        <button type="button" class="x" (click)="onClose()" aria-label="Close">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        @if (errorMessage()) {
+          <div class="vie-error">{{ errorMessage() }}</div>
+        } @else if (loading()) {
+          <div class="vie-loading">Loading vendor invoice…</div>
+        }
+
+        @if (data(); as d) {
+          <div class="vie-intro muted">
+            ⛔ <b>Challenge a charge:</b> use the ⛔ button on any line to REJECT that line with a note — the vendor
+            is emailed and must edit and resubmit it. Rejections hold the vendor bill (never the customer invoice).<br />
+            Editing this invoice is the <b>only</b> way to change the Revised Vendor DNE — the invoice total becomes
+            the new Revised DNE. <b class="vie-amber">REDUCE-ONLY:</b> you may lower qty/charges or delete lines;
+            increases are not allowed.
+          </div>
+
+          <table class="grid" style="table-layout:fixed">
+            <thead>
+              <tr>
+                <th style="width:44%">Item / Description</th>
+                <th style="width:11%;text-align:right">Qty</th>
+                <th style="width:13%;text-align:right">Charge</th>
+                <th style="width:16%;text-align:right">Row Total</th>
+                <th style="width:16%"></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (line of activeLines; track line.lineKey) {
+                <tr [class.vie-row-rejected]="line.isRejected || line.draftReason">
+                  <td>
+                    @if (line.isRejected || line.draftReason) {
+                      <span class="badge b-red" style="margin-right:5px">REJECTED</span>
+                    }
+                    <div class="vie-desc">{{ line.description }}</div>
+                    @if (line.isLabor) {
+                      <div class="muted vie-labor-detail">
+                        {{ formatHours(line.qty) }} hr X {{ line.techOnSite ?? 1 }} Tech
+                        @if (line.isAfterHours) {
+                          <span class="badge b-amber" style="margin-left:5px">After Hours/ER</span>
+                        }
+                      </div>
+                    }
+                    @if (line.rejectionSentOn) {
+                      <div class="vie-rejected-note">
+                        <b>Reason sent to vendor:</b> "{{ line.rejectedReason }}"
+                        <span class="muted"> · sent {{ formatDateTime(line.rejectionSentOn) }}</span>
+                      </div>
+                    } @else if (line.isRejected || line.draftReason) {
+                      <div class="vie-rejected-note">
+                        <b>Reason to vendor:</b> "{{ line.draftReason || line.rejectedReason }}"
+                        <span class="muted"> · not sent yet</span>
+                        <button type="button" class="btn sm" style="margin-left:6px" (click)="unrejectDraft(line)">↩ Cancel</button>
+                      </div>
+                    }
+                  </td>
+                  <td class="num">
+                    <input
+                      class="vie-input vie-input--num"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      [max]="line.baseQty"
+                      [disabled]="line.isRejected"
+                      [value]="line.qty"
+                      (input)="onQtyInput(line, $event)"
+                    />
+                  </td>
+                  <td class="num">
+                    <input
+                      class="vie-input vie-input--num"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      [max]="line.baseCost"
+                      [disabled]="line.isRejected"
+                      [value]="line.cost"
+                      (input)="onCostInput(line, $event)"
+                    />
+                  </td>
+                  <td class="num">{{ formatMoney(line.qty * line.cost) }}</td>
+                  <td class="num vie-actions">
+                    @if (!line.isRejected && !line.draftReason) {
+                      <button type="button" class="btn sm vie-btn-reject" title="Reject this line" (click)="rejectLine(line)">⛔</button>
+                      <button type="button" class="btn sm" title="Delete this line" (click)="deleteLine(line)">🗑</button>
+                    }
+                  </td>
+                </tr>
+              }
+              <tr class="total">
+                <td colspan="3" style="text-align:right">Grand Total (= new Revised Vendor DNE)</td>
+                <td class="num">{{ formatMoney(grandTotal) }}</td>
+                <td></td>
+              </tr>
+            </tbody>
+          </table>
+
+          @if (pendingRejections.length) {
+            <div class="vie-pending-banner">
+              ⛔ <b>{{ pendingRejections.length }} line(s) staged for rejection.</b>
+              <button type="button" class="btn sm" style="margin-left:6px" [disabled]="saving()" (click)="sendRejections()">
+                ✉ Send {{ pendingRejections.length }} rejection(s) to vendor — they must edit &amp; resubmit
+              </button>
+              <div class="muted vie-pending-sub">The vendor bill is HELD until they resubmit and the rejections are cleared. The customer invoice is not affected.</div>
+            </div>
+          }
+
+          @if (deletedLines.length) {
+            <div class="vie-deleted-banner">
+              🗑 {{ deletedLines.length }} line(s) deleted (last: "{{ deletedLines[deletedLines.length - 1].description }}")
+              <button type="button" class="btn sm" style="margin-left:auto" (click)="undoDelete(deletedLines[deletedLines.length - 1])">↩ Undo last delete</button>
+            </div>
+          }
+
+          <div class="vie-summary">
+            New total <b>{{ formatMoney(grandTotal) }}</b> · current Revised Vendor DNE <b>{{ formatMoney(d.currentRevisedDne) }}</b>
+            — {{ grandTotal >= d.currentRevisedDne - 0.005 && grandTotal <= d.currentRevisedDne + 0.005 ? 'no change' : 'decrease' }} —
+            saving applies immediately and sets the Revised DNE to the new total.
+            <span class="muted">(Reduce-only: increases are not permitted.)</span>
+          </div>
+        }
+      </div>
+
+      <div class="modal-foot">
+        <button type="button" class="btn" (click)="onClose()">Cancel</button>
+        @if (data()) {
+          <button type="button" class="btn green" [disabled]="saving()" (click)="saveInvoice()">
+            💾 Save Invoice — set Revised DNE to {{ formatMoney(grandTotal) }}
+          </button>
+        }
+      </div>
+    </div>
+  </div>
+}

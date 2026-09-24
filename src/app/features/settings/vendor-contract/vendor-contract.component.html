@@ -1,0 +1,49 @@
+<div class="page">
+  <nav class="breadcrumb">
+    <a routerLink="/settings" class="breadcrumb__link">Settings</a>
+    <span class="breadcrumb__sep">/</span>
+    <span class="breadcrumb__current">Vendor Contract Setup</span>
+  </nav>
+
+  <div class="page__header">
+    <h1 class="page__title">Vendor Contract Setup</h1>
+    <p class="page__subtitle">Edit the contract details shown to vendors. This is a single shared contract record used across all vendor-facing screens.</p>
+  </div>
+
+  <div class="card">
+    @if (loading()) {
+      <p class="state-msg">Loading…</p>
+    } @else {
+      @if (error()) {
+        <div class="error-banner">{{ error() }}</div>
+      }
+      <form (ngSubmit)="save()" #form="ngForm">
+        <div class="field">
+          <label class="field__label" for="contractDetail">Contract Details</label>
+          <app-rich-text-editor
+            [ngModel]="contractDetail()"
+            (ngModelChange)="contractDetail.set($event)"
+            name="contractDetail"
+            required
+            placeholder="Enter contract details..."
+          />
+          <p class="field__hint">This content will be displayed to vendors during the contracting process.</p>
+        </div>
+
+        <div class="card__actions">
+          <button
+            type="submit"
+            class="btn btn--primary"
+            [disabled]="form.invalid || saving()"
+          >
+            {{ saving() ? 'Saving...' : 'Save' }}
+          </button>
+          <a routerLink="/settings" class="btn btn--secondary">Cancel</a>
+          @if (saved()) {
+            <span class="save-confirmation">Saved successfully</span>
+          }
+        </div>
+      </form>
+    }
+  </div>
+</div>

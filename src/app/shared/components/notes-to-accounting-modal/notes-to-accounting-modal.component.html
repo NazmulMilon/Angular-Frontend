@@ -1,0 +1,91 @@
+@if (isOpen()) {
+  <div class="modal-overlay" (click)="onOverlayClick($event)">
+    <div class="modal modal--notes-to-accounting" role="dialog" aria-modal="true" aria-labelledby="ntaModalTitle">
+      <div class="modal__header">
+        <h3 class="modal__title" id="ntaModalTitle">
+          🏷 Notes To Accounting
+          @if (po()) {
+            <span class="modal__po">— PO {{ po() }}</span>
+          }
+        </h3>
+        <button type="button" class="modal__close" (click)="onClose()" aria-label="Close">&times;</button>
+      </div>
+
+      <div class="modal__body">
+        @if (isLoading()) {
+          <div class="nta-loading">Loading accounting notes…</div>
+        } @else {
+          @if (errorMessage()) {
+            <div class="nta-error">{{ errorMessage() }}</div>
+          }
+
+          <div class="nta-list">
+            @if (notes().length === 0) {
+              <div class="nta-empty">No notes yet.</div>
+            } @else {
+              @for (note of notes(); track note.noteKey) {
+                @if (editingNoteKey() === note.noteKey) {
+                  <div class="note pink">
+                    <div class="meta">
+                      {{ note.addedByName || 'Unknown' }} · {{ note.dateInString || (note.addedOn | date: 'M/d/yyyy h:mm a') }} · EDITING
+                    </div>
+                    <textarea
+                      class="notebox"
+                      [ngModel]="editText()"
+                      (ngModelChange)="editText.set($event)"
+                    ></textarea>
+                    <div class="nta-edit-actions">
+                      <button
+                        type="button"
+                        class="btn ghost-pink sm"
+                        [disabled]="isSavingEdit() || !editText().trim()"
+                        (click)="saveEdit(note.noteKey)"
+                      >
+                        💾 Save
+                      </button>
+                      <button type="button" class="btn sm" [disabled]="isSavingEdit()" (click)="cancelEdit()">
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                } @else {
+                  <div class="note pink">
+                    <div class="meta">
+                      <span class="meta__text">
+                        {{ note.addedByName || 'Unknown' }} · {{ note.dateInString || (note.addedOn | date: 'M/d/yyyy h:mm a') }} · ACCOUNTING NOTE
+                      </span>
+                      @if (note.canEditAccountingNote) {
+                        <button type="button" class="btn sm nta-edit-btn" (click)="startEdit(note)">✎ Edit</button>
+                      }
+                    </div>
+                    <div class="nta-comment" [innerHTML]="note.comment"></div>
+                  </div>
+                }
+              }
+            }
+          </div>
+
+          <b class="nta-add-label">Add note to accounting</b>
+          <textarea
+            class="notebox"
+            placeholder="This note turns pink in job notes and shows on the row in the accounting screens…"
+            [ngModel]="newNoteText()"
+            (ngModelChange)="newNoteText.set($event)"
+          ></textarea>
+        }
+      </div>
+
+      <div class="modal__footer">
+        <button type="button" class="btn" (click)="onClose()">Close</button>
+        <button
+          type="button"
+          class="btn ghost-pink"
+          [disabled]="isAdding() || isLoading() || !newNoteText().trim()"
+          (click)="addNote()"
+        >
+          ＋ Add Note To Accounting
+        </button>
+      </div>
+    </div>
+  </div>
+}

@@ -1,0 +1,186 @@
+@if (isVisible()) {
+  <div class="sce-back">
+    <div class="sce-modal" (click)="$event.stopPropagation()" role="dialog" aria-modal="true" aria-labelledby="sceTitle">
+      <div class="sce-head">
+        <h3 id="sceTitle">
+          Send Estimate to Customer
+          @if (estimateLabel()) { <span class="sce-head__sub">{{ estimateLabel() }}</span> }
+        </h3>
+        <button type="button" class="sce-x" (click)="cancel()" aria-label="Close">✕</button>
+      </div>
+
+      <div class="sce-body">
+        @if (isLoading()) {
+          <div class="sce-status">Loading contacts…</div>
+        } @else {
+          @if (recipientsError()) {
+            <div class="sce-alert sce-alert--error">{{ recipientsError() }}</div>
+          }
+          @if (errorMessage()) {
+            <div class="sce-alert sce-alert--error">{{ errorMessage() }}</div>
+          }
+
+          @if (accountContacts().length) {
+            <div class="sce-group">
+              <div class="sce-group__head">Account contacts</div>
+              @for (r of accountContacts(); track r.contactKey) {
+                <label class="sce-item" [class.sce-item--disabled]="!r.email">
+                  <input
+                    type="checkbox"
+                    [checked]="isRecipientSelected(r)"
+                    [disabled]="!r.email || isSending()"
+                    (change)="toggleRecipient(r)" />
+                  <span class="sce-item__name">
+                    {{ r.name || 'Unnamed contact' }}
+                    @if (r.title) { <span class="sce-item__title">— {{ r.title }}</span> }
+                  </span>
+                  <span class="sce-item__email">{{ r.email || 'No email on file' }}</span>
+                  @if (r.isJobDefaultContact) { <span class="sce-item__badge">Job contact</span> }
+                </label>
+              }
+            </div>
+          }
+
+          @if (locationContacts().length) {
+            <div class="sce-group">
+              <div class="sce-group__head">Location contacts</div>
+              @for (r of locationContacts(); track r.contactKey) {
+                <label class="sce-item" [class.sce-item--disabled]="!r.email">
+                  <input
+                    type="checkbox"
+                    [checked]="isRecipientSelected(r)"
+                    [disabled]="!r.email || isSending()"
+                    (change)="toggleRecipient(r)" />
+                  <span class="sce-item__name">
+                    {{ r.name || 'Unnamed contact' }}
+                    @if (r.title) { <span class="sce-item__title">— {{ r.title }}</span> }
+                  </span>
+                  <span class="sce-item__email">{{ r.email || 'No email on file' }}</span>
+                  @if (r.isJobDefaultContact) { <span class="sce-item__badge">Job contact</span> }
+                </label>
+              }
+            </div>
+          }
+
+          @if (!hasAnyRecipient() && !recipientsError()) {
+            <div class="sce-status">No contacts found for this job.</div>
+          }
+
+          <!-- Attachments: nothing is attached unless picked here — the customer reviews the priced
+               estimate on the portal via the link in the email. -->
+          <div class="sce-attach">
+            <button
+              type="button"
+              class="sce-attach__toggle"
+              (click)="toggleAttachmentsPanel()"
+              [attr.aria-expanded]="showAttachments()">
+              <span class="sce-attach__caret" [class.sce-attach__caret--open]="showAttachments()">▸</span>
+              Attach files
+              @if (selectedAttachmentCount()) {
+                <span class="sce-attach__count">{{ selectedAttachmentCount() }} selected</span>
+              } @else if (isLoadingAttachments()) {
+                <span class="sce-attach__hint">loading…</span>
+              } @else if (!hasAnyAttachment()) {
+                <span class="sce-attach__hint">none available</span>
+              }
+            </button>
+
+            @if (showAttachments()) {
+              <div class="sce-attach__body">
+                <div class="sce-attach__note">
+                  The customer reviews the estimate on the portal — attach files only if you want to send them alongside it.
+                </div>
+
+                @if (attachmentsError()) {
+                  <div class="sce-alert sce-alert--error">{{ attachmentsError() }}</div>
+                }
+
+                @if (isLoadingAttachments()) {
+                  <div class="sce-status">Loading files…</div>
+                } @else {
+                  @if (jobFiles().length) {
+                    <div class="sce-group">
+                      <div class="sce-group__head">Job files</div>
+                      @for (f of jobFiles(); track f.fileKey) {
+                        <label class="sce-item">
+                          <input
+                            type="checkbox"
+                            [checked]="isJobFileSelected(f)"
+                            [disabled]="isSending()"
+                            (change)="toggleJobFile(f)" />
+                          <span class="sce-item__name">{{ f.fileName }}</span>
+                          @if (f.documentType) { <span class="sce-item__title">— {{ f.documentType }}</span> }
+                          @if (f.addedOn) { <span class="sce-item__email">{{ f.addedOn | date: 'M/d/yy' }}</span> }
+                          @if (f.fileUrl) {
+                            <a
+                              class="sce-item__view"
+                              [href]="f.fileUrl"
+                              target="_blank"
+                              rel="noopener"
+                              (click)="$event.stopPropagation()"
+                              [attr.aria-label]="'Preview ' + f.fileName">View</a>
+                          }
+                        </label>
+                      }
+                    </div>
+                  }
+
+                  @if (vendorFiles().length) {
+                    <div class="sce-group">
+                      <div class="sce-group__head">Vendor uploads</div>
+                      @for (f of vendorFiles(); track f.fileKey) {
+                        <label class="sce-item">
+                          <input
+                            type="checkbox"
+                            [checked]="isVendorFileSelected(f)"
+                            [disabled]="isSending()"
+                            (change)="toggleVendorFile(f)" />
+                          <span class="sce-item__name">{{ f.fileName }}</span>
+                          @if (f.vendorName) { <span class="sce-item__title">— {{ f.vendorName }}</span> }
+                          @if (f.addedOn) { <span class="sce-item__email">{{ f.addedOn | date: 'M/d/yy' }}</span> }
+                          @if (f.fileUrl) {
+                            <a
+                              class="sce-item__view"
+                              [href]="f.fileUrl"
+                              target="_blank"
+                              rel="noopener"
+                              (click)="$event.stopPropagation()"
+                              [attr.aria-label]="'Preview ' + f.fileName">View</a>
+                          }
+                        </label>
+                      }
+                    </div>
+                  }
+
+                  @if (!hasAnyAttachment() && !attachmentsError()) {
+                    <div class="sce-status">No files uploaded to this job.</div>
+                  }
+                }
+              </div>
+            }
+          </div>
+
+          <!-- Per-recipient outcomes, shown after a partial failure. -->
+          @if (sendResults().length) {
+            <div class="sce-results">
+              @for (result of sendResults(); track result.email) {
+                <div class="sce-result" [class.sce-result--failed]="!result.sent">
+                  {{ result.sent ? '✓' : '✕' }} {{ result.email }}
+                  @if (!result.sent && result.message) { — {{ result.message }} }
+                </div>
+              }
+            </div>
+          }
+        }
+      </div>
+
+      <div class="sce-foot">
+        <button type="button" class="sce-btn sce-btn--ghost" (click)="cancel()" [disabled]="isSending()">Cancel</button>
+        <div class="sce-foot__spacer"></div>
+        <button type="button" class="sce-btn sce-btn--send" (click)="send()" [disabled]="!canSend()">
+          {{ isSending() ? 'Sending…' : 'Send to ' + selectedContactKeys().size + ' recipient(s)' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}

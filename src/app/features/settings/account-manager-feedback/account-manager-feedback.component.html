@@ -1,0 +1,83 @@
+<div class="page">
+  <nav class="breadcrumb">
+    <a routerLink="/settings" class="breadcrumb__link">Settings</a>
+    <span class="breadcrumb__sep">/</span>
+    <span class="breadcrumb__current">Account Manager Feedback Setup</span>
+  </nav>
+
+  <div class="page__header">
+    <h1 class="page__title">Account Manager Feedback Setup</h1>
+    <p class="page__subtitle">Manage survey factors used in account manager scorecards (feeds the ML pipeline).</p>
+  </div>
+
+  @if (error()) {
+    <div class="error-banner">{{ error() }}</div>
+  }
+
+  <div class="panel">
+    <div class="panel__head">
+      {{ editingId() === null ? 'Add Survey Factor' : 'Edit Survey Factor' }}
+    </div>
+    <div class="panel__body">
+      <form (ngSubmit)="save()">
+        <div class="form-row">
+          <label class="form-row__label" for="reasonCode">Reason Code</label>
+          <div class="form-row__control">
+            <input id="reasonCode" type="text" class="field__input" maxlength="100" [ngModel]="formReasonCode()" (ngModelChange)="formReasonCode.set($event)" name="reasonCode" required placeholder="e.g. AM-COMM" />
+          </div>
+        </div>
+        <div class="form-row">
+          <label class="form-row__label" for="surveyFactor">Survey Factors</label>
+          <div class="form-row__control">
+            <textarea id="surveyFactor" class="field__textarea" rows="4" [ngModel]="formSurveyFactor()" (ngModelChange)="formSurveyFactor.set($event)" name="surveyFactor" required placeholder="Describe the survey factor..."></textarea>
+          </div>
+        </div>
+      </form>
+    </div>
+    <div class="panel__footer">
+      <button type="button" class="btn btn--primary" [disabled]="!canSave" (click)="save()">{{ editingId() === null ? 'Add' : 'Save changes' }}</button>
+      <button type="button" class="btn btn--secondary" (click)="clearForm()">Cancel</button>
+    </div>
+  </div>
+
+  <h3 class="list-title">Survey Factors</h3>
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th class="th--code">Reason Code</th>
+          <th>Survey Factors</th>
+          <th class="th--date">Added</th>
+          <th class="th--date">Last Edited</th>
+          <th class="th--actions"></th>
+        </tr>
+      </thead>
+      <tbody>
+        @if (loading()) {
+          <tr><td colspan="5" class="td--empty">Loading survey factors…</td></tr>
+        } @else {
+        @for (row of rows(); track row.id) {
+          <tr [class.tr--active]="editingId() === row.id">
+            <td class="td--code"><span class="code-badge">{{ row.reasonCode }}</span></td>
+            <td class="td--factor">{{ row.surveyFactor }}</td>
+            <td class="td--date">{{ row.added }}</td>
+            <td class="td--date">{{ row.lastEdited }}</td>
+            <td class="td--actions">
+              <button type="button" class="icon-btn icon-btn--edit" title="Edit" (click)="selectRow(row)">
+                <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M10.586 1.586a2 2 0 0 1 2.828 2.828L5.5 12.328l-3.6.9.9-3.6 7.786-8.042Z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+              <button type="button" class="icon-btn icon-btn--delete" title="Delete" (click)="confirmDelete(row)">
+                <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M2.5 4.5h10M5.5 4.5V3a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v1.5m1.5 0-.5 8a1 1 0 0 1-1 1h-5a1 1 0 0 1-1-1l-.5-8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+            </td>
+          </tr>
+        } @empty {
+          <tr><td colspan="5" class="td--empty">No survey factors defined.</td></tr>
+        }
+        }
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<app-confirm-dialog />

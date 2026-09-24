@@ -1,0 +1,1124 @@
+<div class="live-chat">
+  <button
+    type="button"
+    class="live-chat__fab"
+    [ngStyle]="fabCss()"
+    (pointerdown)="onFabPointerDown($event)"
+    [attr.aria-expanded]="panelOpen()"
+    [class.live-chat__fab--open]="panelOpen()"
+    [class.live-chat__fab--alert]="onsiteVisualAlert()"
+    [class.live-chat__fab--dragging]="fabDragging()"
+    aria-label="Open job chat"
+    title="Job chat — drag to move"
+  >
+    @if (fabUnreadCount() > 0) {
+      <span class="live-chat__fab-badge" aria-hidden="true">{{
+        fabUnreadCount() > 99 ? '99+' : fabUnreadCount()
+      }}</span>
+    }
+    <svg
+      class="live-chat__fab-svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      fill="none"
+    >
+      <path
+        d="M12 3C7.03 3 3 6.58 3 11c0 2.13 1.04 4.06 2.73 5.5L4 21l4.87-1.62A9.06 9.06 0 0 0 12 19c4.97 0 9-3.58 9-8s-4.03-8-9-8Z"
+        stroke="currentColor"
+        stroke-width="1.6"
+        stroke-linejoin="round"
+      />
+    </svg>
+  </button>
+
+  @if (panelOpen()) {
+    <div
+      class="live-chat__panel"
+      [ngStyle]="panelCss()"
+      [class.live-chat__panel--in-thread]="panelView() === 'thread'"
+      [class.live-chat__panel--alert]="onsiteVisualAlert()"
+      role="dialog"
+      aria-label="Job chat"
+    >
+      <div class="live-chat__shell">
+        <div class="live-chat__split">
+          <aside class="live-chat__sidebar">
+            <div class="live-chat__sidebar-head">
+              <span class="live-chat__sidebar-title">Inbox</span>
+              <div class="live-chat__sidebar-actions">
+                <button
+                  type="button"
+                  class="live-chat__btn-new"
+                  (click)="toggleNewJobEntry()"
+                  [class.live-chat__btn-new--active]="showNewJobEntry()"
+                  aria-label="Open job by ID"
+                  title="Open job by ID"
+                >
+                  +
+                </button>
+                <button
+                  type="button"
+                  class="live-chat__btn-close"
+                  (click)="closePanel()"
+                  aria-label="Close"
+                >
+                  &times;
+                </button>
+              </div>
+            </div>
+
+            @if (showNewJobEntry()) {
+              <div class="live-chat__new-job-bar">
+                @if (newJobKeyInvalid) {
+                  <p class="live-chat__new-job-error">Check the job ID and try again.</p>
+                }
+                <div class="live-chat__new-job-row">
+                  <input
+                    id="lc-new-job"
+                    class="live-chat__new-job-input"
+                    type="text"
+                    [(ngModel)]="newJobKeyInput"
+                    placeholder="Paste job GUID"
+                    (keydown.enter)="openNewJobByKey()"
+                    autocomplete="off"
+                  />
+                  <button type="button" class="live-chat__new-job-go" (click)="openNewJobByKey()">
+                    Open
+                  </button>
+                </div>
+              </div>
+            }
+
+            @if (onsiteVisualAlert()) {
+              <div class="live-chat__onsite-banner" role="status">
+                <span class="live-chat__onsite-banner-icon" aria-hidden="true"></span>
+                <span>New on-site approval request — check inbox</span>
+              </div>
+            }
+
+            <div class="live-chat__search-bar">
+              <input
+                type="text"
+                class="live-chat__search-input"
+                [ngModel]="jobSearchTerm()"
+                (ngModelChange)="onJobSearchInput($event)"
+                placeholder="Search by job PO…"
+                aria-label="Search jobs by PO"
+                autocomplete="off"
+              />
+            </div>
+
+            <div class="live-chat__list">
+              @if (listLoadError) {
+                <p class="live-chat__list-hint live-chat__list-hint--error">
+                  Could not load chats. Sign in or check the API.
+                </p>
+              }
+              @if (!listLoadError && conversations.length === 0) {
+                <p class="live-chat__list-hint">
+                  No conversations yet.<br />Tap <strong>+</strong> to open a job.
+                </p>
+              }
+              @if (!listLoadError && conversations.length > 0 && filteredConversations().length === 0) {
+                <p class="live-chat__list-hint">No jobs match "{{ jobSearchTerm() }}".</p>
+              }
+              @for (c of filteredConversations(); track c.jobKey + '|' + (c.vendorKey ?? 'g')) {
+                <button
+                  type="button"
+                  class="live-chat__list-item"
+                  [class.live-chat__list-item--active]="isActiveConversation(c)"
+                  [class.live-chat__list-item--unread]="isThreadUnread(c)"
+                  [class.live-chat__list-item--onsite-new]="isOnsiteNew(c)"
+                  (click)="openThread(c)"
+                >
+                  <div class="live-chat__list-top">
+                    <div class="live-chat__list-top-main">
+                      <span class="live-chat__list-name">{{ vendorLabel(c) }}</span>
+                    </div>
+                    <div class="live-chat__list-top-end">
+                      <span class="live-chat__list-time">{{
+                        formatListTime(c.lastMessageUtc)
+                      }}</span>
+                      @if (getUnreadMessageCount(c) > 0) {
+                        <span
+                          class="live-chat__list-count"
+                          [attr.aria-label]="getUnreadMessageCount(c) + ' unread'"
+                        >
+                          {{ unreadCountLabel(c) }}
+                        </span>
+                      }
+                    </div>
+                  </div>
+                  <div class="live-chat__list-job">
+                    {{ jobLabel(c) }}
+                    @if (isOnsiteNew(c)) {
+                      <span class="live-chat__list-onsite-tag">On-site</span>
+                    }
+                  </div>
+                  <div class="live-chat__list-meta">{{ c.lastMessagePreview }}</div>
+                </button>
+              }
+            </div>
+          </aside>
+
+          <div class="live-chat__workspace">
+            @if (panelView() !== 'thread') {
+              <div class="live-chat__empty">
+                <div class="live-chat__empty-card">
+                  <div class="live-chat__empty-icon" aria-hidden="true">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none">
+                      <path
+                        d="M8 10h8M8 14h5M5 4h14a2 2 0 0 1 2 2v12l-4-3H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z"
+                        stroke="currentColor"
+                        stroke-width="1.5"
+                        stroke-linecap="round"
+                      />
+                    </svg>
+                  </div>
+                  <h3 class="live-chat__empty-title">Your conversations</h3>
+                  <p>
+                    Select a thread from the inbox, or use <strong>+</strong> to open a job by ID.
+                  </p>
+                </div>
+              </div>
+            }
+
+            @if (panelView() === 'thread' && selectedJobKey()) {
+              <aside class="live-chat__estimate-col" aria-label="Vendor estimate">
+                <header class="live-chat__estimate-head">
+                  <div class="live-chat__estimate-head-main">
+                    <span class="live-chat__estimate-kicker">Estimate review</span>
+                    <h4 class="live-chat__estimate-title">Vendor estimate</h4>
+                  </div>
+                  @if (estimateStatusLabel) {
+                    <span
+                      class="live-chat__estimate-pill legacy-job-chat-estimate-pill"
+                      [ngClass]="estimateStatusClasses"
+                      >{{ estimateStatusLabel }}</span
+                    >
+                  }
+                  @if (showEstimateBody && vendorEstimatePageUrl()) {
+                    <button
+                      type="button"
+                      class="live-chat__view-job live-chat__est-v1-link"
+                      title="Open the full vendor estimate in legacy admin (V1)"
+                      (click)="openVendorEstimateInV1()"
+                    >
+                      Open vendor estimate
+                    </button>
+                  }
+                </header>
+
+                @if ((currentEstimate?.options?.length ?? 0) > 1) {
+                  <div class="live-chat__est-opt-row" role="tablist" aria-label="Estimate options">
+                    @for (opt of currentEstimate!.options!; track opt.estimateKey) {
+                      <button
+                        type="button"
+                        class="live-chat__est-opt-btn"
+                        [class.live-chat__est-opt-btn--active]="opt.isSelected"
+                        [class.live-chat__est-opt-btn--declined]="opt.status === 3"
+                        [attr.aria-selected]="opt.isSelected ? 'true' : 'false'"
+                        (click)="selectEstimateOption(opt.estimateKey)"
+                      >
+                        {{ opt.optionLabel }}
+                        <span class="live-chat__est-opt-price">{{ opt.total | currency: 'USD':'symbol':'1.0-0' }}</span>
+                        @if (opt.isVendorPick) {
+                          <span class="live-chat__est-opt-star" title="Vendor's recommended option">&#9733;</span>
+                        }
+                      </button>
+                    }
+                  </div>
+                }
+
+                @if (estimateLoading()) {
+                  <div class="live-chat__estimate-loading">
+                    <span class="live-chat__estimate-spinner" aria-hidden="true"></span>
+                    <span>Loading estimate…</span>
+                  </div>
+                }
+
+                @if (showEstimateEmpty()) {
+                  <div class="live-chat__estimate-placeholder">
+                    <div class="live-chat__estimate-placeholder-icon" aria-hidden="true">
+                      <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
+                        <path
+                          d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 1 1 4 0"
+                          stroke="currentColor"
+                          stroke-width="1.5"
+                        />
+                      </svg>
+                    </div>
+                    <p>{{ estimateEmptyMessage }}</p>
+                    <button type="button" class="live-chat__est-btn" (click)="retryEstimateLoad()">
+                      Retry estimate
+                    </button>
+                  </div>
+                }
+
+                @if (showEstimateVendorEdit) {
+                  <div class="live-chat__estimate-vendor-edit">{{ estimateVendorEditMsg }}</div>
+                }
+
+                @if (showEstimateDelta) {
+                  <div class="live-chat__estimate-delta">
+                    <span class="live-chat__estimate-delta-label">{{ estimateDeltaText }}</span>
+                  </div>
+                }
+
+                @if (showEstimateOriginal && estimateOriginalHtmlSafe) {
+                  <details class="live-chat__estimate-original">
+                    <summary>View {{ estimateOriginalSummaryLabel }}</summary>
+                    <div
+                      class="live-chat__estimate-body"
+                      [innerHTML]="estimateOriginalHtmlSafe"
+                    ></div>
+                  </details>
+                }
+
+                @if (showEstimateBody && estimateHtmlSafe) {
+                  <div
+                    class="live-chat__estimate-body"
+                    [class.live-chat__estimate-body--vendor-compare]="
+                      estimateCompareMode === 'vendor'
+                    "
+                    [class.live-chat__estimate-body--admin-compare]="
+                      estimateCompareMode === 'admin'
+                    "
+                    [class.live-chat__estimate-body--mixed-compare]="
+                      estimateCompareMode === 'mixed'
+                    "
+                    [innerHTML]="estimateHtmlSafe"
+                  ></div>
+                }
+
+                @if (estimateHasActions()) {
+                  <div class="live-chat__estimate-actions">
+                    @if (
+                      currentEstimate?.approveDneMessage && !currentEstimate?.approveHardBlocked
+                    ) {
+                      <p class="live-chat__est-dne-warn">
+                        {{ currentEstimate?.approveDneMessage }}
+                      </p>
+                    }
+                    @if ((currentEstimate?.estimateOptionCount ?? 0) > 1) {
+                      <p class="live-chat__est-option-note">
+                        {{ currentEstimate?.estimateOptionCount }} estimate options on this job —
+                        confirm you are reviewing the correct option.
+                      </p>
+                    }
+                    <div class="live-chat__est-actions-row">
+                      @if (
+                        estimateAllowedActions().includes('approve') &&
+                        !currentEstimate?.approveHardBlocked
+                      ) {
+                        <button
+                          type="button"
+                          class="live-chat__est-btn live-chat__est-btn--approve"
+                          (click)="openEstimateAction('approve')"
+                        >
+                          Approve
+                        </button>
+                      } @else if (
+                        currentEstimate?.approveHardBlocked &&
+                        estimateAllowedActions().includes('approve')
+                      ) {
+                        <p class="live-chat__est-dne-block">
+                          {{ currentEstimate?.approveDneMessage || 'Approval blocked.' }}
+                        </p>
+                      } @else if (estimateApproveDisabled()) {
+                        <button
+                          type="button"
+                          class="live-chat__est-btn live-chat__est-btn--approve live-chat__est-btn--disabled"
+                          [title]="estimateApproveDisabledReason()"
+                          disabled
+                        >
+                          Approve
+                        </button>
+                      }
+                      <!-- Re-enable "Reject for resubmission" when needed:
+                      @if (estimateAllowedActions().includes('reject')) {
+                        <button
+                          type="button"
+                          class="live-chat__est-btn live-chat__est-btn--reject"
+                          (click)="openEstimateAction('reject')"
+                        >
+                          Reject for resubmission
+                        </button>
+                      }
+                      -->
+                      @if (estimateAllowedActions().includes('negotiate')) {
+                        <button
+                          type="button"
+                          class="live-chat__est-btn live-chat__est-btn--negotiate"
+                          (click)="openEstimateAction('negotiate')"
+                        >
+                          Negotiate
+                        </button>
+                      }
+                      <!-- Decline estimate action hidden (product request). Set true to re-enable. -->
+                      @if (false && estimateAllowedActions().includes('decline')) {
+                        <button
+                          type="button"
+                          class="live-chat__est-btn live-chat__est-btn--decline"
+                          (click)="openEstimateAction('decline')"
+                        >
+                          Decline
+                        </button>
+                      }
+                      @if (estimateAllowedActions().includes('get_customer_approval')) {
+                        <button
+                          type="button"
+                          class="live-chat__est-btn live-chat__est-btn--customer"
+                          (click)="openEstimateAction('get_customer_approval')"
+                        >
+                          Get Customer Approval
+                        </button>
+                      }
+                      @if (estimateAllowedActions().includes('approve_on_behalf_and_vendor')) {
+                        <button
+                          type="button"
+                          class="live-chat__est-btn live-chat__est-btn--customer"
+                          (click)="openEstimateAction('approve_on_behalf_and_vendor')"
+                        >
+                          Approve on behalf of customer and approve vendor
+                        </button>
+                      }
+                      @if (estimateAllowedActions().includes('checkout_for_approval_later')) {
+                        <button
+                          type="button"
+                          class="live-chat__est-btn live-chat__est-btn--customer-outline"
+                          (click)="openEstimateAction('checkout_for_approval_later')"
+                        >
+                          Check tech out for approval later
+                        </button>
+                      }
+                      @if (estimateAllowedActions().includes('go_home')) {
+                        <button
+                          type="button"
+                          class="live-chat__est-btn live-chat__est-btn--go-home"
+                          (click)="openEstimateAction('go_home')"
+                        >
+                          Go Home
+                        </button>
+                      }
+                    </div>
+                  </div>
+                } @else if (estimateShowApproved()) {
+                  <div class="live-chat__estimate-actions">
+                    <p class="live-chat__est-done-msg">This on-site estimate has been approved.</p>
+                  </div>
+                } @else if (estimateShowDeclined()) {
+                  <div class="live-chat__estimate-actions">
+                    <p class="live-chat__est-done-msg">This on-site estimate has been declined.</p>
+                    @if (currentEstimate?.createdInvoiceForIncurredAfterDeclined) {
+                      <p class="live-chat__est-incurred-note">
+                        A vendor invoice was created from incurred costs on this estimate.
+                      </p>
+                    } @else if (currentEstimate?.hasUnbilledIncurredLines) {
+                      <button
+                        type="button"
+                        class="live-chat__est-btn live-chat__est-btn--incurred"
+                        (click)="openEstimateAction('bill-incurred')"
+                      >
+                        Bill incurred costs
+                      </button>
+                    }
+                  </div>
+                } @else if (estimateShowWaitingVendor()) {
+                  <div class="live-chat__estimate-actions">
+                    <p class="live-chat__est-done-msg">Waiting for vendor to edit and resubmit.</p>
+                  </div>
+                } @else if (estimateShowNeedsReload()) {
+                  <div class="live-chat__estimate-actions">
+                    <p class="live-chat__est-done-msg">
+                      Vendor has updated this estimate. Reload the thread or contact support if
+                      action buttons are missing.
+                    </p>
+                  </div>
+                }
+
+                @if (negotiatePanelOpen) {
+                  <div class="live-chat__negotiate-panel legacy-job-chat-negotiate-panel">
+                    <div class="live-chat__negotiate-head legacy-job-chat-negotiate-head">
+                      <span>Counter — edit lines</span>
+                      <button
+                        type="button"
+                        (click)="closeNegotiatePanel()"
+                        aria-label="Close negotiate"
+                      >
+                        &times;
+                      </button>
+                    </div>
+                    @if (negotiateLoading) {
+                      <p class="live-chat__negotiate-loading">Loading lines…</p>
+                    } @else if (negotiateLines.length === 0) {
+                      <p class="live-chat__negotiate-loading">
+                        {{ negotiateError || 'Could not load estimate lines.' }}
+                      </p>
+                    } @else {
+                      <table class="live-chat__neg-table legacy-job-chat-neg-table">
+                        <thead>
+                          <tr>
+                            <th>Item</th>
+                            <th>Rate</th>
+                            <th>Qty/Hrs</th>
+                            <th>Tech</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          @for (line of negotiateLines; track line.detailKey) {
+                            <tr>
+                              <td class="live-chat__neg-item legacy-job-chat-neg-item">
+                                {{ line.itemName }}
+                              </td>
+                              <td>
+                                <input
+                                  type="number"
+                                  step="1"
+                                  min="0"
+                                  inputmode="numeric"
+                                  class="live-chat__neg-input legacy-job-chat-neg-rate"
+                                  [class.live-chat__neg-input--readonly]="
+                                    isNegotiateRateReadOnly(line)
+                                  "
+                                  [(ngModel)]="line.editRate"
+                                  [readonly]="isNegotiateRateReadOnly(line)"
+                                  (keydown)="onNegInputKeydown($event)"
+                                  (blur)="onNegInputBlur(line, 'editRate')"
+                                />
+                              </td>
+                              @if (line.labor === 'labor') {
+                                <td>
+                                  <input
+                                    type="number"
+                                    step="1"
+                                    min="0"
+                                    inputmode="numeric"
+                                    class="live-chat__neg-input legacy-job-chat-neg-hour"
+                                    [(ngModel)]="line.editHour"
+                                    (keydown)="onNegInputKeydown($event)"
+                                    (blur)="onNegInputBlur(line, 'editHour')"
+                                  />
+                                </td>
+                                <td>
+                                  <input
+                                    type="number"
+                                    step="1"
+                                    min="0"
+                                    inputmode="numeric"
+                                    class="live-chat__neg-input legacy-job-chat-neg-tech"
+                                    [(ngModel)]="line.editTech"
+                                    (keydown)="onNegInputKeydown($event)"
+                                    (blur)="onNegInputBlur(line, 'editTech')"
+                                  />
+                                </td>
+                              } @else {
+                                <td>
+                                  <input
+                                    type="number"
+                                    step="1"
+                                    min="0"
+                                    inputmode="numeric"
+                                    class="live-chat__neg-input legacy-job-chat-neg-qty"
+                                    [(ngModel)]="line.editQty"
+                                    (keydown)="onNegInputKeydown($event)"
+                                    (blur)="onNegInputBlur(line, 'editQty')"
+                                  />
+                                </td>
+                                <td>—</td>
+                              }
+                            </tr>
+                          }
+                        </tbody>
+                      </table>
+                      <label class="live-chat__neg-remark-label legacy-job-chat-neg-remark-label">
+                        Note to vendor (optional)
+                      </label>
+                      <textarea
+                        class="live-chat__neg-remark legacy-job-chat-neg-remark"
+                        rows="3"
+                        [(ngModel)]="negotiateRemark"
+                        placeholder="Optional message…"
+                      ></textarea>
+                    }
+                    @if (negotiateError) {
+                      <p class="live-chat__action-error">{{ negotiateError }}</p>
+                    }
+                    <div class="live-chat__negotiate-foot legacy-job-chat-negotiate-foot">
+                      <button
+                        type="button"
+                        class="live-chat__est-btn live-chat__est-btn--negotiate"
+                        (click)="submitNegotiate()"
+                        [disabled]="
+                          negotiateSubmitting || negotiateLoading || !negotiateLines.length
+                        "
+                      >
+                        {{ negotiateSubmitting ? 'Saving…' : 'Send revised estimate' }}
+                      </button>
+                    </div>
+                  </div>
+                }
+              </aside>
+
+              <main class="live-chat__main">
+                <header class="live-chat__thread-head">
+                  <div class="live-chat__thread-brand">
+                    <span class="live-chat__thread-kicker">Conversation</span>
+                    <h3 class="live-chat__thread-name">{{ threadVendorName() }}</h3>
+                    <p class="live-chat__thread-sub">{{ threadScopeLine() }}</p>
+                  </div>
+                  <a
+                    class="live-chat__view-job"
+                    [routerLink]="['/job', selectedJobKey(), 'assign-vendor']"
+                    target="_blank"
+                    rel="noopener"
+                  >
+                    Open job
+                  </a>
+                </header>
+
+                @if (showAgentTabs()) {
+                  <div class="live-chat__main-tabs">
+                    <button
+                      type="button"
+                      class="live-chat__main-tab"
+                      [class.live-chat__main-tab--active]="mainPaneView() === 'chat'"
+                      (click)="setMainPaneView('chat')"
+                    >
+                      Chat
+                    </button>
+                    <button
+                      type="button"
+                      class="live-chat__main-tab"
+                      [class.live-chat__main-tab--active]="mainPaneView() === 'negotiate'"
+                      (click)="setMainPaneView('negotiate')"
+                    >
+                      <span class="live-chat__main-tab-dot"></span>Negotiate
+                    </button>
+                  </div>
+                }
+
+                @if (mainPaneView() === 'negotiate') {
+                  <div class="live-chat__agent-panel">
+                    <div class="live-chat__agent-head">
+                      <span class="live-chat__agent-eyebrow">Agent Recommendation</span>
+                      <span class="live-chat__agent-meta">
+                        Round {{ agentPanelSummary().roundNumber }} ·
+                        {{ agentPanelSummary().statusLabel }}
+                      </span>
+                    </div>
+
+                    @if (agentLoading()) {
+                      <p class="live-chat__agent-hint" role="status">
+                        Generating negotiating-agent recommendations…
+                      </p>
+                    } @else if (agentError() && !agentNegotiation()?.recommendationsReady) {
+                      <div
+                        class="live-chat__agent-feedback live-chat__agent-feedback--error"
+                        role="alert"
+                      >
+                        <span>{{ agentError() }}</span>
+                        <button
+                          type="button"
+                          class="live-chat__agent-edit-save"
+                          (click)="retryAgentNegotiation()"
+                        >
+                          Retry
+                        </button>
+                      </div>
+                    } @else if (agentNegotiation() && !agentNegotiation()?.showPanel) {
+                      <p class="live-chat__agent-hint">
+                        Negotiating-agent recommendations are not available for this estimate in its
+                        current state.
+                      </p>
+                    } @else if (agentNegotiation()?.recommendationsReady) {
+                      @if (agentStatusMessage()) {
+                        <p class="live-chat__agent-feedback" role="status">
+                          {{ agentStatusMessage() }}
+                        </p>
+                      }
+                      @if (agentError()) {
+                        <p
+                          class="live-chat__agent-feedback live-chat__agent-feedback--error"
+                          role="alert"
+                        >
+                          {{ agentError() }}
+                        </p>
+                      }
+
+                      <div class="live-chat__agent-summary">
+                        <div class="live-chat__agent-summary-top">
+                          <div class="live-chat__agent-summary-main">
+                            <span class="live-chat__agent-was">{{
+                              formatEstimateMoney(agentPanelSummary().vendorTotal)
+                            }}</span>
+                            <span class="live-chat__agent-arrow" aria-hidden="true">
+                              <svg viewBox="0 0 24 24" fill="none">
+                                <path
+                                  d="M4 12h14M13 6l6 6-6 6"
+                                  stroke="currentColor"
+                                  stroke-width="2.6"
+                                  stroke-linecap="round"
+                                  stroke-linejoin="round"
+                                />
+                              </svg>
+                            </span>
+                            <span class="live-chat__agent-now">{{
+                              formatEstimateMoney(agentPanelSummary().counterTotal)
+                            }}</span>
+                            <span
+                              class="live-chat__agent-delta"
+                              [class.is-down]="agentPanelSummary().deltaPct < 0"
+                              [class.is-up]="agentPanelSummary().deltaPct > 0"
+                            >
+                              {{ agentPanelSummary().deltaPct }}%
+                            </span>
+                            <span class="live-chat__agent-savings">
+                              saves {{ formatEstimateMoney(agentPanelSummary().savingsAmount) }}
+                            </span>
+                          </div>
+                        </div>
+                        <div class="live-chat__agent-conf-row">
+                          <span class="live-chat__agent-conf-label">Overall confidence</span>
+                          <div class="live-chat__agent-conf-track">
+                            <div
+                              class="live-chat__agent-conf-fill"
+                              [style.width.%]="agentPanelSummary().confidencePct"
+                            ></div>
+                          </div>
+                          <span class="live-chat__agent-conf-pct"
+                            >{{ agentPanelSummary().confidencePct }}%</span
+                          >
+                        </div>
+                      </div>
+
+                      @for (line of agentPanelLines(); track line.lineItemId) {
+                        <app-estimate-negotiation-line
+                          [line]="line"
+                          [decision]="agentLineDecisionStateFor(line.lineItemId)?.decision ?? null"
+                          [editedValue]="agentLineDecisionStateFor(line.lineItemId)?.editedValue ?? null"
+                          [editedQty]="agentLineDecisionStateFor(line.lineItemId)?.editedQty ?? null"
+                          [message]="agentLineMessage(line.lineItemId)"
+                          [messageEdited]="isAgentLineMessageEdited(line.lineItemId)"
+                          [expandMode]="isAgentLineExpandOpen(line.lineItemId, 'edit') ? 'edit' : isAgentLineExpandOpen(line.lineItemId, 'info') ? 'info' : isAgentLineExpandOpen(line.lineItemId, 'msg') ? 'msg' : null"
+                          [disabled]="agentSubmitting()"
+                          [compact]="true"
+                          (decisionChange)="setAgentLineDecision(line.lineItemId, $event)"
+                          (changeDecision)="reopenAgentLineDecision(line.lineItemId)"
+                          (editConfirm)="onAgentLineEditConfirm(line, $event)"
+                          (expandModeChange)="onAgentLineExpandModeChange(line, $event)"
+                          (messageChange)="setAgentLineMessage(line.lineItemId, $event)"
+                          (messageReset)="resetAgentLineMessage(line)"
+                        />
+                      }
+
+                      @if (agentPassthroughLines().length > 0) {
+                        <p class="live-chat__agent-passthrough">
+                          <span>
+                            {{ agentPanelPassthroughLabel() }} —
+                            <strong>{{ formatEstimateMoney(agentPanelPassthroughTotal()) }}</strong>
+                            already incurred, passed through unchanged
+                          </span>
+                        </p>
+                      }
+
+                      @if (agentPanelDneTotal() > 0) {
+                        <div class="live-chat__agent-dne">
+                          <div class="live-chat__agent-dne-top">
+                            <span class="live-chat__agent-dne-label">Customer DNE</span>
+                            <span class="live-chat__agent-dne-status">
+                              <span class="live-chat__agent-dot"></span
+                              >{{ agentPanelDneStatusLabel() }}
+                            </span>
+                          </div>
+                          <div class="live-chat__agent-dne-body">
+                            <div class="live-chat__agent-dne-ring-wrap">
+                              <svg
+                                viewBox="0 0 36 36"
+                                class="live-chat__agent-dne-ring"
+                                aria-hidden="true"
+                              >
+                                <circle
+                                  class="live-chat__agent-dne-ring-track"
+                                  cx="18"
+                                  cy="18"
+                                  r="15.5"
+                                ></circle>
+                                <circle
+                                  class="live-chat__agent-dne-ring-fill"
+                                  cx="18"
+                                  cy="18"
+                                  r="15.5"
+                                  style="stroke-dasharray: 97.4"
+                                  [style.stroke-dashoffset]="
+                                    gaugeDashOffset(agentPanelDneCommittedPct())
+                                  "
+                                ></circle>
+                              </svg>
+                              <span class="live-chat__agent-dne-ring-pct"
+                                >{{ agentPanelDneCommittedPct() }}%</span
+                              >
+                            </div>
+                            <div class="live-chat__agent-dne-text">
+                              <span class="live-chat__agent-dne-committed">
+                                {{ formatEstimateMoney(agentPanelDneCommittedAmount()) }}
+                              </span>
+                              <span class="live-chat__agent-dne-of">
+                                revised estimate of
+                                {{ formatEstimateMoney(agentPanelDneTotal()) }} customer DNE
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      }
+
+                      <div class="live-chat__agent-actions">
+                        <button
+                          type="button"
+                          class="live-chat__agent-btn live-chat__agent-btn--secondary"
+                          [disabled]="!canSubmitAgentCounter()"
+                          (click)="acceptAllAgentRecommendations()"
+                        >
+                          {{ agentSubmitting() ? 'Sending…' : 'Accept All' }}
+                        </button>
+                        <button
+                          type="button"
+                          class="live-chat__agent-btn live-chat__agent-btn--primary"
+                          [disabled]="!canSubmitAgentCounter()"
+                          (click)="sendAgentCounter()"
+                        >
+                          {{ agentSubmitting() ? 'Sending…' : 'Use Counter' }}
+                        </button>
+                      </div>
+                    } @else {
+                      <p class="live-chat__agent-hint" role="status">
+                        The negotiating agent is preparing recommendations for this estimate.
+                      </p>
+                    }
+                  </div>
+                }
+
+                @if (mainPaneView() === 'chat') {
+                  @if (listStatusMessage()) {
+                    <div class="live-chat__status">{{ listStatusMessage() }}</div>
+                  }
+
+                  <div class="live-chat__messages-wrap">
+                    <div #messagesScroll class="live-chat__messages">
+                      @for (m of messages(); track m.id) {
+                        @if (m.senderType === 3) {
+                          <div
+                            class="live-chat__msg live-chat__msg--system"
+                            [ngClass]="systemLifecycleClass(m.text)"
+                          >
+                            <div class="live-chat__meta live-chat__meta--system">
+                              <span class="live-chat__meta-name">{{
+                                systemLifecycleLabel(m.text)
+                              }}</span>
+                              <span class="live-chat__meta-time">{{
+                                formatMessageTime(m.at)
+                              }}</span>
+                            </div>
+                            <div class="live-chat__system-card">
+                              <p class="live-chat__msg-text">
+                                {{ systemLifecycleDisplayText(m.text) }}
+                              </p>
+                              @if (m.actions?.length) {
+                                <div
+                                  class="live-chat__msg-actions"
+                                  [class.live-chat__msg-actions--done]="m.actionsConsumed"
+                                >
+                                  @if (m.actionsConsumed) {
+                                    <span class="live-chat__msg-action-chip"
+                                      >Check out completed</span
+                                    >
+                                  } @else {
+                                    @for (a of m.actions; track a.id) {
+                                      <span class="live-chat__msg-action-chip">{{ a.label }}</span>
+                                    }
+                                  }
+                                </div>
+                              }
+                            </div>
+                          </div>
+                        } @else {
+                          <div
+                            class="live-chat__msg"
+                            [class.live-chat__msg--them]="m.senderType === 2"
+                            [class.live-chat__msg--me]="m.senderType === 1"
+                          >
+                            <div
+                              class="live-chat__meta"
+                              [class.live-chat__meta--them]="m.senderType === 2"
+                              [class.live-chat__meta--me]="m.senderType === 1"
+                            >
+                              <span class="live-chat__meta-name" [title]="messageSenderLabel(m)">{{
+                                messageSenderLabel(m)
+                              }}</span>
+                              <span class="live-chat__meta-time">{{
+                                formatMessageTime(m.at)
+                              }}</span>
+                            </div>
+                            <div class="live-chat__msg-inner">
+                              <p class="live-chat__msg-text">{{ m.text }}</p>
+                              @if (m.senderType === 1) {
+                                <div class="live-chat__msg-footer">
+                                  <span class="live-chat__msg-time">{{
+                                    formatMessageTime(m.at)
+                                  }}</span>
+                                  @if (m.seenByRecipient) {
+                                    <span
+                                      class="live-chat__receipt live-chat__receipt--seen"
+                                      title="Seen"
+                                      aria-label="Seen"
+                                    >
+                                      <svg
+                                        width="16"
+                                        height="14"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        aria-hidden="true"
+                                      >
+                                        <path
+                                          d="M4 12.5 8.5 17 18 7.5"
+                                          stroke="currentColor"
+                                          stroke-width="2"
+                                          stroke-linecap="round"
+                                          stroke-linejoin="round"
+                                        />
+                                        <path
+                                          d="M8 12.5 12.5 17 22 7.5"
+                                          stroke="currentColor"
+                                          stroke-width="2"
+                                          stroke-linecap="round"
+                                          stroke-linejoin="round"
+                                        />
+                                      </svg>
+                                    </span>
+                                  } @else {
+                                    <span
+                                      class="live-chat__receipt live-chat__receipt--sent"
+                                      title="Sent"
+                                      aria-label="Sent"
+                                    >
+                                      <svg
+                                        width="14"
+                                        height="14"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        aria-hidden="true"
+                                      >
+                                        <path
+                                          d="M5 12.5 9.5 17 19 7.5"
+                                          stroke="currentColor"
+                                          stroke-width="2"
+                                          stroke-linecap="round"
+                                          stroke-linejoin="round"
+                                        />
+                                      </svg>
+                                    </span>
+                                  }
+                                </div>
+                              }
+                            </div>
+                          </div>
+                        }
+                      }
+                    </div>
+                  </div>
+
+                  <footer class="live-chat__composer">
+                    <div class="live-chat__composer-row">
+                      <input
+                        class="live-chat__input"
+                        type="text"
+                        [(ngModel)]="inputText"
+                        placeholder="Type your message..."
+                        (keydown.enter)="send()"
+                        maxlength="16000"
+                        autocomplete="off"
+                      />
+                      <button type="button" class="live-chat__send" (click)="send()">Send</button>
+                    </div>
+                  </footer>
+                }
+              </main>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+
+  @if (declineIncurredModalOpen) {
+    <div
+      class="live-chat__incurred-modal legacy-job-chat-action-modal legacy-job-chat-incurred-modal"
+      role="dialog"
+      aria-modal="true"
+    >
+      <div class="live-chat__incurred-card legacy-job-chat-incurred-modal-card">
+        <div class="live-chat__incurred-head legacy-job-chat-incurred-modal-head">
+          <h4 class="live-chat__action-title">{{ declineIncurredTitle() }}</h4>
+          <button
+            type="button"
+            class="live-chat__incurred-close legacy-job-chat-incurred-close"
+            (click)="closeDeclineIncurredModal()"
+            aria-label="Close"
+          >
+            &times;
+          </button>
+        </div>
+        <p class="live-chat__incurred-lead legacy-job-chat-incurred-lead">
+          This estimate includes <strong>incurred</strong> charges (work already done). Select the
+          lines you want to approve for vendor billing before declining the proposed repair scope.
+        </p>
+        <div class="live-chat__incurred-table-wrap legacy-job-chat-incurred-table-wrap">
+          <table class="live-chat__incurred-table legacy-job-chat-incurred-table">
+            <thead>
+              <tr>
+                <th class="live-chat__incurred-chk legacy-job-chat-incurred-chk">
+                  <input
+                    type="checkbox"
+                    [checked]="declineIncurredAllSelected()"
+                    (change)="toggleDeclineIncurredSelectAll($any($event.target).checked)"
+                    aria-label="Select all incurred lines"
+                  />
+                </th>
+                <th>Item</th>
+                <th>Description</th>
+                <th>Rate</th>
+                <th>Qty</th>
+                <th>Row total</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (line of declineIncurredLines; track line.detailKey + '|' + line.whichTable) {
+                <tr>
+                  <td class="live-chat__incurred-chk legacy-job-chat-incurred-chk">
+                    <input type="checkbox" [(ngModel)]="line.selected" />
+                  </td>
+                  <td>{{ line.itemName }}</td>
+                  <td>{{ line.description }}</td>
+                  <td class="live-chat__incurred-num legacy-job-chat-incurred-num">
+                    {{ formatEstimateMoney(line.amount) }}
+                  </td>
+                  <td class="live-chat__incurred-num legacy-job-chat-incurred-num">
+                    {{ (line.qty ?? 0).toFixed(2) }}
+                  </td>
+                  <td
+                    class="live-chat__incurred-num live-chat__incurred-row-total legacy-job-chat-incurred-num legacy-job-chat-incurred-row-total"
+                  >
+                    {{ formatEstimateMoney(line.rowTotal) }}
+                  </td>
+                </tr>
+              }
+            </tbody>
+            <tfoot>
+              <tr>
+                <td
+                  colspan="5"
+                  class="live-chat__incurred-foot-label legacy-job-chat-incurred-foot-label"
+                >
+                  Estimate incurred total
+                </td>
+                <td class="live-chat__incurred-num legacy-job-chat-incurred-num">
+                  {{ formatEstimateMoney(declineIncurredEstimateTotal()) }}
+                </td>
+              </tr>
+              <tr class="live-chat__incurred-selected-row legacy-job-chat-incurred-selected-row">
+                <td
+                  colspan="5"
+                  class="live-chat__incurred-foot-label legacy-job-chat-incurred-foot-label"
+                >
+                  Selected total
+                </td>
+                <td class="live-chat__incurred-num legacy-job-chat-incurred-num">
+                  {{ formatEstimateMoney(declineIncurredSelectedTotal()) }}
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+        @if (declineIncurredStatus) {
+          <p class="live-chat__incurred-status legacy-job-chat-incurred-status">
+            {{ declineIncurredStatus }}
+          </p>
+        }
+        @if (pendingInvoiceOpenUrl) {
+          <p class="live-chat__incurred-invoice-link-wrap">
+            <button
+              type="button"
+              class="live-chat__incurred-invoice-link"
+              (click)="openPendingInvoiceUrl()"
+            >
+              Open vendor invoice in new tab
+            </button>
+          </p>
+        }
+        @if (declineIncurredError) {
+          <p class="live-chat__action-error">{{ declineIncurredError }}</p>
+        }
+        <div class="live-chat__incurred-foot legacy-job-chat-incurred-modal-foot">
+          <button
+            type="button"
+            class="live-chat__est-btn"
+            (click)="closeDeclineIncurredModal()"
+            [disabled]="declineIncurredSubmitting"
+          >
+            Close
+          </button>
+          <button
+            type="button"
+            class="live-chat__est-btn live-chat__est-btn--incurred-save legacy-job-chat-est-btn-incurred-save"
+            (click)="saveDeclineIncurredInvoice()"
+            [disabled]="declineIncurredSubmitting"
+          >
+            {{ declineIncurredSubmitting ? 'Saving…' : declineIncurredSaveLabel() }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  @if (actionModalOpen) {
+    <div class="live-chat__action-modal" role="dialog" aria-modal="true">
+      <div class="live-chat__action-modal-card">
+        <h4 class="live-chat__action-title">{{ actionModalTitle }}</h4>
+        @if (actionModalHint) {
+          <p class="live-chat__action-hint">{{ actionModalHint }}</p>
+        }
+        <textarea
+          class="live-chat__action-remark"
+          rows="4"
+          [(ngModel)]="actionModalRemark"
+          [placeholder]="
+            actionModalRemarkRequired ? 'Required — explain to the vendor…' : 'Optional remark…'
+          "
+        ></textarea>
+        @if (actionModalError) {
+          <p class="live-chat__action-error">{{ actionModalError }}</p>
+        }
+        <div class="live-chat__action-modal-foot">
+          <button
+            type="button"
+            class="live-chat__est-btn"
+            (click)="closeActionModal()"
+            [disabled]="actionModalSubmitting"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            class="live-chat__est-btn live-chat__est-btn--approve"
+            (click)="confirmEstimateAction()"
+            [disabled]="actionModalSubmitting"
+          >
+            {{ actionModalSubmitting ? 'Saving…' : 'Confirm' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</div>

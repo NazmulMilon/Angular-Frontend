@@ -1,0 +1,683 @@
+<div class="page">
+  <button type="button" class="back-link" (click)="back()">← Back to Customers</button>
+
+  <!-- Identity / header band -->
+  <header class="hero">
+    <div class="hero__avatar" aria-hidden="true">{{ initials() }}</div>
+    <div class="hero__body">
+      <span class="hero__eyebrow">Customer profile</span>
+      <h2 class="hero__name">{{ customerName() || 'Edit Customer' }}</h2>
+      @if (!loading() && !loadError()) {
+        <div class="hero__meta">
+          @if (accountManagerName()) {
+            <span class="meta-chip"><span class="meta-chip__k">Account manager</span> {{ accountManagerName() }}</span>
+          }
+          @if (termsName()) {
+            <span class="meta-chip"><span class="meta-chip__k">Terms</span> {{ termsName() }}</span>
+          }
+          <span class="meta-chip" [class.meta-chip--on]="broadcastEnabled()" [class.meta-chip--off]="!broadcastEnabled()">
+            Vendor broadcast {{ broadcastEnabled() ? 'on' : 'off' }}
+          </span>
+        </div>
+      }
+    </div>
+  </header>
+
+  @if (loadError()) {
+    <div class="banner banner--error" role="alert">{{ loadError() }}</div>
+  }
+
+  @if (loading()) {
+    <div class="state state--loading"><span class="spinner"></span> Loading…</div>
+  } @else if (!loadError()) {
+    <!-- Section navigator -->
+    <nav class="section-nav" aria-label="Sections">
+      <button type="button" class="section-nav__btn" (click)="scrollToGroup('e-profile')">Profile &amp; contacts</button>
+      <button type="button" class="section-nav__btn" (click)="scrollToGroup('e-orders')">Orders &amp; notifications</button>
+      <button type="button" class="section-nav__btn" (click)="scrollToGroup('e-pricing')">Pricing &amp; markup</button>
+      <button type="button" class="section-nav__btn" (click)="scrollToGroup('e-portal')">Customer portal</button>
+      <button type="button" class="section-nav__btn" (click)="scrollToGroup('e-vendor')">Vendor file requirements</button>
+      <button type="button" class="section-nav__btn" (click)="scrollToGroup('e-content')">Content &amp; communications</button>
+      <button type="button" class="section-nav__btn" (click)="scrollToGroup('e-records')">Records</button>
+    </nav>
+
+    <!-- ══════ GROUP: Profile & contacts ══════ -->
+    <section class="seg-group" id="e-profile">
+      <h3 class="seg-group__title">Profile &amp; contacts</h3>
+      <div class="accordions">
+        <!-- ═══════════ Basic Information ═══════════ -->
+        <app-accordion heading="Basic Information" variant="figma" [defaultOpen]="true">
+          <form class="panel-pad" [formGroup]="basicForm" (ngSubmit)="saveBasic()">
+            <div class="form-grid">
+              <label class="field field--full">
+                <span class="field__label">Customer Name <span class="req">*</span></span>
+                <input type="text" class="field__input" formControlName="customerName" maxlength="200"
+                  [class.field__input--invalid]="showError(basicForm, 'customerName')" placeholder="Customer name" />
+                @if (showError(basicForm, 'customerName')) { <span class="field__error">{{ errorText(basicForm, 'customerName') }}</span> }
+              </label>
+
+              <label class="field">
+                <span class="field__label">Account Manager <span class="req">*</span></span>
+                <app-searchable-select [options]="amOptions()" formControlName="accountManagerKey" placeholder="-- Select account manager --" />
+                @if (showError(basicForm, 'accountManagerKey')) { <span class="field__error">{{ errorText(basicForm, 'accountManagerKey') }}</span> }
+              </label>
+
+              <label class="field">
+                <span class="field__label">Terms <span class="req">*</span></span>
+                <app-searchable-select [options]="termOptions()" formControlName="netId" placeholder="-- Select terms --" />
+                @if (showError(basicForm, 'netId')) { <span class="field__error">{{ errorText(basicForm, 'netId') }}</span> }
+              </label>
+
+              <label class="checkbox-field field--full">
+                <input type="checkbox" formControlName="priviledgedForVendorBlast" /><span>Enable Vendor Broadcast</span>
+              </label>
+              <label class="checkbox-field field--full">
+                <input type="checkbox" formControlName="nonUsaAddress" /><span>Non-US address</span>
+              </label>
+
+              <label class="field field--full">
+                <span class="field__label">Street Address</span>
+                <input type="text" class="field__input" formControlName="address" maxlength="250" placeholder="Street address" />
+              </label>
+
+              @if (!nonUsa()) {
+                <label class="field">
+                  <span class="field__label">State <span class="req">*</span></span>
+                  <app-searchable-select [options]="stateOptions()" formControlName="stateCode" placeholder="-- Select state --" />
+                  @if (showError(basicForm, 'stateCode')) { <span class="field__error">{{ errorText(basicForm, 'stateCode') }}</span> }
+                </label>
+                <label class="field">
+                  <span class="field__label">City <span class="req">*</span></span>
+                  <app-searchable-select [options]="cityOptions()" [loading]="citiesLoading()" formControlName="cityKey" placeholder="-- Select city --" />
+                  @if (showError(basicForm, 'cityKey')) { <span class="field__error">{{ errorText(basicForm, 'cityKey') }}</span> }
+                </label>
+                <label class="field">
+                  <span class="field__label">ZIP Code <span class="req">*</span></span>
+                  <input type="text" class="field__input" formControlName="zip" inputmode="numeric" maxlength="10"
+                    [class.field__input--invalid]="showError(basicForm, 'zip')" placeholder="e.g. 90210" />
+                  @if (showError(basicForm, 'zip')) { <span class="field__error">{{ errorText(basicForm, 'zip') }}</span> }
+                </label>
+              }
+
+              <label class="field">
+                <span class="field__label">Website</span>
+                <input type="text" class="field__input" formControlName="website"
+                  [class.field__input--invalid]="showError(basicForm, 'website')" placeholder="e.g. www.company.com" />
+                @if (showError(basicForm, 'website')) { <span class="field__error">{{ errorText(basicForm, 'website') }}</span> }
+              </label>
+              <label class="field">
+                <span class="field__label">Company Email</span>
+                <input type="email" class="field__input" formControlName="companyEmail"
+                  [class.field__input--invalid]="showError(basicForm, 'companyEmail')" placeholder="e.g. info@company.com" />
+                @if (showError(basicForm, 'companyEmail')) { <span class="field__error">{{ errorText(basicForm, 'companyEmail') }}</span> }
+              </label>
+              <label class="field">
+                <span class="field__label">Company Phone</span>
+                <input type="tel" class="field__input" formControlName="companyPhone"
+                  [class.field__input--invalid]="showError(basicForm, 'companyPhone')" placeholder="e.g. (555) 123-4567" />
+                @if (showError(basicForm, 'companyPhone')) { <span class="field__error">{{ errorText(basicForm, 'companyPhone') }}</span> }
+              </label>
+            </div>
+
+            <div class="segment-actions">
+              @if (status['basic'].error(); as e) { <span class="seg-msg seg-msg--error">{{ e }}</span> }
+              @if (status['basic'].saved()) { <span class="seg-msg seg-msg--ok">✓ Saved</span> }
+              <app-button variant="primary" type="submit" [loading]="status['basic'].saving()" [disabled]="status['basic'].saving()">Update Basic Info</app-button>
+            </div>
+          </form>
+        </app-accordion>
+
+      </div>
+    </section>
+
+    <!-- ══════ GROUP: Orders & notifications ══════ -->
+    <section class="seg-group" id="e-orders">
+      <h3 class="seg-group__title">Orders &amp; notifications</h3>
+      <div class="accordions accordions--cols">
+        <!-- ═══════════ Customer PO Settings ═══════════ -->
+        <app-accordion heading="Customer PO Settings" variant="figma">
+          <form class="panel-pad" [formGroup]="poForm" (ngSubmit)="savePo()">
+            <div class="form-grid">
+              <label class="field">
+                <span class="field__label">Label Text for Customer Job No</span>
+                <input type="text" class="field__input" formControlName="freeTextLabel" placeholder="Reef 'SC' or 'INC' number here" />
+              </label>
+              <label class="field">
+                <span class="field__label">Example Placeholder Text</span>
+                <input type="text" class="field__input" formControlName="freeTextContent" placeholder="Example: INC123456" />
+              </label>
+            </div>
+            <div class="toggle-row">
+              <span class="toggle-row__label">Make Customer PO Mandatory during Service Request</span>
+              <span class="toggle-row__options">
+                <label><input type="radio" formControlName="mandatoryRcsPo" [value]="true" /> YES</label>
+                <label><input type="radio" formControlName="mandatoryRcsPo" [value]="false" /> NO</label>
+              </span>
+            </div>
+            <div class="toggle-row">
+              <span class="toggle-row__label">Show Customer PO in Service request form in Customer Portal</span>
+              <span class="toggle-row__options">
+                <label><input type="radio" formControlName="showHideCustomerPo" [value]="true" /> YES</label>
+                <label><input type="radio" formControlName="showHideCustomerPo" [value]="false" /> NO</label>
+              </span>
+            </div>
+            <div class="segment-actions">
+              @if (status['po'].error(); as e) { <span class="seg-msg seg-msg--error">{{ e }}</span> }
+              @if (status['po'].saved()) { <span class="seg-msg seg-msg--ok">✓ Saved</span> }
+              <app-button variant="primary" type="submit" [loading]="status['po'].saving()" [disabled]="status['po'].saving()">Update PO Settings</app-button>
+            </div>
+          </form>
+        </app-accordion>
+
+        <!-- ═══════════ Job & Email Notifications ═══════════ -->
+        <app-accordion heading="Job & Email Notifications" variant="figma">
+          <form class="panel-pad" [formGroup]="notifForm" (ngSubmit)="saveNotif()">
+            <div class="toggle-row" [class.toggle-row--invalid]="showError(notifForm, 'allowCustomerToEnterDneJobExclusive')">
+              <span class="toggle-row__label">Show DNE data field in customer portal &gt;New Service request so that customer enters DNE amount for Job Specific <span class="req">*</span></span>
+              <span class="toggle-row__options">
+                <label><input type="radio" formControlName="allowCustomerToEnterDneJobExclusive" [value]="true" /> On</label>
+                <label><input type="radio" formControlName="allowCustomerToEnterDneJobExclusive" [value]="false" /> OFF</label>
+              </span>
+              @if (showError(notifForm, 'allowCustomerToEnterDneJobExclusive')) { <span class="field__error toggle-row__error">Please choose On or OFF.</span> }
+            </div>
+            <div class="toggle-row" [class.toggle-row--invalid]="showError(notifForm, 'sendAttachmentToVendorsMadeDuringRequest')">
+              <span class="toggle-row__label">Send customer attachments to vendor <span class="req">*</span></span>
+              <span class="toggle-row__options">
+                <label><input type="radio" formControlName="sendAttachmentToVendorsMadeDuringRequest" [value]="true" /> ON</label>
+                <label><input type="radio" formControlName="sendAttachmentToVendorsMadeDuringRequest" [value]="false" /> OFF</label>
+              </span>
+              @if (showError(notifForm, 'sendAttachmentToVendorsMadeDuringRequest')) { <span class="field__error toggle-row__error">Please choose ON or OFF.</span> }
+            </div>
+            <div class="toggle-row">
+              <span class="toggle-row__label">DO NOT auto send preferred vendor work orders for this customer</span>
+              <span class="toggle-row__options">
+                <label><input type="radio" formControlName="doNotUsePrimaryVendor" [value]="true" /> YES</label>
+                <label><input type="radio" formControlName="doNotUsePrimaryVendor" [value]="false" /> NO</label>
+              </span>
+            </div>
+            <div class="toggle-row">
+              <span class="toggle-row__label">Auto approve vendor estimate during customer approving RCS estimate</span>
+              <span class="toggle-row__options">
+                <label><input type="radio" formControlName="toggleApproveVendorEstimate" [value]="true" /> YES</label>
+                <label><input type="radio" formControlName="toggleApproveVendorEstimate" [value]="false" /> NO</label>
+              </span>
+            </div>
+            <div class="toggle-row">
+              <span class="toggle-row__label">Sends an email to customer for Checkout complete when job is moved to accounting</span>
+              <span class="toggle-row__options">
+                <label><input type="radio" formControlName="completeStatusUpdateMail" [value]="true" /> YES</label>
+                <label><input type="radio" formControlName="completeStatusUpdateMail" [value]="false" /> NO</label>
+              </span>
+            </div>
+            <div class="toggle-row">
+              <span class="toggle-row__label">Tech on Site</span>
+              <span class="toggle-row__options">
+                <label><input type="radio" formControlName="techOnSiteMail" [value]="true" /> YES</label>
+                <label><input type="radio" formControlName="techOnSiteMail" [value]="false" /> NO</label>
+              </span>
+            </div>
+            <div class="toggle-row">
+              <span class="toggle-row__label">Send Mail on ETA set/ Return ETA</span>
+              <span class="toggle-row__options">
+                <label><input type="radio" formControlName="returnScheduleStatusMail" [value]="true" /> YES</label>
+                <label><input type="radio" formControlName="returnScheduleStatusMail" [value]="false" /> NO</label>
+              </span>
+            </div>
+            <div class="toggle-row">
+              <span class="toggle-row__label">Send Mail to Customer on Job Create/ Service Request by Customer</span>
+              <span class="toggle-row__options">
+                <label><input type="radio" formControlName="updateForeJobCreate" [value]="true" /> YES</label>
+                <label><input type="radio" formControlName="updateForeJobCreate" [value]="false" /> NO</label>
+              </span>
+            </div>
+            <div class="toggle-row">
+              <span class="toggle-row__label">Send Mail to customer on Job Create/ Service Request by Admin</span>
+              <span class="toggle-row__options">
+                <label><input type="radio" formControlName="updateForJobCreateByAdmin" [value]="true" /> YES</label>
+                <label><input type="radio" formControlName="updateForJobCreateByAdmin" [value]="false" /> NO</label>
+              </span>
+            </div>
+            <div class="segment-actions">
+              @if (status['notif'].error(); as e) { <span class="seg-msg seg-msg--error">{{ e }}</span> }
+              @if (status['notif'].saved()) { <span class="seg-msg seg-msg--ok">✓ Saved</span> }
+              <app-button variant="primary" type="submit" [loading]="status['notif'].saving()" [disabled]="status['notif'].saving()">Update Notifications</app-button>
+            </div>
+          </form>
+        </app-accordion>
+
+        <!-- ═══════════ Vendor ETA Window ═══════════ -->
+        <app-accordion heading="Vendor ETA Window" variant="figma">
+          <form class="panel-pad" [formGroup]="etaForm" (ngSubmit)="saveEta()">
+            <div class="toggle-row">
+              <span class="toggle-row__label">Set a specific amount of days so that the vendor is allowed to set their eta</span>
+              <span class="toggle-row__options">
+                <label><input type="radio" formControlName="vendorSetEtaForCustomDays" [value]="true" /> YES</label>
+                <label><input type="radio" formControlName="vendorSetEtaForCustomDays" [value]="false" /> NO</label>
+              </span>
+            </div>
+            @if (etaOn()) {
+              <div class="form-grid">
+                <label class="field">
+                  <span class="field__label">No of days</span>
+                  <input type="text" class="field__input" formControlName="etaForCustomDays" inputmode="numeric" placeholder="Give days out that vendor is allowed to set their eta" />
+                </label>
+                <label class="field">
+                  <span class="field__label">For Emergency Jobs set hours to limit the ETA date set by the Vendor</span>
+                  <input type="text" class="field__input" formControlName="hoursForEmergencyJobForSettingEtaDate" inputmode="decimal" placeholder="If left blank, vendor can set eta for any date or time" />
+                </label>
+              </div>
+            }
+            <div class="segment-actions">
+              @if (status['eta'].error(); as e) { <span class="seg-msg seg-msg--error">{{ e }}</span> }
+              @if (status['eta'].saved()) { <span class="seg-msg seg-msg--ok">✓ Saved</span> }
+              <app-button variant="primary" type="submit" [loading]="status['eta'].saving()" [disabled]="status['eta'].saving()">Update ETA Window</app-button>
+            </div>
+          </form>
+        </app-accordion>
+
+        <!-- ═══════════ Vendor ETA Expire ═══════════ -->
+        <app-accordion heading="Vendor ETA Expire" variant="figma">
+          <form class="panel-pad" [formGroup]="etaExpireForm" (ngSubmit)="saveEtaExpire()">
+            <p class="muted">Time interval before the vendor receives the check-in-expiry email and the job goes raspberry.</p>
+            <div class="form-grid">
+              <label class="field"><span class="field__label">Interval</span>
+                <input type="text" class="field__input" formControlName="interval" inputmode="numeric" placeholder="e.g. 2" /></label>
+              <label class="field"><span class="field__label">Unit</span>
+                <select class="field__input" formControlName="unitId">
+                  <option value="1">Hour</option>
+                  <option value="2">Minute</option>
+                </select></label>
+            </div>
+            <div class="segment-actions">
+              @if (status['etaExpire'].error(); as e) { <span class="seg-msg seg-msg--error">{{ e }}</span> }
+              @if (status['etaExpire'].saved()) { <span class="seg-msg seg-msg--ok">✓ Saved</span> }
+              <app-button variant="primary" type="submit" [loading]="status['etaExpire'].saving()" [disabled]="status['etaExpire'].saving()">Update ETA Expire</app-button>
+            </div>
+          </form>
+        </app-accordion>
+      </div>
+    </section>
+
+    <!-- ══════ GROUP: Pricing & markup ══════ -->
+    <section class="seg-group" id="e-pricing">
+      <h3 class="seg-group__title">Pricing &amp; markup</h3>
+      <div class="accordions">
+        <!-- ═══════════ Markup ═══════════ -->
+        <app-accordion heading="Markup" variant="figma">
+          <form class="panel-pad" [formGroup]="markupForm" (ngSubmit)="saveMarkup()">
+            <div class="form-grid form-grid--3">
+              <label class="field"><span class="field__label">Material Mark Up</span>
+                <input type="text" class="field__input" formControlName="materialMarkUp" inputmode="decimal" placeholder="0" /></label>
+              <label class="field"><span class="field__label">Labor & Trip</span>
+                <input type="text" class="field__input" formControlName="laborAndTrip" inputmode="decimal" placeholder="0" /></label>
+              <label class="field"><span class="field__label">Admin Markup</span>
+                <input type="text" class="field__input" formControlName="adminMarkup" inputmode="decimal" placeholder="0" /></label>
+            </div>
+            <div class="segment-actions">
+              @if (status['markup'].error(); as e) { <span class="seg-msg seg-msg--error">{{ e }}</span> }
+              @if (status['markup'].saved()) { <span class="seg-msg seg-msg--ok">✓ Saved</span> }
+              <app-button variant="primary" type="submit" [loading]="status['markup'].saving()" [disabled]="status['markup'].saving()">Update Markup</app-button>
+            </div>
+          </form>
+        </app-accordion>
+
+        <!-- ═══════════ Minimum Markup ═══════════ -->
+        <app-accordion heading="Minimum Markup" variant="figma">
+          <form class="panel-pad" [formGroup]="minMarkupForm" (ngSubmit)="saveMinMarkup()">
+            <div class="form-grid">
+              <label class="field"><span class="field__label">Minimum markup % for Emergency</span>
+                <input type="text" class="field__input" formControlName="markupPercentageForEmergency" inputmode="decimal" placeholder="0" /></label>
+              <label class="field"><span class="field__label">Minimum markup % for Non-Emergency</span>
+                <input type="text" class="field__input" formControlName="markupPercentageForNonEmergency" inputmode="decimal" placeholder="0" /></label>
+            </div>
+            <h4 class="subsection">Cost-over tiers</h4>
+            <p class="muted">Optional overrides: when the cost is over the given value, the markup % below applies.</p>
+            <div class="table-scroll">
+              <table class="cfg-table">
+                <thead><tr><th>Cost over ($)</th><th>Markup %</th><th></th></tr></thead>
+                <tbody>
+                  @for (tier of minMarkupTiers(); track $index) {
+                    <tr>
+                      <td><input type="text" class="field__input" inputmode="decimal" [value]="tier.costOverValue" (input)="setTier($index, 'costOverValue', $any($event.target).value)" /></td>
+                      <td><input type="text" class="field__input" inputmode="decimal" [value]="tier.markupPercentage" (input)="setTier($index, 'markupPercentage', $any($event.target).value)" /></td>
+                      <td><button type="button" class="link-btn link-btn--danger" (click)="removeTier($index)">Remove</button></td>
+                    </tr>
+                  } @empty {
+                    <tr><td colspan="3" class="empty">No tiers.</td></tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+            <button type="button" class="link-btn" (click)="addTier()">+ Add tier</button>
+            <div class="segment-actions">
+              @if (status['minMarkup'].error(); as e) { <span class="seg-msg seg-msg--error">{{ e }}</span> }
+              @if (status['minMarkup'].saved()) { <span class="seg-msg seg-msg--ok">✓ Saved</span> }
+              <app-button variant="primary" type="submit" [loading]="status['minMarkup'].saving()" [disabled]="status['minMarkup'].saving()">Update Minimum Markup</app-button>
+            </div>
+          </form>
+        </app-accordion>
+
+        <!-- ═══════════ DNE ═══════════ -->
+        <app-accordion heading="DNE (Do Not Exceed)" variant="figma">
+          <form class="panel-pad" [formGroup]="dneForm" (ngSubmit)="saveDne()">
+            <div class="form-grid">
+              <label class="field"><span class="field__label">Customer DNE</span>
+                <input type="text" class="field__input" formControlName="customerDne" inputmode="decimal" placeholder="0" /></label>
+              <label class="field"><span class="field__label">Customer Emergency DNE</span>
+                <input type="text" class="field__input" formControlName="emergencyCustomerDne" inputmode="decimal" placeholder="0" /></label>
+              <label class="field"><span class="field__label">Vendor DNE</span>
+                <input type="text" class="field__input" formControlName="vendorDne" inputmode="decimal" placeholder="0" /></label>
+              <label class="field"><span class="field__label">Vendor Emergency DNE</span>
+                <input type="text" class="field__input" formControlName="vendorEmergencyDne" inputmode="decimal" placeholder="0" /></label>
+            </div>
+            <div class="segment-actions">
+              @if (status['dne'].error(); as e) { <span class="seg-msg seg-msg--error">{{ e }}</span> }
+              @if (status['dne'].saved()) { <span class="seg-msg seg-msg--ok">✓ Saved</span> }
+              <app-button variant="primary" type="submit" [loading]="status['dne'].saving()" [disabled]="status['dne'].saving()">Update DNE</app-button>
+            </div>
+          </form>
+        </app-accordion>
+      </div>
+    </section>
+
+    <!-- ══════ GROUP: Customer portal ══════ -->
+    <section class="seg-group" id="e-portal">
+      <h3 class="seg-group__title">Customer portal</h3>
+      <div class="accordions">
+        <!-- ═══════════ Custom Fields ═══════════ -->
+        <app-accordion heading="Dynamic Custom Text Fields" variant="figma">
+          <form class="panel-pad" [formGroup]="customFieldsForm" (ngSubmit)="saveCustomFields()">
+            <div class="table-scroll">
+              <table class="cfg-table">
+                <thead><tr><th>Label</th><th>Placeholder (dimmed text in the textbox)</th><th>Required</th></tr></thead>
+                <tbody>
+                  <tr>
+                    <td><input type="text" class="field__input" formControlName="customTextboxLabel" /></td>
+                    <td><input type="text" class="field__input" formControlName="customTextboxText" /></td>
+                    <td><input type="checkbox" formControlName="customFieldRequired" /></td>
+                  </tr>
+                  <tr>
+                    <td><input type="text" class="field__input" formControlName="customTextboxLabel1" /></td>
+                    <td><input type="text" class="field__input" formControlName="customTextboxText1" /></td>
+                    <td><input type="checkbox" formControlName="customFieldRequired1" /></td>
+                  </tr>
+                  <tr>
+                    <td><input type="text" class="field__input" formControlName="customTextboxLabel2" /></td>
+                    <td><input type="text" class="field__input" formControlName="customTextboxText2" /></td>
+                    <td><input type="checkbox" formControlName="customFieldRequired2" /></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="segment-actions">
+              @if (status['customFields'].error(); as e) { <span class="seg-msg seg-msg--error">{{ e }}</span> }
+              @if (status['customFields'].saved()) { <span class="seg-msg seg-msg--ok">✓ Saved</span> }
+              <app-button variant="primary" type="submit" [loading]="status['customFields'].saving()" [disabled]="status['customFields'].saving()">Update Custom Fields</app-button>
+            </div>
+          </form>
+        </app-accordion>
+
+        <!-- ═══════════ Job Priority ═══════════ -->
+        <app-accordion heading="Job Types Shown in Customer Portal" variant="figma">
+          <div class="panel-pad">
+            <p class="muted">Select the job type(s) that show in the customer portal when creating a job request. If none are selected, all show.</p>
+            <div class="chip-grid">
+              @for (jt of jobTypeOptions(); track jt.id) {
+                <label class="chip-check">
+                  <input type="checkbox" [checked]="selectedJobTypes().has(jt.id)" (change)="toggleJobType(jt.id, $any($event.target).checked)" />
+                  <span>{{ jt.name }}</span>
+                </label>
+              } @empty {
+                <span class="muted">No job types configured.</span>
+              }
+            </div>
+            <div class="segment-actions">
+              @if (status['jobPriority'].error(); as e) { <span class="seg-msg seg-msg--error">{{ e }}</span> }
+              @if (status['jobPriority'].saved()) { <span class="seg-msg seg-msg--ok">✓ Saved</span> }
+              <app-button variant="primary" [loading]="status['jobPriority'].saving()" [disabled]="status['jobPriority'].saving()" (clicked)="saveJobPriority()">Update Job Types</app-button>
+            </div>
+          </div>
+        </app-accordion>
+
+        <!-- ═══════════ Dashboard Messages ═══════════ -->
+        <app-accordion heading="Dashboard Messages" variant="figma">
+          <form class="panel-pad" [formGroup]="dashboardForm" (ngSubmit)="saveDashboard()">
+            <p class="muted">Messages shown on the desktop dashboard grid for this customer's jobs. Clear a box to remove that message.</p>
+            <label class="field field--full"><span class="field__label">Check In</span>
+              <textarea class="field__input" rows="2" formControlName="checkIn" placeholder="Shows on the grid for check in"></textarea></label>
+            <label class="field field--full"><span class="field__label">Check Out</span>
+              <textarea class="field__input" rows="2" formControlName="checkOut" placeholder="Shows on the grid for check out"></textarea></label>
+            <label class="field field--full"><span class="field__label">Expired ETA / Return ETA</span>
+              <textarea class="field__input" rows="2" formControlName="etaExpired" placeholder="Shows on the grid for expired ETA / return ETA"></textarea></label>
+            <label class="field field--full"><span class="field__label">When Vendor Sets ETA</span>
+              <textarea class="field__input" rows="2" formControlName="etaSet" placeholder="Shows on the dashboard when the vendor sets ETA"></textarea></label>
+            <label class="field field--full"><span class="field__label">Additional Note to Accounting</span>
+              <textarea class="field__input" rows="2" formControlName="accounting" placeholder="Additional note when a job moves to accounting"></textarea></label>
+            <div class="segment-actions">
+              @if (status['dashboard'].error(); as e) { <span class="seg-msg seg-msg--error">{{ e }}</span> }
+              @if (status['dashboard'].saved()) { <span class="seg-msg seg-msg--ok">✓ Saved</span> }
+              <app-button variant="primary" type="submit" [loading]="status['dashboard'].saving()" [disabled]="status['dashboard'].saving()">Update Dashboard Messages</app-button>
+            </div>
+          </form>
+        </app-accordion>
+
+        <!-- ═══════════ Account Manager Note Relay ═══════════ -->
+        <app-accordion heading="Account Manager Note Relay" variant="figma">
+          <form class="panel-pad" [formGroup]="amRelayForm" (ngSubmit)="saveAmRelay()">
+            <label class="checkbox-field field--full">
+              <input type="checkbox" formControlName="enabled" />
+              <span>Account manager receives an email for the customer's notes and can reply to them</span>
+            </label>
+            <div class="segment-actions">
+              @if (status['amRelay'].error(); as e) { <span class="seg-msg seg-msg--error">{{ e }}</span> }
+              @if (status['amRelay'].saved()) { <span class="seg-msg seg-msg--ok">✓ Saved</span> }
+              <app-button variant="primary" type="submit" [loading]="status['amRelay'].saving()" [disabled]="status['amRelay'].saving()">Update Note Relay</app-button>
+            </div>
+          </form>
+        </app-accordion>
+      </div>
+    </section>
+
+    <!-- ══════ GROUP: Vendor file requirements ══════ -->
+    <section class="seg-group" id="e-vendor">
+      <h3 class="seg-group__title">Vendor file requirements</h3>
+      <div class="accordions accordions--cols">
+        <!-- ═══════════ Vendor Invoice File Configuration ═══════════ -->
+        <app-accordion heading="Vendor Invoice File Configuration" variant="figma">
+          <form class="panel-pad" [formGroup]="vendorInvoiceForm" (ngSubmit)="saveVendorInvoice()">
+            <div class="table-scroll">
+              <table class="cfg-table">
+                <thead><tr><th>Field For</th><th>Label</th><th>Required</th></tr></thead>
+                <tbody>
+                  <tr>
+                    <td>INVOICE Attachment</td>
+                    <td><input type="text" class="field__input" formControlName="file1Label" /></td>
+                    <td><input type="checkbox" formControlName="file1Required" /></td>
+                  </tr>
+                  <tr>
+                    <td>SIGN OFF SHEET</td>
+                    <td><input type="text" class="field__input" formControlName="file2Label" /></td>
+                    <td><input type="checkbox" formControlName="file2Required" /></td>
+                  </tr>
+                  <tr>
+                    <td>COMPLETION PICTURES</td>
+                    <td><input type="text" class="field__input" formControlName="file3Label" /></td>
+                    <td><input type="checkbox" formControlName="file3Required" /></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="segment-actions">
+              @if (status['vendorInvoice'].error(); as e) { <span class="seg-msg seg-msg--error">{{ e }}</span> }
+              @if (status['vendorInvoice'].saved()) { <span class="seg-msg seg-msg--ok">✓ Saved</span> }
+              <app-button variant="primary" type="submit" [loading]="status['vendorInvoice'].saving()" [disabled]="status['vendorInvoice'].saving()">Update Vendor Invoice Config</app-button>
+            </div>
+          </form>
+        </app-accordion>
+
+        <!-- ═══════════ Vendor Estimate File Configuration ═══════════ -->
+        <app-accordion heading="Vendor Estimate File Configuration" variant="figma">
+          <form class="panel-pad" [formGroup]="vendorEstimateForm" (ngSubmit)="saveVendorEstimate()">
+            <div class="table-scroll">
+              <table class="cfg-table">
+                <thead><tr><th>Present</th><th>Field For</th><th>Label</th><th>Required</th></tr></thead>
+                <tbody>
+                  <tr>
+                    <td><input type="checkbox" formControlName="est1Present" /></td><td>ESTIMATE FILE(S)</td>
+                    <td><input type="text" class="field__input" formControlName="est1Label" /></td>
+                    <td><input type="checkbox" formControlName="est1Required" /></td>
+                  </tr>
+                  <tr>
+                    <td><input type="checkbox" formControlName="est2Present" /></td><td>SITE VISIT SIGN-OFF</td>
+                    <td><input type="text" class="field__input" formControlName="est2Label" /></td>
+                    <td><input type="checkbox" formControlName="est2Required" /></td>
+                  </tr>
+                  <tr>
+                    <td><input type="checkbox" formControlName="est3Present" /></td><td>JOB PICTURES</td>
+                    <td><input type="text" class="field__input" formControlName="est3Label" /></td>
+                    <td><input type="checkbox" formControlName="est3Required" /></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="segment-actions">
+              @if (status['vendorEstimate'].error(); as e) { <span class="seg-msg seg-msg--error">{{ e }}</span> }
+              @if (status['vendorEstimate'].saved()) { <span class="seg-msg seg-msg--ok">✓ Saved</span> }
+              <app-button variant="primary" type="submit" [loading]="status['vendorEstimate'].saving()" [disabled]="status['vendorEstimate'].saving()">Update Vendor Estimate Config</app-button>
+            </div>
+          </form>
+        </app-accordion>
+      </div>
+    </section>
+
+    <!-- ══════ GROUP: Content & communications ══════ -->
+    <section class="seg-group" id="e-content">
+      <h3 class="seg-group__title">Content &amp; communications</h3>
+      <div class="accordions">
+        <!-- ═══════════ Notices & Auto-text ═══════════ -->
+        <app-accordion heading="Notices & Auto-text" variant="figma">
+          <form class="panel-pad" [formGroup]="noticesForm" (ngSubmit)="saveNotices()">
+            <div class="rte-field"><span class="field__label">Notice About Customer</span><app-rich-text-editor formControlName="notice" /></div>
+            <div class="rte-field"><span class="field__label">Job Popup</span><app-rich-text-editor formControlName="jobPopup" /></div>
+            <div class="rte-field"><span class="field__label">Estimate Popup</span><app-rich-text-editor formControlName="estimatePopup" /></div>
+            <div class="rte-field"><span class="field__label">Invoice Popup</span><app-rich-text-editor formControlName="invoicePopup" /></div>
+            <div class="rte-field"><span class="field__label">IVR Instruction</span><app-rich-text-editor formControlName="ivrInstruction" /></div>
+            <div class="rte-field"><span class="field__label">Auto-text for Invoices</span><app-rich-text-editor formControlName="autoTextForInvoice" /></div>
+            <div class="rte-field"><span class="field__label">Auto-text for Estimates</span><app-rich-text-editor formControlName="autoTextForEstimate" /></div>
+            <div class="segment-actions">
+              @if (status['notices'].error(); as e) { <span class="seg-msg seg-msg--error">{{ e }}</span> }
+              @if (status['notices'].saved()) { <span class="seg-msg seg-msg--ok">✓ Saved</span> }
+              <app-button variant="primary" type="submit" [loading]="status['notices'].saving()" [disabled]="status['notices'].saving()">Update Notices</app-button>
+            </div>
+          </form>
+        </app-accordion>
+
+        <!-- ═══════════ Contact Profile (highlighted — primary customer contacts) ═══════════ -->
+        <div class="contact-standout">
+          <span class="contact-standout__flag">Key contacts</span>
+          <app-accordion heading="Contact Profile" variant="figma" [defaultOpen]="true">
+            <div class="panel-pad">
+              <app-customer-contacts [customerKey]="customerKey" />
+            </div>
+          </app-accordion>
+        </div>
+
+        <!-- ═══════════ Notes ═══════════ -->
+        <app-accordion heading="Notes" variant="figma">
+          <div class="panel-pad">
+            <app-customer-notes [customerKey]="customerKey" />
+          </div>
+        </app-accordion>
+      </div>
+    </section>
+
+    <!-- ══════ GROUP: Records ══════ -->
+    <section class="seg-group" id="e-records">
+      <h3 class="seg-group__title">Records</h3>
+      <div class="accordions">
+        <!-- ═══════════ Job History (read-only) ═══════════ -->
+        <app-accordion heading="Job History" variant="figma">
+          <div class="panel-pad">
+            @if (historyError()) { <div class="banner banner--error">{{ historyError() }}</div> }
+            @if (historyLoading()) {
+              <div class="state"><span class="spinner"></span> Loading…</div>
+            } @else {
+              <div class="table-scroll">
+                <table class="cfg-table">
+                  <thead><tr><th>Date</th><th>Job Name</th><th>PO No</th><th>Status</th></tr></thead>
+                  <tbody>
+                    @for (j of jobHistory(); track j.jobKey) {
+                      <tr><td>{{ fmtDate(j.date) }}</td><td>{{ j.jobName || '—' }}</td><td>{{ j.poNo || '—' }}</td><td>{{ j.status || '—' }}</td></tr>
+                    } @empty {
+                      <tr><td colspan="4" class="empty">No jobs yet.</td></tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            }
+          </div>
+        </app-accordion>
+
+        <!-- ═══════════ Estimates (read-only) ═══════════ -->
+        <app-accordion heading="Estimates" variant="figma">
+          <div class="panel-pad">
+            @if (estimatesError()) { <div class="banner banner--error">{{ estimatesError() }}</div> }
+            @if (estimatesLoading()) {
+              <div class="state"><span class="spinner"></span> Loading…</div>
+            } @else {
+              <div class="table-scroll">
+                <table class="cfg-table">
+                  <thead><tr><th>Date</th><th>Estimate No</th><th>Job Name</th><th>PO No</th><th>Status</th></tr></thead>
+                  <tbody>
+                    @for (e of estimates(); track e.invoiceKey) {
+                      <tr><td>{{ fmtDate(e.date) }}</td><td>{{ e.invoiceNo ?? '—' }}</td><td>{{ e.jobName || '—' }}</td><td>{{ e.poNo || '—' }}</td><td>{{ e.status || '—' }}</td></tr>
+                    } @empty {
+                      <tr><td colspan="5" class="empty">No estimates yet.</td></tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            }
+          </div>
+        </app-accordion>
+
+        <!-- ═══════════ Rates ═══════════ -->
+        <app-accordion heading="Rates" variant="figma">
+          <div class="panel-pad">
+            <app-customer-rates [customerKey]="customerKey" />
+          </div>
+        </app-accordion>
+
+        <!-- ═══════════ Service Locations (read-only) ═══════════ -->
+        <app-accordion heading="Service Locations" variant="figma">
+          <div class="panel-pad">
+            @if (locationsError()) { <div class="banner banner--error">{{ locationsError() }}</div> }
+            @if (locationsLoading()) {
+              <div class="state"><span class="spinner"></span> Loading…</div>
+            } @else {
+              <div class="table-scroll">
+                <table class="cfg-table">
+                  <thead><tr><th>Business Name</th><th>Contact</th><th>Address</th><th>Phone</th><th>Email</th></tr></thead>
+                  <tbody>
+                    @for (l of serviceLocations(); track l.customerLkey) {
+                      <tr><td>{{ l.businessName || '—' }}</td><td>{{ l.contactName || '—' }}</td><td>{{ l.address || '—' }}</td><td>{{ l.phone || '—' }}</td><td>{{ l.email || '—' }}</td></tr>
+                    } @empty {
+                      <tr><td colspan="5" class="empty">No service locations yet.</td></tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            }
+          </div>
+        </app-accordion>
+
+        <!-- ═══════════ Files and Attachments ═══════════ -->
+        <app-accordion heading="Files and Attachments" variant="figma">
+          <div class="panel-pad">
+            <app-customer-files [customerKey]="customerKey" />
+          </div>
+        </app-accordion>
+      </div>
+    </section>
+  }
+</div>

@@ -1,0 +1,99 @@
+<div *ngIf="isVisible()" class="modal-overlay" (click)="close()">
+  <div class="modal-container" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h2>Send Work Order Email to Vendor</h2>
+      <button class="close-btn" (click)="close()" [disabled]="isSubmitting()">&times;</button>
+    </div>
+
+    <div class="modal-body">
+      <!-- Loading State -->
+      <div *ngIf="isLoading()" class="loading-state">
+        <div class="spinner"></div>
+        <p>Loading email data...</p>
+      </div>
+
+      <!-- Error Message -->
+      <div *ngIf="errorMessage()" class="alert alert-error">
+        {{ errorMessage() }}
+      </div>
+
+      <!-- Success Message -->
+      <div *ngIf="successMessage()" class="alert alert-success">
+        {{ successMessage() }}
+      </div>
+
+      <!-- Email Form -->
+      <form [formGroup]="emailForm" (ngSubmit)="onSendEmail()" *ngIf="!isLoading() && composeData()">
+        <!-- Job Info -->
+        <div class="info-section">
+          <div class="info-item">
+            <strong>Job PO:</strong> {{ composeData()?.jobPO }}
+          </div>
+        </div>
+
+        <!-- Recipients -->
+        <div class="form-section">
+          <label class="form-label">Recipients *</label>
+          <div class="recipients-list" formArrayName="selectedContacts">
+            <div 
+              *ngFor="let contact of selectedContactsArray.controls; let i = index" 
+              [formGroupName]="i"
+              class="recipient-item"
+            >
+              <label class="checkbox-label">
+                <input type="checkbox" formControlName="selected" />
+                <div class="contact-info">
+                  <span class="contact-name">{{ contact.value.name }}</span>
+                  <span class="contact-email">{{ contact.value.email }}</span>
+                </div>
+              </label>
+            </div>
+          </div>
+          <small class="form-hint">Select at least one recipient</small>
+        </div>
+
+        <!-- Sender Option -->
+        <div class="form-section">
+          <label class="checkbox-label">
+            <input type="checkbox" formControlName="senderIsSelf" />
+            <span>Send as myself</span>
+          </label>
+          <small class="form-hint">If unchecked, email will be sent from the system sender</small>
+        </div>
+
+        <!-- Email Body -->
+        <div class="form-section">
+          <label class="form-label" for="emailBody">Email Message *</label>
+          <textarea
+            id="emailBody"
+            formControlName="emailBody"
+            rows="12"
+            class="form-control email-body"
+            placeholder="Email message will appear here..."
+          ></textarea>
+          <small class="form-hint">Plain text only. Edit the message as needed before sending.</small>
+        </div>
+
+        <!-- Actions -->
+        <div class="modal-actions">
+          <button 
+            type="button" 
+            class="btn btn-secondary" 
+            (click)="close()"
+            [disabled]="isSubmitting()"
+          >
+            Cancel
+          </button>
+          <button 
+            type="submit" 
+            class="btn btn-primary"
+            [disabled]="isSubmitting() || emailForm.invalid || getSelectedEmails().length === 0"
+          >
+            <span *ngIf="!isSubmitting()">Send Email</span>
+            <span *ngIf="isSubmitting()">Sending...</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

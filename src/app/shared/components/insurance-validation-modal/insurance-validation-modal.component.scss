@@ -1,0 +1,368 @@
+/* ============================================================
+   "🛡 Vendor Insurance Validation — {Vendor}" popup. Chrome
+   mirrors signoff-modal.component.scss's shared design system.
+   ============================================================ */
+
+:host {
+  --blue: #2563eb;
+  --green: #16a34a;
+  --green-lt: #f0fdf4;
+  --amber: #d97706;
+  --amber-lt: #fffbeb;
+  --red: #dc2626;
+  --red-lt: #fef2f2;
+  --ink: #0f172a;
+  --ink2: #475569;
+  --ink3: #94a3b8;
+  --line: #e2e8f0;
+  --card: #ffffff;
+}
+
+@keyframes ivFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes ivScaleIn {
+  from { transform: scale(0.97); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(3px);
+  padding: 40px 20px;
+  overflow-y: auto;
+  animation: ivFadeIn 0.2s ease;
+}
+
+.modal {
+  background: var(--card);
+  border-radius: 12px;
+  max-width: 780px;
+  width: 100%;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  font-family: 'Segoe UI', system-ui, -apple-system, Arial, sans-serif;
+  font-size: 13px;
+  color: var(--ink);
+  animation: ivScaleIn 0.25s ease;
+}
+
+.modal-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 16px;
+  border-bottom: 1px solid var(--line);
+
+  h3 {
+    font-size: 14px;
+    font-weight: 800;
+    margin: 0;
+  }
+}
+
+.x {
+  margin-left: auto;
+  background: none;
+  border: none;
+  font-size: 18px;
+  color: var(--ink3);
+  cursor: pointer;
+  line-height: 1;
+  padding: 4px 8px;
+  border-radius: 6px;
+
+  &:hover {
+    background: #f1f5f9;
+    color: var(--ink);
+  }
+}
+
+.modal-body {
+  padding: 16px;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.modal-foot {
+  padding: 12px 16px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.iv-error {
+  background: var(--red-lt);
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  border-radius: 8px;
+  padding: 8px 11px;
+  font-size: 12px;
+  margin-bottom: 10px;
+}
+
+.iv-success {
+  background: var(--green-lt);
+  border: 1px solid #bbf7d0;
+  color: #166534;
+  border-radius: 8px;
+  padding: 8px 11px;
+  font-size: 12px;
+  margin-bottom: 10px;
+}
+
+.iv-loading {
+  color: var(--ink2);
+  font-size: 12.5px;
+  padding: 8px 0;
+}
+
+.iv-problem-banner {
+  background: var(--red-lt);
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 9px 12px;
+  font-size: 11.5px;
+  margin-bottom: 10px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.iv-types {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.iv-type-block {
+  flex: 1;
+  min-width: 280px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 11px 13px;
+  background: #fff;
+}
+
+.iv-type-head {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+
+  b {
+    font-size: 11px;
+    letter-spacing: 0.4px;
+  }
+}
+
+.badge {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.b-green {
+  background: var(--green-lt);
+  color: var(--green);
+}
+
+.b-red {
+  background: var(--red-lt);
+  color: var(--red);
+}
+
+.b-gray {
+  background: #f1f5f9;
+  color: var(--ink2);
+}
+
+.iv-carry-label {
+  margin-top: 8px;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--blue);
+}
+
+.iv-carry-radios {
+  display: flex;
+  gap: 14px;
+  margin-top: 3px;
+  font-size: 12px;
+
+  label {
+    cursor: pointer;
+  }
+}
+
+.iv-date-input {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 6px 9px;
+  font-size: 12px;
+  font-family: inherit;
+  margin-top: 3px;
+  box-sizing: border-box;
+}
+
+.iv-cert-row {
+  margin-top: 8px;
+  font-size: 11.5px;
+}
+
+.iv-doc-link {
+  margin-left: 6px;
+  color: var(--blue);
+  text-decoration: none;
+  font-size: 11.5px;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.iv-upload-row {
+  margin-top: 8px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  font-size: 11.5px;
+}
+
+.iv-upload-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  color: var(--blue);
+
+  input[type='file'] {
+    font-size: 11px;
+    max-width: 160px;
+  }
+}
+
+.iv-selected-file {
+  color: var(--ink2);
+  font-size: 11px;
+}
+
+.iv-pending-banner {
+  margin-top: 8px;
+  background: var(--amber-lt);
+  border: 1px solid #fde68a;
+  color: #92400e;
+  border-radius: 7px;
+  padding: 7px 10px;
+  font-size: 11px;
+}
+
+.iv-pending-actions {
+  margin-top: 8px;
+  display: flex;
+  gap: 8px;
+}
+
+.iv-notrequired-note {
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--ink3);
+}
+
+.iv-date-locked-note {
+  margin-top: 4px;
+  font-size: 10.5px;
+  color: var(--ink3);
+  font-style: italic;
+}
+
+.iv-date-input:disabled {
+  background: #f1f5f9;
+  color: var(--ink3);
+  cursor: not-allowed;
+}
+
+.btn {
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 7px 13px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink);
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: #f1f5f9;
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+}
+
+.btn.sm {
+  padding: 4px 9px;
+  font-size: 11px;
+}
+
+.iv-btn-amber {
+  background: var(--amber-lt);
+  border-color: #fde68a;
+  color: #92400e;
+
+  &:hover:not(:disabled) {
+    background: #fef3c7;
+  }
+}
+
+.btn-success {
+  background: var(--green);
+  border-color: var(--green);
+  color: #fff;
+
+  &:hover:not(:disabled) {
+    background: #15803d;
+  }
+}
+
+.btn-danger {
+  background: var(--red);
+  border-color: var(--red);
+  color: #fff;
+
+  &:hover:not(:disabled) {
+    background: #b91c1c;
+  }
+}
+
+@media (max-width: 768px) {
+  .modal {
+    width: 100vw;
+    max-width: 100vw;
+    height: 100vh;
+    max-height: 100vh;
+    border-radius: 0;
+  }
+
+  .modal-body {
+    max-height: none;
+    flex: 1;
+  }
+}

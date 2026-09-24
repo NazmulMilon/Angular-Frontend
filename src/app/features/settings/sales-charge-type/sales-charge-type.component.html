@@ -1,0 +1,83 @@
+<div class="page">
+  <nav class="breadcrumb">
+    <a routerLink="/settings" class="breadcrumb__link">Settings</a>
+    <span class="breadcrumb__sep">/</span>
+    <span class="breadcrumb__current">Sales Charge Type</span>
+  </nav>
+
+  <div class="page__header">
+    <h1 class="page__title">Sales Charge Type</h1>
+  </div>
+
+  @if (error()) {
+    <div class="error-banner">{{ error() }}</div>
+  }
+
+  <div class="layout">
+    <div class="panel panel--form">
+      <div class="panel__head">
+        Add New Sales Charge Type
+        @if (editingId() !== null) { <span class="panel__edit-tag">Editing</span> }
+      </div>
+      <div class="panel__body">
+        <form (ngSubmit)="save()">
+          <div class="field">
+            <label class="field__label" for="scName">Sales Charge Type</label>
+            <input id="scName" type="text" class="field__input" [ngModel]="formName()" (ngModelChange)="formName.set($event)" name="scName" required placeholder="e.g. Service Call" />
+          </div>
+          <div class="field">
+            <label class="field__label" for="scDesc">Description</label>
+            <input id="scDesc" type="text" class="field__input" [ngModel]="formDescription()" (ngModelChange)="formDescription.set($event)" name="scDesc" placeholder="Optional description" />
+          </div>
+        </form>
+      </div>
+      <div class="panel__footer">
+        <button type="button" class="btn btn--primary" [disabled]="!canSave" (click)="save()">{{ editingId() === null ? 'Save' : 'Update' }}</button>
+        <button type="button" class="btn btn--secondary" (click)="clearForm()">Clear</button>
+      </div>
+    </div>
+
+    <div class="list-col">
+      <div class="list-head">
+        <h3 class="list-title">Existing Sales Charge Types</h3>
+        <input type="search" class="list-search" [ngModel]="search()" (ngModelChange)="search.set($event)" name="search" placeholder="Search by name or description…" />
+      </div>
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th class="th--num">SL</th>
+              <th>Name</th>
+              <th>Description</th>
+              <th class="th--active">Active</th>
+              <th class="th--actions"></th>
+            </tr>
+          </thead>
+          <tbody>
+            @if (loading()) {
+              <tr><td colspan="5" class="td--empty">Loading charge types…</td></tr>
+            } @else {
+            @for (row of filteredRows(); track row.id; let idx = $index) {
+              <tr [class.tr--active]="editingId() === row.id" [class.tr--muted]="!row.isActive">
+                <td class="td--num">{{ idx + 1 }}</td>
+                <td class="td--name">{{ row.name }}</td>
+                <td class="td--desc">{{ preview(row.description) || '—' }}</td>
+                <td class="td--active">
+                  @if (row.isActive) { <span class="pill pill--yes">Y</span> } @else { <span class="pill pill--no">N</span> }
+                </td>
+                <td class="td--actions">
+                  <button type="button" class="icon-btn" title="Edit" (click)="selectRow(row)">
+                    <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M10.586 1.586a2 2 0 0 1 2.828 2.828L5.5 12.328l-3.6.9.9-3.6 7.786-8.042Z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </button>
+                </td>
+              </tr>
+            } @empty {
+              <tr><td colspan="5" class="td--empty">{{ search().trim() ? 'No sales charge types match your search.' : 'No sales charge types defined.' }}</td></tr>
+            }
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>

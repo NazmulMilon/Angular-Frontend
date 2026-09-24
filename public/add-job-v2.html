@@ -1,0 +1,957 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Add Job — V2 Admin Portal</title>
+<style>
+  :root{
+    --bg:#F4F6F9;
+    --card:#FFFFFF;
+    --ink:#17202E;
+    --muted:#5B6B80;
+    --line:#DDE4EC;
+    --primary:#1F5EDB;
+    --primary-ink:#FFFFFF;
+    --primary-soft:#EAF1FF;
+    --danger:#C6303E;
+    --ok:#177245;
+    --radius:10px;
+    --shadow:0 1px 2px rgba(23,32,46,.06), 0 4px 14px rgba(23,32,46,.05);
+    font-size:16px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:"Segoe UI", system-ui, -apple-system, Arial, sans-serif;
+    background:var(--bg);
+    color:var(--ink);
+    line-height:1.45;
+    padding-bottom:96px;
+  }
+
+  /* ---------- Page header ---------- */
+  .page-head{
+    background:var(--card);
+    border-bottom:1px solid var(--line);
+    padding:18px 28px;
+    display:flex;align-items:center;gap:14px;
+    position:sticky;top:0;z-index:20;
+  }
+  .page-head .crumb{font-size:.8rem;color:var(--muted)}
+  .page-head h1{font-size:1.25rem;font-weight:600;letter-spacing:-.01em}
+  .page-head .spacer{flex:1}
+  .draft-pill{
+    font-size:.75rem;font-weight:600;color:var(--muted);
+    border:1px solid var(--line);border-radius:999px;padding:4px 12px;
+    background:var(--bg);
+  }
+
+  /* ---------- Layout ---------- */
+  .wrap{
+    max-width:1120px;margin:28px auto;padding:0 28px;
+    display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:24px;
+    align-items:start;
+  }
+  @media (max-width:920px){
+    .wrap{grid-template-columns:1fr}
+    .rail{display:none}
+  }
+
+  /* ---------- Cards / sections ---------- */
+  .card{
+    background:var(--card);border:1px solid var(--line);
+    border-radius:var(--radius);box-shadow:var(--shadow);
+    margin-bottom:20px;overflow:hidden;
+  }
+  .card-head{
+    padding:16px 22px 0;
+  }
+  .card-head h2{font-size:1rem;font-weight:600}
+  .card-head p{font-size:.82rem;color:var(--muted);margin-top:2px}
+  .card-body{padding:18px 22px 22px}
+
+  /* ---------- Fields ---------- */
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media (max-width:640px){.grid-2{grid-template-columns:1fr}}
+  .field{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}
+  .field:last-child{margin-bottom:0}
+  label{font-size:.82rem;font-weight:600;color:var(--ink)}
+  label .req{color:var(--danger)}
+  label .opt{color:var(--muted);font-weight:500}
+  .hint{font-size:.75rem;color:var(--muted)}
+  select,input[type="text"],textarea{
+    width:100%;font:inherit;color:var(--ink);
+    border:1px solid var(--line);border-radius:8px;
+    padding:9px 12px;background:#fff;
+    transition:border-color .15s, box-shadow .15s;
+  }
+  select:focus,input:focus,textarea:focus{
+    outline:none;border-color:var(--primary);
+    box-shadow:0 0 0 3px rgba(31,94,219,.15);
+  }
+  textarea{min-height:96px;resize:vertical}
+  ::placeholder{color:#9AA7B8}
+
+  .with-action{display:flex;gap:8px}
+  .with-action select{flex:1}
+  .icon-btn{
+    flex:0 0 auto;width:40px;height:40px;
+    border:1px solid var(--line);border-radius:8px;background:#fff;
+    font-size:1.1rem;color:var(--primary);cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+    transition:background .15s;
+  }
+  .icon-btn:hover{background:var(--primary-soft)}
+  .icon-btn:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+
+  /* invalid state */
+  .field.invalid select, .field.invalid input{border-color:var(--danger);box-shadow:0 0 0 3px rgba(198,48,62,.12)}
+  .field .err{display:none;font-size:.75rem;color:var(--danger)}
+  .field.invalid .err{display:block}
+
+  /* ---------- Vendor optional block ---------- */
+  .vendor-toggle{
+    display:flex;align-items:center;gap:10px;
+    font-size:.9rem;font-weight:600;cursor:pointer;user-select:none;
+  }
+  .switch{
+    position:relative;width:40px;height:22px;border-radius:999px;
+    background:#C7D2E0;transition:background .15s;flex:0 0 auto;
+  }
+  .switch::after{
+    content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;
+    border-radius:50%;background:#fff;transition:left .15s;
+    box-shadow:0 1px 2px rgba(0,0,0,.2);
+  }
+  .vendor-toggle input{position:absolute;opacity:0;pointer-events:none}
+  .vendor-toggle input:checked + .switch{background:var(--primary)}
+  .vendor-toggle input:checked + .switch::after{left:21px}
+  .vendor-toggle input:focus-visible + .switch{outline:2px solid var(--primary);outline-offset:2px}
+  #vendorFields{display:none;margin-top:16px}
+  #vendorFields.open{display:block}
+
+  /* ---------- Vendor schedule ---------- */
+  .sched-group{margin-top:16px;border-top:1px solid var(--line);padding-top:16px}
+  .radio-row{display:flex;align-items:flex-start;gap:10px;padding:6px 0;cursor:pointer;font-size:.9rem}
+  .radio-row input{margin-top:3px;accent-color:var(--primary);cursor:pointer}
+  .radio-row .lbl{font-weight:600}
+  .radio-row .sub{display:block;font-size:.78rem;color:var(--muted);font-weight:400;margin-top:1px}
+  #schedPicker{display:none;margin:10px 0 4px 26px}
+  #schedPicker.open{display:block}
+  input[type="datetime-local"]{
+    font:inherit;color:var(--ink);border:1px solid var(--line);
+    border-radius:8px;padding:9px 12px;background:#fff;
+  }
+  input[type="datetime-local"]:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(31,94,219,.15)}
+  .tz-display{
+    display:none;margin-top:12px;border:1px solid var(--line);border-radius:8px;
+    overflow:hidden;max-width:520px;
+  }
+  .tz-display.show{display:grid;grid-template-columns:1fr 1fr}
+  .tz-cell{padding:10px 14px}
+  .tz-cell + .tz-cell{border-left:1px solid var(--line)}
+  .tz-cell .tz-k{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+  .tz-cell .tz-v{font-size:.92rem;font-weight:600;margin-top:2px}
+  .tz-cell.rfi{background:var(--primary-soft)}
+  .tz-cell.rfi .tz-v{color:var(--primary)}
+
+  /* ---------- Money inputs (DNE) ---------- */
+  .money-wrap{position:relative}
+  .money-sign{
+    position:absolute;left:12px;top:50%;transform:translateY(-50%);
+    color:var(--muted);font-size:.9rem;pointer-events:none;
+  }
+  .money-wrap input{padding-left:26px}
+
+  /* ---------- Documents ---------- */
+  .dropzone{
+    border:1.5px dashed #B9C6D6;border-radius:8px;
+    padding:26px;text-align:center;color:var(--muted);
+    font-size:.88rem;cursor:pointer;background:#FAFCFE;
+    transition:border-color .15s, background .15s;
+  }
+  .dropzone strong{color:var(--primary)}
+  .dropzone.drag{border-color:var(--primary);background:var(--primary-soft)}
+  table{width:100%;border-collapse:collapse;margin-top:14px;font-size:.85rem}
+  th{
+    text-align:left;font-weight:600;color:var(--muted);
+    font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;
+    padding:8px 10px;border-bottom:1px solid var(--line);
+  }
+  td{padding:9px 10px;border-bottom:1px solid var(--line)}
+  tr:last-child td{border-bottom:none}
+  .empty-row td{color:var(--muted);text-align:center;padding:18px}
+  .doc-type-chip{
+    display:inline-block;font-size:.72rem;font-weight:600;
+    background:var(--primary-soft);color:var(--primary);
+    border-radius:999px;padding:2px 10px;
+  }
+  .remove-link{color:var(--danger);background:none;border:none;font:inherit;font-size:.8rem;cursor:pointer}
+  .remove-link:hover{text-decoration:underline}
+
+  /* ---------- Right rail summary ---------- */
+  .rail .card{position:sticky;top:84px}
+  .rail h3{font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:12px}
+  .sum-row{display:flex;justify-content:space-between;gap:10px;font-size:.83rem;padding:7px 0;border-bottom:1px solid var(--line)}
+  .sum-row:last-child{border-bottom:none}
+  .sum-row .k{color:var(--muted)}
+  .sum-row .v{font-weight:600;text-align:right;max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .sum-row .v.unset{color:#9AA7B8;font-weight:400}
+
+  /* ---------- Footer actions ---------- */
+  .action-bar{
+    position:fixed;bottom:0;left:0;right:0;z-index:30;
+    background:var(--card);border-top:1px solid var(--line);
+    padding:14px 28px;display:flex;gap:12px;align-items:center;
+    box-shadow:0 -4px 14px rgba(23,32,46,.06);
+  }
+  .action-bar .status{font-size:.82rem;color:var(--muted);margin-right:auto}
+  .btn{
+    font:inherit;font-weight:600;border-radius:8px;cursor:pointer;
+    padding:10px 22px;border:1px solid transparent;
+    transition:background .15s, box-shadow .15s;
+  }
+  .btn:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+  .btn-primary{background:var(--primary);color:var(--primary-ink)}
+  .btn-primary:hover{background:#1a51bd}
+  .btn-ghost{background:#fff;border-color:var(--line);color:var(--ink)}
+  .btn-ghost:hover{background:var(--bg)}
+
+  .toast{
+    position:fixed;bottom:84px;left:50%;transform:translateX(-50%) translateY(8px);
+    background:var(--ink);color:#fff;font-size:.85rem;
+    padding:10px 18px;border-radius:8px;opacity:0;pointer-events:none;
+    transition:opacity .2s, transform .2s;z-index:40;
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .toast.ok{background:var(--ok)}
+  .toast.err{background:var(--danger)}
+
+  @media (prefers-reduced-motion: reduce){
+    *{transition:none !important}
+  }
+
+  /* ---------- Dev notes layer ---------- */
+  .notes-btn{
+    font:inherit;font-size:.78rem;font-weight:600;cursor:pointer;
+    border:1px solid var(--line);border-radius:999px;padding:5px 14px;
+    background:#fff;color:var(--muted);
+  }
+  body.notes-on .notes-btn{background:#FFF4D6;border-color:#E3C55A;color:#7A5D00}
+  .note-badge{
+    display:none;position:absolute;top:-9px;right:-9px;z-index:15;
+    width:20px;height:20px;border-radius:50%;
+    background:#F2B705;color:#3B2E00;font-size:.7rem;font-weight:700;
+    align-items:center;justify-content:center;
+    box-shadow:0 1px 3px rgba(0,0,0,.25);cursor:help;
+  }
+  body.notes-on .note-badge{display:flex}
+  [data-note]{position:relative}
+  body.notes-on [data-note]{outline:1.5px dashed #E3C55A;outline-offset:3px;border-radius:8px}
+  .notes-panel{display:none;margin-bottom:20px}
+  body.notes-on .notes-panel{display:block}
+  .notes-panel .card-body{padding-top:16px}
+  .notes-panel h2{font-size:1rem;font-weight:600;display:flex;align-items:center;gap:8px}
+  .notes-panel ol{margin:12px 0 0 0;padding-left:0;list-style:none}
+  .notes-panel li{
+    display:flex;gap:12px;font-size:.85rem;padding:9px 0;
+    border-bottom:1px solid var(--line);align-items:flex-start;
+  }
+  .notes-panel li:last-child{border-bottom:none}
+  .notes-panel .n{
+    flex:0 0 auto;width:20px;height:20px;border-radius:50%;margin-top:1px;
+    background:#F2B705;color:#3B2E00;font-size:.7rem;font-weight:700;
+    display:flex;align-items:center;justify-content:center;
+  }
+</style>
+</head>
+<body>
+
+<header class="page-head">
+  <div>
+    <div class="crumb">Jobs</div>
+    <h1>Add job</h1>
+  </div>
+  <div class="spacer"></div>
+  <button type="button" class="notes-btn" id="notesToggle">Show dev notes</button>
+  <span class="draft-pill">Unsaved draft</span>
+</header>
+
+<div class="wrap">
+  <main>
+
+    <!-- DEV NOTES PANEL (visible only when notes are toggled on) -->
+    <section class="card notes-panel">
+      <div class="card-body">
+        <h2>Dev notes for this screen</h2>
+        <p class="hint" style="margin-top:2px">Numbered badges on the screen match the list below. Hover any badge for its note.</p>
+        <ol id="notesList"></ol>
+      </div>
+    </section>
+
+    <!-- CUSTOMER -->
+    <section class="card">
+      <div class="card-head">
+        <h2>Customer</h2>
+        <p>Who this job is for and where the work happens.</p>
+      </div>
+      <div class="card-body">
+        <div class="field" id="f-customer">
+          <label for="customer">Customer name <span class="req">*</span></label>
+          <div class="with-action">
+            <select id="customer" data-note="Selecting a customer auto-loads its Contact and Service Location lists on change (cascade fetch by customer ID).">
+              <option value="">Select a customer</option>
+              <option>Blue Ridge Property Group</option>
+              <option>Fannin County Schools</option>
+              <option>Mountain View HOA</option>
+              <option>Toccoa Riverside Rentals</option>
+            </select>
+            <button type="button" class="icon-btn" title="Add new customer" aria-label="Add new customer" data-note="Opens the Add Customer screen/modal. On save, the new customer is automatically refreshed into this dropdown, pre-selected, and its Contact + Location lists cascade-load — no manual refresh step.">+</button>
+          </div>
+          <span class="err">Select a customer to continue.</span>
+        </div>
+
+        <div class="grid-2">
+          <div class="field" id="f-contact">
+            <label for="contact">Contact <span class="req">*</span></label>
+            <div class="with-action">
+              <select id="contact" disabled>
+                <option value="">Select a customer first</option>
+              </select>
+              <button type="button" class="icon-btn" title="Add new contact" aria-label="Add new contact" data-note="Opens Add Contact for the selected customer (disabled until a customer is chosen). On save, the new contact is automatically refreshed into this dropdown and pre-selected — this replaces the V1 'Load' button (no manual refresh step in V2).">+</button>
+            </div>
+            <span class="hint">Loads automatically when a customer is selected.</span>
+            <span class="err">Select a contact for this job.</span>
+          </div>
+
+          <div class="field" id="f-location">
+            <label for="location">Service location</label>
+            <div class="with-action">
+              <select id="location" disabled>
+                <option value="">Select a customer first</option>
+              </select>
+              <button type="button" class="icon-btn" title="Add new location" aria-label="Add new location" data-note="Opens Add Service Location for the selected customer. On save, the new location is automatically refreshed into this dropdown and pre-selected — replaces the V1 'Load' button (no manual refresh step in V2).">+</button>
+            </div>
+            <span class="hint">Loads automatically when a customer is selected.</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- JOB DETAILS -->
+    <section class="card">
+      <div class="card-head">
+        <h2>Job details</h2>
+        <p>What the work is and how urgent it is.</p>
+      </div>
+      <div class="card-body">
+        <div class="field">
+          <label for="jobname">Client job name <span class="opt">(optional)</span></label>
+          <input type="text" id="jobname" placeholder="If the customer wants a job name, enter it here">
+        </div>
+
+        <div class="grid-2">
+          <div class="field" id="f-trade">
+            <label for="trade">Trade <span class="req">*</span></label>
+            <select id="trade">
+              <option value="">Select a trade</option>
+              <option>Plumbing</option>
+              <option>Electrical</option>
+              <option>HVAC</option>
+              <option>Roofing</option>
+              <option>General repair</option>
+            </select>
+            <span class="err">Select the trade for this job.</span>
+          </div>
+
+          <div class="field" id="f-priority">
+            <label for="priority">Priority <span class="req">*</span></label>
+            <select id="priority">
+              <option value="">Select a priority</option>
+              <option>Standard</option>
+              <option>Emergency</option>
+              <option>Bid Request</option>
+              <option>High Priority</option>
+              <option>Project</option>
+              <option>PM</option>
+              <option>Recall</option>
+            </select>
+            <span class="err">Select a priority level.</span>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="desc">Service description</label>
+          <textarea id="desc" placeholder="Describe the work to be done. This is shared with the assigned vendor on the work order."></textarea>
+        </div>
+      </div>
+    </section>
+
+    <!-- DOCUMENTS -->
+    <section class="card">
+      <div class="card-head">
+        <h2>Documents <span class="opt" style="font-size:.8rem;font-weight:500">(internal)</span></h2>
+        <p>Attach photos, estimates, or reference files for this job. Internal only — these are never sent to vendors. To send files with the work order, use Work order attachments in the Vendor section.</p>
+      </div>
+      <div class="card-body">
+        <div class="grid-2">
+          <div class="field">
+            <label for="doctype">Document type</label>
+            <select id="doctype" data-note="Display labels normalized to sentence case — underlying values must still map to existing V1 database values. Confirm whether system-assigned types (customer-added files, vendor estimate/pictures) should be removed from this admin-facing list.">
+              <optgroup label="Job">
+                <option>Before pictures</option>
+                <option>Location attachments</option>
+                <option>Invoice confirmation</option>
+              </optgroup>
+              <optgroup label="Customer">
+                <option>Customer work order</option>
+                <option>Customer added files — work order supporting document(s)</option>
+                <option>Customer estimate file</option>
+                <option>Customer additional approval</option>
+                <option>Customer pictures</option>
+              </optgroup>
+              <optgroup label="Vendor">
+                <option>Vendor estimate</option>
+                <option>Vendor pictures</option>
+              </optgroup>
+              <optgroup label="General">
+                <option>Other</option>
+              </optgroup>
+            </select>
+          </div>
+          <div class="field">
+            <label for="docname">File name <span class="opt">(optional)</span></label>
+            <input type="text" id="docname" placeholder="Defaults to the uploaded file's name">
+          </div>
+        </div>
+
+        <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="Upload files" data-note="INTERNAL documents only — attached to the job record, never delivered to vendors. Vendor-visible files go in the Vendor section's Work order attachments. Files upload with the selected Document Type and optional file-name override; multiple files allowed.">
+          Drop files here, or <strong>click to browse</strong>
+          <input type="file" id="fileInput" multiple hidden>
+        </div>
+
+        <table aria-label="Attached documents">
+          <thead>
+            <tr><th style="width:22%">Type</th><th>Document name</th><th style="width:14%">Actions</th></tr>
+          </thead>
+          <tbody id="docTable">
+            <tr class="empty-row"><td colspan="3">No documents attached yet. Files you add will appear here.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- VENDOR (OPTIONAL) -->
+    <section class="card">
+      <div class="card-head">
+        <h2>Vendor</h2>
+        <p>Assign a vendor now, or leave it for the Assign Vendor tab after the job is created.</p>
+      </div>
+      <div class="card-body">
+        <label class="vendor-toggle" data-note="Vendor assignment is optional at creation. If a vendor is selected, saving the job triggers the vendor work order email + landing page flow. If off, vendor is assigned later via the Assign Vendor tab.">
+          <input type="checkbox" id="vendorSwitch">
+          <span class="switch" aria-hidden="true"></span>
+          Add a vendor now <span class="opt" style="font-weight:500">(optional)</span>
+        </label>
+
+        <div id="vendorFields">
+          <div class="field">
+            <label for="vendor">Vendor</label>
+            <select id="vendor">
+              <option value="">Select a vendor</option>
+              <option>ACME Plumbing Co.</option>
+              <option>North Georgia Electric</option>
+              <option>Summit HVAC Services</option>
+              <option>Ridgeline Roofing</option>
+            </select>
+            <span class="hint">The vendor receives the work order email when the job is saved.</span>
+          </div>
+
+          <div class="grid-2" id="dneFields" style="margin-top:4px" data-note="DNE precedence — Vendor DNE fills in this order: (1) if job priority is Emergency and the vendor profile has an Emergency DNE, use it; (2) else if the vendor profile has a DNE, it supersedes the customer profile; (3) else fall back to the customer profile's vendor DNE. Customer DNE always comes from the customer profile. The source indicator under the Vendor DNE field must state where the value came from (vendor profile / vendor profile Emergency DNE / customer profile). Both fields editable per-job; edits do not write back to any profile. Vendor DNE is the cap on the vendor work order.">
+            <div class="field">
+              <label for="custDne">Customer DNE</label>
+              <div class="money-wrap">
+                <span class="money-sign">$</span>
+                <input type="text" id="custDne" inputmode="decimal" placeholder="0.00">
+              </div>
+              <span class="hint">Prefilled from the customer profile — editable for this job.</span>
+            </div>
+            <div class="field">
+              <label for="vendDne">Vendor DNE</label>
+              <div class="money-wrap">
+                <span class="money-sign">$</span>
+                <input type="text" id="vendDne" inputmode="decimal" placeholder="0.00">
+              </div>
+              <span class="hint" id="vendDneSource">Editable — goes on the vendor work order.</span>
+            </div>
+          </div>
+
+          <div class="field" id="f-reason" style="margin-top:16px;border-top:1px solid var(--line);padding-top:16px" data-note="Vendor Selection Survey — this feeds the vendor-selection ML (sourcing/scorecard agents). The reason dropdown options must be admin-manageable (add/edit/delete) in the app's Settings section — do not hard-code them. Selecting a reason inserts its text into the remarks box; remarks are the required field and admins can expand on them freely. Required whenever a vendor is assigned at job creation.">
+            <label for="reasonSelect">Why this vendor? <span class="req">*</span></label>
+            <select id="reasonSelect">
+              <option value="">Select a reason (inserts into remarks below)</option>
+              <option>We have a relationship with this vendor</option>
+              <option>Better pricing / negotiated rate</option>
+              <option>This vendor is available sooner</option>
+              <option>Known quality for this type of job</option>
+              <option>Closer to the job location</option>
+              <option>Vendor takes extra precaution</option>
+              <option>Other reason</option>
+            </select>
+            <textarea id="reasonRemarks" placeholder="Required: explain in your own words why you are selecting this vendor. Picking a reason above starts this for you — add any detail that helps." style="min-height:80px;margin-top:8px"></textarea>
+            <span class="hint">This trains RFI's vendor-selection AI — the more specific, the better.</span>
+            <span class="err">Explain why this vendor was selected (pick a reason or write your own).</span>
+          </div>
+
+          <div class="sched-group" data-note="Vendor ETA window — the default comes from the app-wide setting in Settings ('default days a vendor can set their ETA out from receiving the work order'). Editable per-job (raise or lower) without changing the Settings default. When job priority is Emergency, the unit switches to HOURS and uses the emergency default from Settings. This window is enforced on the vendor landing page's ETA picker — the vendor cannot set an ETA beyond it.">
+            <div class="field" style="margin-bottom:0">
+              <label for="etaWindow">Vendor ETA window</label>
+              <div style="display:flex;align-items:center;gap:10px;max-width:260px">
+                <input type="text" id="etaWindow" inputmode="numeric" style="max-width:90px;text-align:center">
+                <span id="etaUnit" style="font-size:.9rem;font-weight:600;color:var(--muted)">days</span>
+              </div>
+              <span class="hint" id="etaSource">Default from Settings — editable for this job.</span>
+            </div>
+          </div>
+
+          <div class="sched-group" data-note="Replaces the V1 six-dropdown date/time picker with a single native date-time field. Schedule time is entered in the SERVICE LOCATION's local time; the system converts and stores UTC, and displays both location time and RFI (Eastern) time. Timezone comes from the selected service location's record. Default selection: 'No schedule yet.'">
+            <div class="radio-row" >
+              <input type="radio" name="sched" id="schedNo" checked>
+              <label for="schedNo" style="cursor:pointer">
+                <span class="lbl">No schedule yet from the vendor</span>
+                <span class="sub">Job saves as awaiting schedule — set it later from the Assign Vendor tab.</span>
+              </label>
+            </div>
+            <div class="radio-row">
+              <input type="radio" name="sched" id="schedYes">
+              <label for="schedYes" style="cursor:pointer">
+                <span class="lbl">I already have a scheduled date &amp; time from the vendor</span>
+                <span class="sub">Entered in the service location's local time.</span>
+              </label>
+            </div>
+            <div id="schedPicker">
+              <input type="datetime-local" id="schedInput" aria-label="Scheduled date and time (location local time)">
+              <div class="tz-display" id="tzDisplay">
+                <div class="tz-cell">
+                  <div class="tz-k">Location time</div>
+                  <div class="tz-v" id="tzLoc">—</div>
+                </div>
+                <div class="tz-cell rfi">
+                  <div class="tz-k">RFI time (Eastern)</div>
+                  <div class="tz-v" id="tzRfi">—</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="sched-group" data-note="Work order attachments are DELIVERED TO THE VENDOR with the work order (email + landing page). This is a separate store from the job's internal Documents section below, which is never sent to vendors. Anything dropped here should be treated as vendor-visible.">
+            <label style="font-size:.9rem;font-weight:600;display:block;margin-bottom:4px">Work order attachments <span class="opt">(sent to the vendor)</span></label>
+            <span class="hint" style="display:block;margin-bottom:10px">Files here go out with the vendor work order email and appear on the vendor landing page — scopes of work, site photos, access instructions.</span>
+            <div class="dropzone" id="woDropzone" tabindex="0" role="button" aria-label="Upload work order attachments">
+              Drop files here, or <strong>click to browse</strong>
+              <input type="file" id="woFileInput" multiple hidden>
+            </div>
+            <table aria-label="Work order attachments">
+              <thead>
+                <tr><th>Document name</th><th style="width:14%">Actions</th></tr>
+              </thead>
+              <tbody id="woDocTable">
+                <tr class="empty-row"><td colspan="2">No attachments yet. Files added here are sent to the vendor.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- RIGHT RAIL SUMMARY -->
+  <aside class="rail">
+    <div class="card">
+      <div class="card-body">
+        <h3>Job summary</h3>
+        <div class="sum-row"><span class="k">Customer</span><span class="v unset" id="s-customer">Not set</span></div>
+        <div class="sum-row"><span class="k">Contact</span><span class="v unset" id="s-contact">Not set</span></div>
+        <div class="sum-row"><span class="k">Location</span><span class="v unset" id="s-location">Not set</span></div>
+        <div class="sum-row"><span class="k">Trade</span><span class="v unset" id="s-trade">Not set</span></div>
+        <div class="sum-row"><span class="k">Priority</span><span class="v unset" id="s-priority">Not set</span></div>
+        <div class="sum-row"><span class="k">Vendor</span><span class="v unset" id="s-vendor">Assign later</span></div>
+        <div class="sum-row"><span class="k">Schedule</span><span class="v unset" id="s-sched">—</span></div>
+        <div class="sum-row"><span class="k">Documents</span><span class="v" id="s-docs">0</span></div>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<!-- ACTION BAR -->
+<div class="action-bar">
+  <span class="status" id="statusText">Complete the required fields (<span style="color:var(--danger)">*</span>) to save this job.</span>
+  <button type="button" class="btn btn-ghost" id="cancelBtn" data-note="Cancel discards the draft and returns to the Jobs list. If any field has been touched, show a confirm dialog first.">Cancel</button>
+  <button type="button" class="btn btn-primary" id="saveBtn" data-note="Save creates the job, then routes directly to the new job's Assign Vendor tab. If a vendor was added, fire the work order email/landing page process on save.">Save job</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  // ---- Mock data: contacts & locations load per customer ----
+  const mock = {
+    "Blue Ridge Property Group": {tz:"America/New_York", contacts:["Dana Whitfield","Marcus Lee"], locations:["112 River Rd, Blue Ridge GA","4 Overlook Dr, Blue Ridge GA"]},
+    "Fannin County Schools": {tz:"America/New_York", contacts:["T. Alvarez (Facilities)"], locations:["Central Office","East Elementary","High School Gym"]},
+    "Mountain View HOA": {tz:"America/Chicago", contacts:["Board — R. Chen","Property Mgr — S. Okafor"], locations:["Clubhouse","Pool House","Common Grounds"]},
+    "Toccoa Riverside Rentals": {tz:"America/Los_Angeles", contacts:["J. Byers"], locations:["Cabin 3","Cabin 7","Main Lodge"]}
+  };
+
+  const $ = id => document.getElementById(id);
+  const customer=$("customer"), contact=$("contact"), location_=$("location");
+  const trade=$("trade"), priority=$("priority"), vendorSwitch=$("vendorSwitch"), vendor=$("vendor");
+
+  function fillSelect(sel, items, placeholder){
+    sel.innerHTML = "";
+    const p = document.createElement("option");
+    p.value=""; p.textContent = placeholder;
+    sel.appendChild(p);
+    items.forEach(t=>{const o=document.createElement("option");o.textContent=t;sel.appendChild(o);});
+    sel.disabled = false;
+  }
+
+  customer.addEventListener("change", ()=>{
+    const d = mock[customer.value];
+    if(d){
+      fillSelect(contact, d.contacts, "Select a contact");
+      fillSelect(location_, d.locations, "Select a location");
+    } else {
+      contact.innerHTML = '<option value="">Select a customer first</option>'; contact.disabled=true;
+      location_.innerHTML = '<option value="">Select a customer first</option>'; location_.disabled=true;
+    }
+    syncSummary();
+  });
+
+  // ---- Vendor toggle ----
+  vendorSwitch.addEventListener("change", ()=>{
+    $("vendorFields").classList.toggle("open", vendorSwitch.checked);
+    if(!vendorSwitch.checked){
+      vendor.value="";
+    } else if(customer.value){
+      fillDnes(); // customer already chosen: drop both DNEs in from the customer profile
+    }
+    syncSummary();
+  });
+
+  // ---- Summary rail ----
+  function setSum(id, val, fallback){
+    const el=$(id);
+    if(val){el.textContent=val;el.classList.remove("unset");}
+    else {el.textContent=fallback;el.classList.add("unset");}
+  }
+  function syncSummary(){
+    setSum("s-customer", customer.value, "Not set");
+    setSum("s-contact", contact.value, "Not set");
+    setSum("s-location", location_.value, "Not set");
+    setSum("s-trade", trade.value, "Not set");
+    setSum("s-priority", priority.value ? priority.value.split(" — ")[0] : "", "Not set");
+    setSum("s-vendor", vendorSwitch.checked && vendor.value ? vendor.value : "", "Assign later");
+    if(vendorSwitch.checked){
+      if(document.getElementById("schedYes").checked && document.getElementById("schedInput").value){
+        setSum("s-sched", tzRfi.textContent + " ET", "—");
+      } else {
+        setSum("s-sched", "", "Awaiting schedule");
+      }
+    } else {
+      setSum("s-sched", "", "—");
+    }
+    $("s-docs").textContent = docs.length;
+  }
+  [contact, location_, trade, priority, vendor].forEach(s=>s.addEventListener("change", syncSummary));
+
+  // ---- Documents ----
+  const docs = [];
+  const dropzone=$("dropzone"), fileInput=$("fileInput"), docTable=$("docTable");
+
+  dropzone.addEventListener("click", ()=>fileInput.click());
+  dropzone.addEventListener("keydown", e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();fileInput.click();}});
+  ["dragover","dragenter"].forEach(ev=>dropzone.addEventListener(ev,e=>{e.preventDefault();dropzone.classList.add("drag");}));
+  ["dragleave","drop"].forEach(ev=>dropzone.addEventListener(ev,e=>{e.preventDefault();dropzone.classList.remove("drag");}));
+  dropzone.addEventListener("drop", e=>addFiles(e.dataTransfer.files));
+  fileInput.addEventListener("change", ()=>{addFiles(fileInput.files);fileInput.value="";});
+
+  function addFiles(fileList){
+    const type=$("doctype").value;
+    const override=$("docname").value.trim();
+    Array.from(fileList).forEach((f,i)=>{
+      docs.push({type, name: override ? (fileList.length>1?override+" ("+(i+1)+")":override) : f.name});
+    });
+    $("docname").value="";
+    renderDocs(); syncSummary();
+    showToast(fileList.length + (fileList.length===1?" document":" documents") + " attached","ok");
+  }
+
+  function renderDocs(){
+    docTable.innerHTML="";
+    if(docs.length===0){
+      docTable.innerHTML='<tr class="empty-row"><td colspan="3">No documents attached yet. Files you add will appear here.</td></tr>';
+      return;
+    }
+    docs.forEach((d,idx)=>{
+      const tr=document.createElement("tr");
+      tr.innerHTML='<td><span class="doc-type-chip"></span></td><td></td><td><button type="button" class="remove-link">Remove</button></td>';
+      tr.querySelector(".doc-type-chip").textContent=d.type;
+      tr.children[1].textContent=d.name;
+      tr.querySelector(".remove-link").addEventListener("click",()=>{docs.splice(idx,1);renderDocs();syncSummary();});
+      docTable.appendChild(tr);
+    });
+  }
+
+  // ---- Save / Cancel ----
+  const required=[["f-customer",customer],["f-contact",contact],["f-trade",trade],["f-priority",priority]];
+
+  $("saveBtn").addEventListener("click", ()=>{
+    let firstBad=null;
+    required.forEach(([fid,el])=>{
+      const bad=!el.value;
+      $(fid).classList.toggle("invalid",bad);
+      if(bad && !firstBad) firstBad=el;
+    });
+    if(firstBad){
+      firstBad.focus();
+      showToast("Complete the required fields before saving","err");
+      $("statusText").textContent="Some required fields are missing.";
+      return;
+    }
+    if(vendorSwitch.checked && document.getElementById("vendor").value && !document.getElementById("reasonRemarks").value.trim()){
+      document.getElementById("f-reason").classList.add("invalid");
+      document.getElementById("reasonRemarks").focus();
+      showToast("Explain why this vendor was selected before saving","err");
+      return;
+    }
+    if(vendorSwitch.checked && document.getElementById("schedYes").checked && !document.getElementById("schedInput").value){
+      document.getElementById("schedInput").focus();
+      showToast("Enter the scheduled date and time, or switch to 'No schedule yet'","err");
+      return;
+    }
+    showToast("Job saved — opening the Assign Vendor tab","ok");
+    $("statusText").textContent="Saved. In V2 this routes to the new job's Assign Vendor tab.";
+  });
+
+  required.forEach(([fid,el])=>el.addEventListener("change",()=>$(fid).classList.remove("invalid")));
+
+  $("cancelBtn").addEventListener("click", ()=>{
+    showToast("Draft discarded","err");
+  });
+
+  // ---- Toast ----
+  let toastTimer;
+  function showToast(msg,kind){
+    const t=$("toast");
+    t.textContent=msg;
+    t.className="toast show "+(kind||"");
+    clearTimeout(toastTimer);
+    toastTimer=setTimeout(()=>t.classList.remove("show"),2600);
+  }
+
+  // ---- DNE fields: visible whenever the vendor section is open ----
+  // Customer DNE: from customer profile. Vendor DNE precedence:
+  // Emergency job + vendor profile Emergency DNE > vendor profile DNE > customer profile vendor DNE.
+  const custDne=$("custDne"), vendDne=$("vendDne"), vendDneSource=$("vendDneSource");
+  const customerProfileDneMock = {
+    "Blue Ridge Property Group":{customer:"2000.00", vendor:"200.00"},
+    "Fannin County Schools":{customer:"5000.00", vendor:"500.00"},
+    "Mountain View HOA":{customer:"1500.00", vendor:"150.00"},
+    "Toccoa Riverside Rentals":{customer:"2000.00", vendor:"250.00"}
+  };
+  // Vendor profile mock: dne and emergencyDne can be 0/absent (falls through)
+  const vendorProfileDneMock = {
+    "ACME Plumbing Co.":{dne:"300.00", emergencyDne:"750.00"},
+    "North Georgia Electric":{dne:"400.00", emergencyDne:"0.00"},
+    "Summit HVAC Services":{dne:"0.00", emergencyDne:"0.00"},   // no vendor DNE set — customer profile
+    "Ridgeline Roofing":{dne:"250.00"}                          // no emergency DNE
+  };
+  const has = v => v && parseFloat(v) > 0;
+
+  function fillDnes(){
+    const cp = customerProfileDneMock[customer.value];
+    custDne.value = cp ? cp.customer : "";
+    fillVendorDne();
+  }
+
+  function fillVendorDne(){
+    const cp = customerProfileDneMock[customer.value];
+    const vp = vendorProfileDneMock[vendor.value];
+    const isEmergency = priority.value === "Emergency";
+
+    if(vp && isEmergency && has(vp.emergencyDne)){
+      vendDne.value = vp.emergencyDne;
+      vendDneSource.textContent = "Auto-filled from the vendor profile (Emergency DNE) — editable for this job.";
+      vendDneSource.style.color = "var(--primary)";
+    } else if(vp && has(vp.dne)){
+      vendDne.value = vp.dne;
+      vendDneSource.textContent = "Auto-filled from the vendor profile — supersedes the customer profile value. Editable for this job.";
+      vendDneSource.style.color = "var(--primary)";
+    } else if(cp){
+      vendDne.value = cp.vendor;
+      vendDneSource.textContent = "Prefilled from the customer profile — editable for this job.";
+      vendDneSource.style.color = "";
+    } else {
+      vendDne.value = "";
+      vendDneSource.textContent = "Editable — goes on the vendor work order.";
+      vendDneSource.style.color = "";
+    }
+  }
+
+  customer.addEventListener("change", fillDnes);
+  vendor.addEventListener("change", fillVendorDne);
+  priority.addEventListener("change", fillVendorDne);
+  vendDne.addEventListener("input", ()=>{
+    vendDneSource.textContent = "Manually edited for this job.";
+    vendDneSource.style.color = "";
+  });
+
+  // ---- Vendor selection survey ----
+  const reasonSelect=$("reasonSelect"), reasonRemarks=$("reasonRemarks");
+  reasonSelect.addEventListener("change", ()=>{
+    const r = reasonSelect.value;
+    if(!r) return;
+    const existing = reasonRemarks.value.trim();
+    if(!existing.includes(r)){
+      reasonRemarks.value = existing ? existing + (existing.endsWith(".")?" ":". ") + r + ". " : r + ". ";
+    }
+    $("f-reason").classList.remove("invalid");
+    reasonRemarks.focus();
+    // place cursor at end so the admin can keep typing
+    reasonRemarks.setSelectionRange(reasonRemarks.value.length, reasonRemarks.value.length);
+  });
+  reasonRemarks.addEventListener("input", ()=>$("f-reason").classList.remove("invalid"));
+
+  // ---- Vendor schedule ----
+  const schedYes=$("schedYes"), schedNo=$("schedNo"), schedPicker=$("schedPicker"), schedInput=$("schedInput");
+  const tzDisplay=$("tzDisplay"), tzLoc=$("tzLoc"), tzRfi=$("tzRfi");
+  const RFI_TZ="America/New_York";
+
+  function locationTz(){
+    const d = mock[customer.value];
+    return (d && d.tz) || RFI_TZ;
+  }
+
+  // Convert a wall-clock time in a given tz to a Date (UTC instant)
+  function wallTimeToDate(dateTimeStr, tz){
+    const [d,t]=dateTimeStr.split("T");
+    const [y,m,day]=d.split("-").map(Number);
+    const [hh,mm]=t.split(":").map(Number);
+    // initial guess: treat as UTC, then correct by the tz offset at that instant
+    let guess = new Date(Date.UTC(y, m-1, day, hh, mm));
+    for(let i=0;i<2;i++){ // two passes handles DST edges
+      const inTz = new Date(guess.toLocaleString("en-US",{timeZone:tz}));
+      const diff = guess.getTime() - inTz.getTime();
+      guess = new Date(Date.UTC(y, m-1, day, hh, mm) + diff);
+    }
+    return guess;
+  }
+
+  function fmt(date, tz){
+    return new Intl.DateTimeFormat("en-US",{
+      timeZone:tz, month:"short", day:"numeric", year:"numeric",
+      hour:"numeric", minute:"2-digit"
+    }).format(date);
+  }
+
+  function updateTzDisplay(){
+    if(!schedInput.value){ tzDisplay.classList.remove("show"); syncSummary(); return; }
+    const tz = locationTz();
+    const instant = wallTimeToDate(schedInput.value, tz);
+    tzLoc.textContent = fmt(instant, tz);
+    tzRfi.textContent = fmt(instant, RFI_TZ);
+    tzDisplay.classList.add("show");
+    syncSummary();
+  }
+
+  function toggleSched(){
+    schedPicker.classList.toggle("open", schedYes.checked);
+    if(!schedYes.checked){ schedInput.value=""; tzDisplay.classList.remove("show"); }
+    syncSummary();
+  }
+  schedYes.addEventListener("change", toggleSched);
+  schedNo.addEventListener("change", toggleSched);
+  schedInput.addEventListener("change", updateTzDisplay);
+  customer.addEventListener("change", updateTzDisplay);
+
+  // ---- Vendor ETA window ----
+  // Defaults come from app Settings; Emergency jobs switch to hours.
+  const settingsMock = { etaDefaultDays: 5, etaEmergencyHours: 4 };
+  const etaWindow=$("etaWindow"), etaUnit=$("etaUnit"), etaSource=$("etaSource");
+  let etaTouched=false;
+
+  function applyEtaDefault(){
+    const isEmergency = priority.value === "Emergency";
+    etaUnit.textContent = isEmergency ? "hours" : "days";
+    etaWindow.value = isEmergency ? settingsMock.etaEmergencyHours : settingsMock.etaDefaultDays;
+    etaSource.textContent = isEmergency
+      ? "Emergency default from Settings (" + settingsMock.etaEmergencyHours + " hours) — editable for this job."
+      : "Default from Settings (" + settingsMock.etaDefaultDays + " days) — editable for this job.";
+    etaSource.style.color = "";
+    etaTouched=false;
+  }
+  applyEtaDefault();
+
+  priority.addEventListener("change", ()=>{
+    // Priority change re-applies the matching default (days<->hours are different scales,
+    // so a manual edit in one unit shouldn't carry into the other)
+    applyEtaDefault();
+  });
+  etaWindow.addEventListener("input", ()=>{
+    etaTouched=true;
+    etaSource.textContent = "Custom for this job (Settings default: " +
+      (priority.value==="Emergency" ? settingsMock.etaEmergencyHours+" hours" : settingsMock.etaDefaultDays+" days") + ").";
+  });
+
+  // ---- Work order attachments (vendor-visible) ----
+  const woDocs=[];
+  const woDropzone=$("woDropzone"), woFileInput=$("woFileInput"), woDocTable=$("woDocTable");
+  woDropzone.addEventListener("click", ()=>woFileInput.click());
+  woDropzone.addEventListener("keydown", e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();woFileInput.click();}});
+  ["dragover","dragenter"].forEach(ev=>woDropzone.addEventListener(ev,e=>{e.preventDefault();woDropzone.classList.add("drag");}));
+  ["dragleave","drop"].forEach(ev=>woDropzone.addEventListener(ev,e=>{e.preventDefault();woDropzone.classList.remove("drag");}));
+  woDropzone.addEventListener("drop", e=>addWoFiles(e.dataTransfer.files));
+  woFileInput.addEventListener("change", ()=>{addWoFiles(woFileInput.files);woFileInput.value="";});
+
+  function addWoFiles(fileList){
+    Array.from(fileList).forEach(f=>woDocs.push({name:f.name}));
+    renderWoDocs();
+    showToast(fileList.length + (fileList.length===1?" attachment":" attachments") + " added to the work order","ok");
+  }
+  function renderWoDocs(){
+    woDocTable.innerHTML="";
+    if(woDocs.length===0){
+      woDocTable.innerHTML='<tr class="empty-row"><td colspan="2">No attachments yet. Files added here are sent to the vendor.</td></tr>';
+      return;
+    }
+    woDocs.forEach((d,idx)=>{
+      const tr=document.createElement("tr");
+      tr.innerHTML='<td></td><td><button type="button" class="remove-link">Remove</button></td>';
+      tr.children[0].textContent=d.name;
+      tr.querySelector(".remove-link").addEventListener("click",()=>{woDocs.splice(idx,1);renderWoDocs();});
+      woDocTable.appendChild(tr);
+    });
+  }
+
+  const notesToggle=$("notesToggle"), notesList=$("notesList");
+  document.querySelectorAll("[data-note]").forEach((el,i)=>{
+    const n=i+1;
+    const badge=document.createElement("span");
+    badge.className="note-badge";
+    badge.textContent=n;
+    badge.title=el.dataset.note;
+    el.appendChild(badge);
+    const li=document.createElement("li");
+    li.innerHTML='<span class="n"></span><span></span>';
+    li.querySelector(".n").textContent=n;
+    li.children[1].textContent=el.dataset.note;
+    notesList.appendChild(li);
+  });
+  notesToggle.addEventListener("click", ()=>{
+    const on=document.body.classList.toggle("notes-on");
+    notesToggle.textContent = on ? "Hide dev notes" : "Show dev notes";
+  });
+
+  syncSummary();
+</script>
+</body>
+</html>

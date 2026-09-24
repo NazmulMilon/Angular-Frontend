@@ -1,0 +1,102 @@
+<div class="page">
+  <nav class="breadcrumb">
+    <a routerLink="/settings" class="breadcrumb__link">Settings</a>
+    <span class="breadcrumb__sep">/</span>
+    <span class="breadcrumb__current">Common Region</span>
+  </nav>
+
+  <div class="page__header">
+    <h1 class="page__title">Common Region</h1>
+    <p class="page__subtitle">Define named regions and assign US states to each. Shared across all customers.</p>
+  </div>
+
+  @if (error()) {
+    <div class="error-banner">{{ error() }}</div>
+  }
+
+  <div class="layout">
+    <!-- ── Left: form ── -->
+    <div class="panel">
+      <div class="panel__head">
+        Add New Region
+        @if (editingId() !== null) { <span class="panel__edit-tag">Editing</span> }
+      </div>
+      <div class="panel__body">
+        <form (ngSubmit)="save()">
+          <div class="field">
+            <label class="field__label" for="regionName">Region Name</label>
+            <input id="regionName" type="text" class="field__input" [ngModel]="formName()" (ngModelChange)="formName.set($event)" name="regionName" required placeholder="e.g. West Coast" />
+          </div>
+
+          <div class="field">
+            <label class="field__label">Select States for this Region</label>
+            <div class="state-grid">
+              @for (s of availableStates(); track s.key) {
+                <label class="state-check" [class.state-check--checked]="isStateChecked(s.key)">
+                  <input type="checkbox" [checked]="isStateChecked(s.key)" (change)="toggleState(s.key)" />
+                  <span>{{ s.name }}</span>
+                </label>
+              }
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="panel__footer">
+        <button type="button" class="btn btn--primary" [disabled]="!canSave" (click)="save()">{{ editingId() === null ? 'Save' : 'Update' }}</button>
+        <button type="button" class="btn btn--secondary" (click)="clearForm()">Clear</button>
+      </div>
+    </div>
+
+    <!-- ── Right: grid ── -->
+    <div class="list-col">
+      <div class="list-head">
+        <h3 class="list-title">Existing Regions</h3>
+        <input type="search" class="list-search" [ngModel]="search()" (ngModelChange)="search.set($event)" name="search" placeholder="Search by region name…" />
+      </div>
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th class="th--num">SL</th>
+              <th>Region</th>
+              <th>States</th>
+              <th class="th--actions"></th>
+            </tr>
+          </thead>
+          <tbody>
+            @if (loading()) {
+              <tr><td colspan="4" class="td--empty">Loading regions…</td></tr>
+            } @else {
+            @for (row of filteredRegions(); track row.id; let idx = $index) {
+              <tr [class.tr--active]="editingId() === row.id">
+                <td class="td--num">{{ idx + 1 }}</td>
+                <td class="td--region">{{ row.name }}</td>
+                <td class="td--states">
+                  @for (k of row.stateKeys; track k) {
+                    <span class="state-badge">
+                      {{ stateName(k) }}
+                      <button type="button" class="state-badge__x" title="Remove state" (click)="removeState(row, k)">×</button>
+                    </span>
+                  }
+                </td>
+                <td class="td--actions">
+                  <button type="button" class="icon-btn icon-btn--edit" title="Edit" (click)="selectRow(row)">
+                    <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M10.586 1.586a2 2 0 0 1 2.828 2.828L5.5 12.328l-3.6.9.9-3.6 7.786-8.042Z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </button>
+                  <button type="button" class="icon-btn icon-btn--delete" title="Delete" (click)="confirmDelete(row)">
+                    <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M2.5 4.5h10M5.5 4.5V3a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v1.5m1.5 0-.5 8a1 1 0 0 1-1 1h-5a1 1 0 0 1-1-1l-.5-8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </button>
+                </td>
+              </tr>
+            } @empty {
+              <tr><td colspan="4" class="td--empty">{{ search().trim() ? 'No regions match your search.' : 'No regions defined.' }}</td></tr>
+            }
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<app-confirm-dialog />

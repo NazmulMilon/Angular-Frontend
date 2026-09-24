@@ -1,0 +1,930 @@
+@if (loading() && !card()) {
+  <div class="panel">
+    <div class="sec-head"><span class="n">2</span><h3>Invoice Customer</h3></div>
+    <div class="loading-row">Loading…</div>
+  </div>
+} @else if (errorMessage()) {
+  <div class="panel">
+    <div class="sec-head"><span class="n">2</span><h3>Invoice Customer</h3></div>
+    <div class="error-row">{{ errorMessage() }}</div>
+  </div>
+} @else if (card(); as c) {
+  <div class="panel">
+    <div class="sec-head">
+      <span class="n">2</span>
+      <h3>Invoice Customer</h3>
+      <span class="sub">System auto-created our invoice to the customer at vendor check-out, using the highest-priority source available.</span>
+      <div class="right">
+        @if (c.invoiceNo) {
+          <span class="chip">INVOICE No: {{ c.invoiceNo }}</span>
+        }
+        @if (c.terms) {
+          <span class="chip">TERMS: {{ c.terms }}</span>
+        }
+      </div>
+    </div>
+
+    <!-- Auto-create tier bar -->
+    <div class="tierbar">
+      <span class="tierbar-label">Auto-create tier (RFI-25):</span>
+      @for (label of c.allTierLabels; track label; let i = $index) {
+        <span
+          class="tier"
+          [class.hit]="i === tierIndex()"
+          [class.skip]="tierIndex() >= 0 && i < tierIndex()"
+        >{{ label }}</span>
+      }
+    </div>
+
+    <!-- Tier banner -->
+    <div class="inv-src banner">
+      <div class="ico">{{ c.bannerIcon }}</div>
+      <div>{{ c.bannerText }}</div>
+    </div>
+
+    <!-- Late-vendor-invoice reconciliation callouts (one per drifting vendor) -->
+    @for (callout of c.lateVendorInvoiceCallouts; track callout.vendorInvoiceKey) {
+      <div class="inv-src callout">
+        <div class="ico">🔄</div>
+        <div class="callout-body">
+          <b>Vendor invoice arrived AFTER this invoice was created.</b>
+          "{{ callout.vendorName }}" uploaded vendor invoice {{ callout.vendorInvoiceNo }} at
+          <b>{{ callout.vendorInvoiceTotal | currency }}</b> vs
+          <b>{{ callout.revisedVendorDneTotal | currency }}</b> revised vendor DNE
+          ({{ callout.delta < 0 ? '−' : '+' }}{{ (callout.delta | number: '1.2-2') }}).
+          The change must reflect on this customer invoice before it is prepped/sent.
+          <div class="callout-actions">
+            <button type="button" class="btn sm ghost-blue" (click)="onViewVendorInvoice(callout)">📄 View vendor invoice</button>
+            <button
+              type="button"
+              class="btn green sm"
+              [disabled]="!!reflectSavingKey()"
+              (click)="reflectVendorInvoiceChange(callout)"
+            >
+              🔄 {{ reflectSavingKey() === callout.vendorInvoiceKey ? 'Reflecting…' : 'Reflect change on customer invoice (' + (callout.delta < 0 ? '−' : '+') + (callout.delta | number: '1.2-2') + ')' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- Customer invoicing profile -->
+    <div class="inv-src profile">
+      <div class="ico">👤</div>
+      <div class="profile-body">
+        <b class="section-label">Customer invoicing profile (from Customer Profile)</b>
+        <div class="row">
+          <b>Accounting contact:</b>
+          {{ c.customerProfile.accountingContactName || '—' }}
+          @if (c.customerProfile.accountingContactEmail) {
+            &lt;<span class="link">{{ c.customerProfile.accountingContactEmail }}</span>&gt;
+          }
+        </div>
+        <div class="row">
+          <b>Verification required by this customer:</b>
+          <span class="badge" [class.b-blue]="c.customerProfile.signoffRequired" [class.b-gray]="!c.customerProfile.signoffRequired">
+            Sign-off {{ c.customerProfile.signoffRequired ? 'REQUIRED' : 'advisory' }}
+          </span>
+          <span class="badge" [class.b-blue]="c.customerProfile.afterPicsRequired" [class.b-gray]="!c.customerProfile.afterPicsRequired">
+            After-pics {{ c.customerProfile.afterPicsRequired ? 'REQUIRED' : 'advisory' }}
+          </span>
+          <span class="badge" [class.b-blue]="c.customerProfile.aiBotCallsAllowed" [class.b-gray]="!c.customerProfile.aiBotCallsAllowed">
+            AI bot calls {{ c.customerProfile.aiBotCallsAllowed ? 'allowed' : 'OFF — human calls only' }}
+          </span>
+        </div>
+        <div class="row">
+          <b>Minimum Markup for Estimates and Invoices:</b>
+          {{ c.customerProfile.minMarkupRulesLabel || '—' }}
+        </div>
+        <div class="row">
+          <b>Special invoicing instructions:</b>
+          @if (c.customerProfile.specialInstructions) {
+            {{ c.customerProfile.specialInstructions }}
+          } @else {
+            <span class="muted">None on file</span>
+          }
+          @if (c.customerProfile.portalUrl) {
+            <a [href]="c.customerProfile.portalUrl" target="_blank" class="btn sm ghost-blue">🔗 Customer's Invoicing Portal</a>
+            @if (c.customerProfile.portalUploadRequired) {
+              <span class="badge b-amber">☑ PROFILE: INVOICES REQUIRED TO BE UPLOADED TO THE CUSTOMER'S OWN PORTAL</span>
+            }
+          } @else {
+            <span class="muted">No customer invoicing portal on file</span>
+          }
+        </div>
+        @if (c.customerProfile.portalUploadRequired && c.hasInvoice) {
+          <div class="portal-verify">
+            <span class="muted portal-verify-note">
+              ℹ This is <b>the customer's own portal</b> (theirs) — NOT our RFI customer portal.
+              @if (c.isDepositInvoice) {
+                <b>Deposit job: this must be verified TWICE — once for the deposit invoice, once for the final invoice.</b>
+              }
+            </span>
+            @if (c.isDepositInvoice) {
+              <label class="portal-check" [class.done]="c.portalUploadedDeposit">
+                <input
+                  type="checkbox"
+                  [checked]="c.portalUploadedDeposit"
+                  [disabled]="portalUploadSaving()"
+                  (change)="togglePortalUpload(PortalUploadVerificationKind.Deposit, $any($event.target).checked)"
+                />
+                <b>{{ c.portalUploadedDeposit ? '✓ ' : '' }}1 · Uploaded DEPOSIT invoice to the customer's portal</b>
+                @if (c.portalUploadedDeposit && c.portalUploadedDepositAt) {
+                  <span class="muted">· {{ c.portalUploadedDepositAt | date: 'M/d/yy h:mm a' }}</span>
+                }
+              </label>
+            }
+            <label class="portal-check" [class.done]="c.portalUploadedFinal">
+              <input
+                type="checkbox"
+                [checked]="c.portalUploadedFinal"
+                [disabled]="portalUploadSaving()"
+                (change)="togglePortalUpload(PortalUploadVerificationKind.Final, $any($event.target).checked)"
+              />
+              <b>{{ c.portalUploadedFinal ? '✓ ' : '' }}{{ c.isDepositInvoice ? '2 · ' : '' }}Uploaded {{ c.isDepositInvoice ? 'FINAL' : 'Customer' }} Invoice to the customer's portal</b>
+              @if (c.portalUploadedFinal && c.portalUploadedFinalAt) {
+                <span class="muted">· {{ c.portalUploadedFinalAt | date: 'M/d/yy h:mm a' }}</span>
+              }
+            </label>
+            <span class="muted portal-verify-required">— required before this job can move off this screen</span>
+          </div>
+        }
+      </div>
+    </div>
+
+    <!-- Staged attachments + pinned notes to Accounting for THIS invoice -- complete-screen-v2.html
+         renders this as ONE row, right below the Customer Invoicing Profile box, split into two
+         columns (only whichever side has content shows): "📎 Attached to customer email"
+         (`j.attachSel`, staged across Approve+Send, persists until the invoice is actually sent) and
+         "📌 Pinned — notes to Accounting" (`iPinned = j.notesToAcct.filter(n=>n.rel==='cust-invoice')`). -->
+    @if (stagedAttachmentKeys().size > 0 || c.pinnedApprovalNotes.length > 0) {
+      <div class="inv-src staged-row">
+        @if (stagedAttachmentKeys().size > 0) {
+          <div class="staged-col" [class.bordered]="c.pinnedApprovalNotes.length > 0">
+            <div class="ico">📎</div>
+            <div class="staged-body">
+              <b class="section-label">Attached to customer email</b>
+              <button type="button" class="btn sm ghost-blue" style="margin-left:6px" (click)="changeStagedAttachments()">✎ change</button>
+              <div style="margin-top:3px">
+                <span class="badge b-blue">{{ stagedAttachmentKeys().size }} selected</span>
+                {{ stagedAttachmentNames().join(', ') }}
+              </div>
+            </div>
+          </div>
+        }
+        @if (c.pinnedApprovalNotes.length > 0) {
+          <div class="staged-col pinned-row">
+            <div class="ico">📌</div>
+            <div class="pinned-body">
+              <b class="section-label pinned-label">Pinned — notes to Accounting (this invoice)</b>
+              <div class="pinned-notes" style="margin-top:4px">
+                @for (n of c.pinnedApprovalNotes; track n.noteKey) {
+                  <div class="pinned-note">
+                    <div class="pinned-note-meta">
+                      {{ n.addedByName || 'Staff' }} · {{ n.addedOn | date: 'M/d/yy h:mm a' }}
+                      <span class="badge b-pink">{{ n.relatedLabel }}</span>
+                    </div>
+                    {{ n.comment }}
+                  </div>
+                }
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+    }
+
+    <!-- Running gross profit -->
+    <div class="inv-src gp">
+      <div class="ico">📊</div>
+      <div class="gp-body">
+        <b class="section-label">Running Gross Profit — auto-calculated</b>
+        <div class="chips">
+          @if (c.grossProfit.vendorRows.length) {
+            @for (row of c.grossProfit.vendorRows; track row.vendorName) {
+              <span class="badge" [class.b-blue]="row.payable" [class.b-gray]="!row.payable">
+                {{ row.vendorName }}: {{ row.cost | currency }}{{ row.payable ? '' : ' · pending decision' }}
+              </span>
+            }
+          } @else {
+            <span class="muted">No active vendors (all removed / not payable)</span>
+          }
+        </div>
+        <div class="boxes">
+          <div class="box">
+            <div class="box-label">Combined Vendor Cost</div>
+            <div class="box-value">{{ c.grossProfit.combinedVendorCost | currency }}</div>
+          </div>
+          <div class="box">
+            <div class="box-label">Customer Invoice Total</div>
+            <div class="box-value">{{ c.grossProfit.customerInvoiceTotal | currency }}</div>
+          </div>
+          <div class="box">
+            <div class="box-label">Gross Profit</div>
+            <div class="box-value" [class.good]="c.grossProfit.grossProfit >= 0" [class.bad]="c.grossProfit.grossProfit < 0">
+              {{ c.grossProfit.grossProfit | currency }}
+            </div>
+          </div>
+          <div class="box">
+            <div class="box-label">Profit Margin</div>
+            <div class="box-value" [class.bad]="c.grossProfit.belowMinimumMarkup">
+              {{ c.grossProfit.profitMarginPercent === null ? '—' : (c.grossProfit.profitMarginPercent | number: '1.1-1') + '%' }}
+            </div>
+          </div>
+          <div class="box">
+            <div class="box-label">Mark-up vs Vendor Cost</div>
+            <div class="box-value" [class.bad]="c.grossProfit.belowMinimumMarkup">
+              {{ c.grossProfit.markupPercent === null ? '—' : (c.grossProfit.markupPercent | number: '1.1-1') + '%' }}
+            </div>
+          </div>
+          <div class="box">
+            <div class="box-label">Min Mark-up Target</div>
+            <div class="box-value" [class.bad]="c.grossProfit.belowMinimumMarkup">
+              {{ c.grossProfit.minMarkupTargetPercent === null ? '—' : (c.grossProfit.minMarkupTargetPercent | number: '1.0-0') + '%' }}
+            </div>
+          </div>
+        </div>
+        @if (c.grossProfit.minMarkupTargetRuleLabel) {
+          <div class="rule-note">
+            Target rule applied: <b>{{ c.grossProfit.minMarkupTargetRuleLabel }} → {{ c.grossProfit.minMarkupTargetPercent | number: '1.0-0' }}%</b>
+          </div>
+        }
+        @if (c.grossProfit.belowMinimumMarkup) {
+          <div class="below-warning">
+            ⚠ BELOW MINIMUM MARK-UP TARGET: current mark-up {{ c.grossProfit.markupPercent | number: '1.1-1' }}% is under
+            this customer's {{ c.grossProfit.minMarkupTargetPercent | number: '1.0-0' }}% minimum.
+            <b>Sending to customer and moving to Accounting are BLOCKED</b> until the cost is fixed, or the QC Manager
+            approves an override.
+            <div class="qc-override-row">
+              @switch (markupOverride()?.status) {
+                @case ('Pending') {
+                  <span class="badge b-amber">⏳ QC OVERRIDE PENDING{{ markupOverride()?.requestedByName ? ' — requested by ' + markupOverride()?.requestedByName : '' }} — awaiting QC Manager decision on the Below Minimum Mark-up Approvals page</span>
+                }
+                @case ('Approved') {
+                  <span class="badge b-complete">✓ QC APPROVED override{{ markupOverride()?.decidedByName ? ' — ' + markupOverride()?.decidedByName : '' }}{{ markupOverride()?.decisionNote ? ' ("' + markupOverride()?.decisionNote + '")' : '' }}</span>
+                }
+                @case ('Rejected') {
+                  <span class="badge b-red">✕ QC DECLINED — {{ markupOverride()?.decisionNote || 'no comment' }}</span>
+                  <button type="button" class="btn ghost-amber sm" [disabled]="markupOverrideSaving()" (click)="requestMarkupOverride()">⤴ Re-request override</button>
+                }
+                @default {
+                  <button type="button" class="btn ghost-amber sm" [disabled]="markupOverrideSaving()" (click)="requestMarkupOverride()">⤴ Override — email QC Manager for approval</button>
+                }
+              }
+            </div>
+          </div>
+        }
+        @if (c.grossProfit.customerInvoiceTotal <= 0) {
+          <div class="no-invoice-note">No customer invoice charges yet — gross profit will calculate as charges are added.</div>
+        }
+      </div>
+    </div>
+
+    @if (!c.hasInvoice) {
+      @if (awaitingAutoCreate()) {
+        <div class="no-invoice-banner">
+          ⏳ Checking for an eligible source (approved customer estimate → approved vendor invoices → approved vendor estimates) to automatically create the customer invoice…
+        </div>
+      } @else {
+        <div class="scratch-section">
+          <div class="no-invoice-banner">No automatic source was found — add the customer invoice's charges manually.</div>
+          <table class="grid scratch-grid">
+            <thead>
+              <tr><th>Charge Type</th><th>Description</th><th class="num">Qty</th><th class="num">Rate</th><th class="num">Amount</th><th></th></tr>
+            </thead>
+            <tbody>
+              @for (line of scratchLines(); track $index) {
+                <tr>
+                  <td>
+                    <select
+                      class="scratch-input"
+                      [ngModel]="line.chargeTypeKey"
+                      (ngModelChange)="updateScratchLine($index, { chargeTypeKey: $event })"
+                    >
+                      <option value="">Select…</option>
+                      @for (opt of chargeTypeOptions(); track opt.chargeTypeKey) {
+                        <option [value]="opt.chargeTypeKey">{{ opt.name }}</option>
+                      }
+                    </select>
+                  </td>
+                  <td>
+                    <input
+                      class="scratch-input"
+                      type="text"
+                      placeholder="Description…"
+                      [ngModel]="line.description"
+                      (ngModelChange)="updateScratchLine($index, { description: $event })"
+                    />
+                  </td>
+                  <td class="num">
+                    <input
+                      class="scratch-input num"
+                      type="number"
+                      step="0.01"
+                      [ngModel]="line.qty"
+                      (ngModelChange)="updateScratchLine($index, { qty: +$event })"
+                    />
+                  </td>
+                  <td class="num">
+                    <input
+                      class="scratch-input num"
+                      type="number"
+                      step="0.01"
+                      [ngModel]="line.rate"
+                      (ngModelChange)="updateScratchLine($index, { rate: +$event })"
+                    />
+                  </td>
+                  <td class="num">{{ line.qty * line.rate | currency }}</td>
+                  <td class="num"><button type="button" class="btn sm" (click)="removeScratchLine($index)">🗑</button></td>
+                </tr>
+              } @empty {
+                <tr><td colspan="6" class="empty-row">No charges yet — click "+ Add charge line" below.</td></tr>
+              }
+            </tbody>
+            @if (scratchLines().length > 0) {
+              <tfoot>
+                <tr class="total"><td colspan="4">Total</td><td class="num">{{ scratchTotal() | currency }}</td><td></td></tr>
+              </tfoot>
+            }
+          </table>
+          @if (scratchError()) {
+            <div class="below-warning">{{ scratchError() }}</div>
+          }
+          <div class="row" style="margin-top: 8px">
+            <button type="button" class="btn sm" (click)="addScratchLine()">＋ Add charge line</button>
+            <button
+              type="button"
+              class="btn green sm"
+              [disabled]="scratchSaving() || scratchLines().length === 0"
+              (click)="createFromScratch()"
+            >
+              {{ scratchSaving() ? 'Creating…' : '✓ Create Customer Invoice' }}
+            </button>
+          </div>
+        </div>
+      }
+    } @else {
+      <!-- Invoice document -->
+      <div class="inv-doc">
+        <div class="inv-top">
+          <div class="co">
+            <div class="lg">retail<b>fix</b>it</div>
+            <p>Retail Contracting Service, Inc DBA retailfixit.com · 8014 Cumming Highway Suite 403-319 Canton, GA 30115 · accounting&#64;retailfixit.com</p>
+          </div>
+          <div class="inv-meta">
+            <div><b>CUSTOMER:</b> {{ c.customerName || '—' }}</div>
+            <div><b>SERVICE LOCATION:</b> {{ c.serviceLocationName || '—' }}</div>
+            <div><b>RCS PO:</b> {{ c.po || '—' }} &nbsp; <b>DATE:</b> {{ c.completionDate ? (c.completionDate | date: 'M/d/yy h:mma') : '—' }}</div>
+            @if (c.invoiceNo) {
+              <div><b>INVOICE No:</b> {{ c.invoiceNo }}</div>
+            } @else {
+              <div class="muted">Invoice number assigned on approval</div>
+            }
+          </div>
+        </div>
+        @if (!editingInvoice()) {
+          <table class="grid">
+            <thead>
+              <tr>
+                <th class="desc-col">Description</th>
+                <th class="num-col">Qty</th>
+                <th class="num-col">Cost</th>
+                <th class="num-col">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (line of c.lineItems; track line.detailKey) {
+                <tr [class.line-struck]="line.isReversed">
+                  <td>
+                    @if (line.isAdjustmentLine) {
+                      <span class="badge b-complete" style="text-decoration:none">DISCOUNT / ADJUSTMENT</span>
+                    }
+                    @if (line.isReversed) {
+                      <span class="badge b-red" style="text-decoration:none">CHARGE REMOVED ⤵</span>
+                    }
+                    <span [innerHTML]="line.description"></span>
+                  </td>
+                  <td class="num">{{ line.qty | number: '1.2-2' }}</td>
+                  <td class="num" [class.amount-negative]="line.amount < 0">{{ line.rate | number: '1.2-2' }}</td>
+                  <td class="num" [class.amount-negative]="line.amount < 0">{{ line.amount | number: '1.2-2' }}</td>
+                </tr>
+              } @empty {
+                <tr><td colspan="4" class="muted empty-row">No charges on this invoice.</td></tr>
+              }
+              <tr class="total">
+                <td colspan="3">TOTAL</td>
+                <td class="num">{{ c.invoiceTotal | currency }}</td>
+              </tr>
+              @if (c.depositAmount) {
+                <tr class="deposit">
+                  <td colspan="3">LESS DEPOSIT PAID</td>
+                  <td class="num">− {{ c.depositAmount | currency }}</td>
+                </tr>
+                <tr class="total">
+                  <td colspan="3">BALANCE DUE</td>
+                  <td class="num">{{ c.balanceDue | currency }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        } @else {
+          <!-- "✎ Edit Invoice" mode -- complete-screen-v2.html's editingInvoice table: every existing
+               line becomes editable (description/qty/cost + a mandatory Charge Type), with a delete
+               button per row; new rows added via "+ Add charge line" below. -->
+          <table class="grid scratch-grid">
+            <thead>
+              <tr><th>Charge Type</th><th class="desc-col">Description</th><th class="num-col">Qty</th><th class="num-col">Cost</th><th class="num-col">Total</th><th></th></tr>
+            </thead>
+            <tbody>
+              @for (line of editLines(); track (line.lineItemKey ?? 'new-' + line.tempIndex)) {
+                <tr>
+                  <td>
+                    <select
+                      class="scratch-input"
+                      [ngModel]="line.chargeTypeKey"
+                      (ngModelChange)="updateEditLine($index, { chargeTypeKey: $event })"
+                    >
+                      <option value="">Select…</option>
+                      @for (opt of chargeTypeOptions(); track opt.chargeTypeKey) {
+                        <option [value]="opt.chargeTypeKey">{{ opt.name }}</option>
+                      }
+                    </select>
+                  </td>
+                  <td>
+                    <input
+                      class="scratch-input"
+                      type="text"
+                      [ngModel]="line.description"
+                      (ngModelChange)="updateEditLine($index, { description: $event })"
+                    />
+                  </td>
+                  <td class="num">
+                    <input
+                      class="scratch-input num"
+                      type="number"
+                      step="0.01"
+                      [ngModel]="line.qty"
+                      (ngModelChange)="updateEditLine($index, { qty: +$event })"
+                    />
+                  </td>
+                  <td class="num">
+                    <input
+                      class="scratch-input num"
+                      type="number"
+                      step="0.01"
+                      [ngModel]="line.rate"
+                      (ngModelChange)="updateEditLine($index, { rate: +$event })"
+                    />
+                  </td>
+                  <td class="num">{{ line.qty * line.rate | currency }}</td>
+                  <td class="num"><button type="button" class="btn sm" (click)="removeEditLine($index)">🗑</button></td>
+                </tr>
+              } @empty {
+                <tr><td colspan="6" class="empty-row">No charges — click "+ Add charge line" below.</td></tr>
+              }
+              <tr class="total"><td colspan="4">TOTAL</td><td class="num">{{ editTotal() | currency }}</td><td></td></tr>
+            </tbody>
+          </table>
+        }
+        @if (c.serviceRequest) {
+          <div class="inv-service-request"><b>SERVICE REQUEST:</b> {{ c.serviceRequest }}</div>
+        }
+      </div>
+
+      @if (!c.approvedByAm) {
+        <!-- Not yet approved: complete-screen-v2.html's "else" foot branch. -->
+        <div class="inv-foot">
+          @if (editingInvoice()) {
+            <button type="button" class="btn sm" (click)="addEditLine()">＋ Add charge line</button>
+            <button type="button" class="btn sm ghost-blue" (click)="openDiscountModal()">💲 Apply customer discount / adjustment</button>
+            <span class="muted" style="font-size:10.5px;align-self:center">All amounts editable — every add, edit, and delete is recorded on Done editing.</span>
+            <button type="button" class="btn green sm" [disabled]="editSaving()" (click)="doneEditingInvoice()">
+              {{ editSaving() ? 'Saving…' : 'Done editing' }}
+            </button>
+          } @else {
+            <button type="button" class="btn sm" (click)="startEditingInvoice()">✎ Edit Invoice</button>
+            <button type="button" class="btn sm ghost-blue" (click)="openDiscountModal()">💲 Apply customer discount / adjustment</button>
+            <span class="dropdown-wrap">
+              <select
+                class="btn sm scratch-input"
+                style="padding:5px 8px"
+                [disabled]="createNewSrcSaving()"
+                (change)="onCreateNewSrcChange($any($event.target).value, $any($event.target))"
+              >
+                <option value="">Create new from…</option>
+                <option value="3">Approved customer estimate</option>
+                <option value="1">Vendor invoice</option>
+                <option value="2">Vendor estimate / on-site approval</option>
+                <option value="0">Scratch</option>
+              </select>
+            </span>
+          }
+          @if (editError()) {
+            <div class="below-warning" style="flex-basis:100%">{{ editError() }}</div>
+          }
+          @if (createNewSrcError()) {
+            <div class="below-warning" style="flex-basis:100%">{{ createNewSrcError() }}</div>
+          }
+          <div class="right">
+            <button type="button" class="btn green" [disabled]="c.lineItems.length === 0" (click)="openApproveModal()">
+              ✓ Approve Customer Invoice{{ c.lineItems.length ? ' · ' + (c.invoiceTotal | currency) : '' }}
+            </button>
+          </div>
+        </div>
+      } @else {
+        <!-- Approved: complete-screen-v2.html's inv.approved foot branch. -->
+        <div class="inv-foot">
+          <span class="approved-stamp">APPROVED</span>
+          <span style="font-size:12px;color:var(--green);font-weight:700">
+            Customer invoice approved{{ c.approvedOn ? ' ' + (c.approvedOn | date: 'M/d/yy h:mm a') : '' }}{{ c.approvedByName ? ' · ' + c.approvedByName : '' }}
+          </span>
+          <div class="right">
+            <button type="button" class="btn sm" [disabled]="c.sentToCustomer || undoApproveSaving()" (click)="undoApproveInvoice()">
+              {{ undoApproveSaving() ? 'Undoing…' : 'Undo approval' }}
+            </button>
+            @if (c.sentToCustomer) {
+              <span class="badge b-complete">📧 SENT{{ c.sentAt ? ' · ' + (c.sentAt | date: 'M/d/yy h:mm a') : '' }}</span>
+              <button type="button" class="btn sm" (click)="openSendModal(true)">Re-send</button>
+            } @else {
+              <button type="button" class="btn primary" (click)="openSendModal(false)">
+                📧 Send Invoice to Customer Now <span style="font-weight:400;font-size:10px">· required before QBO</span>
+              </button>
+            }
+          </div>
+        </div>
+
+        @if (c.sentToCustomer) {
+          <div class="inv-foot" style="border-top:1px dashed var(--line)">
+            <b style="font-size:10.5px;letter-spacing:.5px;text-transform:uppercase;color:var(--ink2)">QuickBooks Online</b>
+            @if (c.pushedToQuickBooks) {
+              <span class="badge b-complete">✓ IN QBO · {{ c.qbRefNo }} · MANUALLY ENTERED{{ c.qbManualAmount ? ' · ' + (c.qbManualAmount | currency) : '' }}</span>
+            } @else {
+              <button type="button" class="btn green sm" (click)="showQboComingSoon()">
+                ⬆ Upload customer invoice to QuickBooks NOW (API — this button does the actual upload, independent of &amp; usually long before the vendor bills)
+              </button>
+              <span class="qbo-manual-wrap">
+                <label class="qbo-manual-label">
+                  <input type="checkbox" [checked]="qboManualOpen()" (change)="qboManualOpen() ? (qboManualOpen.set(false)) : openQboManualEntry()" />
+                  Fail-safe: Teresa manually entered invoice in QBO
+                </label>
+                @if (qboManualOpen()) {
+                  <span class="qbo-manual-row">
+                    <input class="scratch-input" style="max-width:180px" placeholder="QB transaction # (required)" [ngModel]="qboRefNo()" (ngModelChange)="qboRefNo.set($event)" />
+                    <button type="button" class="btn sm" [disabled]="qboSaving()" (click)="saveQboManualEntry()">{{ qboSaving() ? 'Saving…' : 'Save' }}</button>
+                  </span>
+                }
+              </span>
+            }
+            <span class="muted" style="font-size:10px;margin-left:auto">🔒 Vendor bills CANNOT go to QBO until the invoice is emailed to the customer AND in QBO.</span>
+            @if (qboError()) {
+              <div class="below-warning" style="flex-basis:100%">{{ qboError() }}</div>
+            }
+          </div>
+        }
+      }
+    }
+  </div>
+
+  @if (qboUploadComingSoon()) {
+    <div class="modal-overlay" (click)="closeQboComingSoon()">
+      <div class="modal-panel" style="max-width:420px" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h3>⬆ QuickBooks Upload</h3>
+          <button type="button" class="btn sm" (click)="closeQboComingSoon()">✕</button>
+        </div>
+        <div class="modal-body">
+          <p>This feature is coming soon — direct QuickBooks Online API upload isn't integrated yet. Stay tuned!</p>
+          <p class="muted">In the meantime, use "Fail-safe: Teresa manually entered invoice in QBO" to record a manual entry.</p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn" (click)="closeQboComingSoon()">Close</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- "💲 Apply Customer Discount / Adjustment" modal -- complete-screen-v2.html's openDiscountModal(). -->
+  @if (discountModalOpen()) {
+    <div class="modal-overlay" (click)="closeDiscountModal()">
+      <div class="modal-panel" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h3>💲 Apply Customer Discount / Adjustment</h3>
+          <button type="button" class="btn sm" (click)="closeDiscountModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="muted" style="font-size:11.5px;margin-bottom:10px">
+            The original charge stays visible on the invoice — this adds a <b>new negative line</b> below it, so the customer sees the charge AND sees it taken back off.
+          </div>
+
+          <b class="section-label">Option A — Remove / reverse a charge above (full amount)</b>
+          <table class="grid" style="margin-top:6px">
+            <thead><tr><th>Charge</th><th class="num-col">Amount</th><th></th></tr></thead>
+            <tbody>
+              @for (line of reversibleLines(); track line.detailKey) {
+                <tr>
+                  <td [innerHTML]="line.description"></td>
+                  <td class="num">{{ line.amount | number: '1.2-2' }}</td>
+                  <td class="num">
+                    <button type="button" class="btn sm ghost-blue" [disabled]="discountSaving()" (click)="applyReverseCharge(line.detailKey)">
+                      ↩ Remove this charge (−{{ line.amount | currency }})
+                    </button>
+                  </td>
+                </tr>
+              } @empty {
+                <tr><td colspan="3" class="muted" style="text-align:center">No charges available to reverse.</td></tr>
+              }
+            </tbody>
+          </table>
+
+          <b class="section-label" style="display:block;margin-top:14px">Option B — Custom discount / adjustment amount</b>
+          <div class="discount-option-b">
+            <input
+              class="scratch-input"
+              style="flex:2;min-width:220px"
+              placeholder="Reason / description (e.g. Goodwill discount, price match)"
+              [ngModel]="discountDesc()"
+              (ngModelChange)="discountDesc.set($event)"
+            />
+            <input
+              class="scratch-input num"
+              style="flex:1;min-width:110px;max-width:none"
+              type="number"
+              step="0.01"
+              placeholder="Amount, e.g. 150.00"
+              [ngModel]="discountAmount()"
+              (ngModelChange)="discountAmount.set($event === '' ? null : +$event)"
+            />
+            <button type="button" class="btn green sm" [disabled]="discountSaving()" (click)="applyCustomDiscount()">
+              {{ discountSaving() ? 'Applying…' : 'Apply −$ discount' }}
+            </button>
+          </div>
+
+          @if (discountError()) {
+            <div class="below-warning" style="margin-top:10px">{{ discountError() }}</div>
+          }
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn" [disabled]="discountSaving()" (click)="closeDiscountModal()">Close</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- "✓ Approve Customer Invoice" popup -- complete-screen-v2.html's renderApproveModal(), matched
+       to its exact look: big-thumbnail card grids (not a plain table) with a check-out (after) pics
+       grid first, then the full job-attachments grid below, both click-to-view-full-size. -->
+  @if (approveModalOpen() && card(); as ac) {
+    <div class="modal-overlay" (click)="closeApproveModal()">
+      <div class="modal-panel" style="max-width:980px" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h3>✓ Approve Customer Invoice{{ ac.invoiceNo ? ' #' + ac.invoiceNo : '' }} · {{ ac.balanceDue | currency }}</h3>
+          <button type="button" class="btn sm" (click)="closeApproveModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="approve-steps-banner">
+            Two quick steps before this approval completes:
+            <b>① attach pics for the customer's invoice email</b> → <b style="color:var(--pink)">② note to Accounting</b>.
+            <span class="badge b-blue" style="margin-left:6px">{{ stagedAttachmentKeys().size }} attachment(s) selected</span>
+          </div>
+
+          <div class="step-row">
+            <span class="step-circle" style="background:var(--blue)">1</span>
+            <b class="step-label">Attachments &amp; pics for the customer email — check-out (after) pics first</b>
+          </div>
+          @if (checkoutAttachmentOptions().length) {
+            <div class="attach-grid">
+              @for (opt of checkoutAttachmentOptions(); track opt.key) {
+                <div class="attach-card" [class.sel]="stagedAttachmentKeys().has(opt.key)">
+                  <label class="attach-check-bar" [class.sel]="stagedAttachmentKeys().has(opt.key)">
+                    <input type="checkbox" [checked]="stagedAttachmentKeys().has(opt.key)" (change)="toggleAttachment(stagedAttachmentKeys, opt.key)" />
+                    INCLUDE IN CUSTOMER EMAIL
+                  </label>
+                  <div class="attach-thumb" (click)="openLightbox(checkoutAttachmentOptions(), $index)">
+                    {{ attachmentIcon(opt) }}
+                    <span class="attach-thumb-badge">🔍 View full size</span>
+                  </div>
+                  <div class="attach-name">{{ opt.fileName }}</div>
+                  <span class="attach-tag">{{ opt.vendorName || '—' }} · {{ opt.uploadedOn ? (opt.uploadedOn | date: 'M/d/yy') : '—' }} · CHECK-OUT</span>
+                </div>
+              }
+            </div>
+          } @else {
+            <div class="muted" style="font-size:11.5px;margin:6px 0 2px">None.</div>
+          }
+
+          <b class="section-label" style="display:block;margin-top:10px">All job attachments (customer &amp; vendors)</b>
+          @if (attachmentOptions().length) {
+            <div class="attach-grid">
+              @for (opt of attachmentOptions(); track opt.key) {
+                <div class="attach-card" [class.sel]="stagedAttachmentKeys().has(opt.key)">
+                  <label class="attach-check-bar" [class.sel]="stagedAttachmentKeys().has(opt.key)">
+                    <input type="checkbox" [checked]="stagedAttachmentKeys().has(opt.key)" (change)="toggleAttachment(stagedAttachmentKeys, opt.key)" />
+                    INCLUDE IN CUSTOMER EMAIL
+                  </label>
+                  <div class="attach-thumb" (click)="openLightbox(attachmentOptions(), $index)">
+                    {{ attachmentIcon(opt) }}
+                    <span class="attach-thumb-badge">🔍 View full size</span>
+                  </div>
+                  <div class="attach-name">{{ opt.fileName }}</div>
+                  <span class="attach-tag">{{ opt.vendorName || '—' }} · {{ opt.uploadedOn ? (opt.uploadedOn | date: 'M/d/yy') : '—' }}{{ opt.isCheckoutPhoto ? ' · CHECK-OUT' : '' }}</span>
+                </div>
+              }
+            </div>
+          } @else {
+            <div class="muted" style="font-size:11.5px;margin:6px 0 2px">No job files or vendor uploads on file.</div>
+          }
+
+          <div class="approve-note-box">
+            <div class="step-row">
+              <span class="step-circle" style="background:var(--pink)">2</span>
+              <b class="step-label" style="color:var(--pink)">🏷 Note to Accounting about this invoice / job</b>
+              <span class="badge b-pink">PINS TO INVOICE · SHOWS ON ACCOUNTING ROW</span>
+            </div>
+            <textarea
+              class="notebox"
+              style="margin-top:8px"
+              placeholder="e.g. Bill via portal only; PO must appear on invoice; balance reflects deposit paid… (optional — leave empty to skip)"
+              [ngModel]="approveNote()"
+              (ngModelChange)="approveNote.set($event)"
+            ></textarea>
+
+            @if (ac.pinnedApprovalNotes.length > 0) {
+              <div class="pinned-notes">
+                @for (n of ac.pinnedApprovalNotes; track n.noteKey) {
+                  <div class="pinned-note">
+                    <div class="pinned-note-meta">{{ n.addedByName || 'Staff' }} · {{ n.addedOn | date: 'M/d/yy h:mm a' }}</div>
+                    <div>{{ n.comment }}</div>
+                  </div>
+                }
+              </div>
+            }
+          </div>
+
+          @if (approveError()) {
+            <div class="below-warning" style="margin-top:10px">{{ approveError() }}</div>
+          }
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn" [disabled]="approveSaving()" (click)="closeApproveModal()">Cancel</button>
+          <button type="button" class="btn green" [disabled]="approveSaving()" (click)="finalizeApproveInvoice()">
+            {{ approveSaving() ? 'Approving…' : '✓ Approve Invoice · ' + (ac.balanceDue | currency) + (stagedAttachmentKeys().size ? ' with ' + stagedAttachmentKeys().size + ' attachment(s)' : '') }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- "🔍 Full size" lightbox -- complete-screen-v2.html's openLightbox(). Placeholder preview (same
+       as the mockup itself -- no real image byte fetching here), with Prev/Next + the same
+       include/exclude checkbox as the grid it was opened from. -->
+  @if (lightbox(); as lb) {
+    <div class="modal-overlay" (click)="closeLightbox()">
+      <div class="modal-panel" style="max-width:920px" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h3>🔍 Full size — {{ lb.list[lb.index].fileName }}</h3>
+          <button type="button" class="btn sm" (click)="closeLightbox()">✕</button>
+        </div>
+        <div class="modal-body" style="text-align:center">
+          <div class="lightbox-preview">
+            {{ attachmentIcon(lb.list[lb.index]) }}
+            <div class="lightbox-preview-caption">{{ lb.list[lb.index].fileName }} — full-size preview (placeholder)</div>
+          </div>
+          <div class="lightbox-meta-row">
+            @if (lb.list[lb.index].isCheckoutPhoto) { <span class="badge b-blue">CHECK-OUT UPLOAD</span> }
+            <span class="muted">{{ lb.list[lb.index].vendorName || '—' }} · {{ lb.list[lb.index].uploadedOn ? (lb.list[lb.index].uploadedOn | date: 'M/d/yy') : '—' }}</span>
+            <label class="lightbox-include" [class.sel]="stagedAttachmentKeys().has(lb.list[lb.index].key)">
+              <input type="checkbox" [checked]="stagedAttachmentKeys().has(lb.list[lb.index].key)" (change)="toggleAttachment(stagedAttachmentKeys, lb.list[lb.index].key)" />
+              INCLUDE IN CUSTOMER EMAIL
+            </label>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn" [disabled]="lb.index === 0" (click)="lightboxPrev()">← Prev</button>
+          <button type="button" class="btn" [disabled]="lb.index === lb.list.length - 1" (click)="lightboxNext()">Next →</button>
+          <button type="button" class="btn primary" (click)="closeLightbox()">← Back to attachments</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- "📧 Send Invoice to Customer" popup -- complete-screen-v2.html's showSendPicReminder() /
+       sendInvoiceToCustomer(), matched to its exact look: amber "no after photos" reminder banner
+       (dynamic on whether any check-out photo is selected) + three grouped card grids -- check-out
+       (after) pics, all vendor attachments, then every job attachment -- same big-thumbnail cards as
+       the Approve popup. This app sends in one step (no separate native-confirm step), so the
+       essential To:/portal-required info the mockup's earlier step would have shown is kept at top. -->
+  @if (sendModalOpen() && card(); as sc) {
+    <div class="modal-overlay" (click)="closeSendModal()">
+      <div class="modal-panel" style="max-width:980px" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h3>{{ sendIsResend() ? '📧 Re-send' : '📧 Send' }} Customer Invoice{{ sc.invoiceNo ? ' #' + sc.invoiceNo : '' }}</h3>
+          <button type="button" class="btn sm" (click)="closeSendModal()">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="muted" style="font-size:11.5px;margin-bottom:8px">
+            To: {{ sc.customerProfile.accountingContactName || '(no contact on file)' }}
+            &lt;{{ sc.customerProfile.accountingContactEmail || '—' }}&gt;
+            (customer accounting contact from Customer Profile) · Balance {{ sc.balanceDue | currency }}
+          </div>
+          @if (sc.customerProfile.specialInstructions) {
+            <div class="muted" style="font-size:11.5px;margin-bottom:8px">Special invoicing instructions: {{ sc.customerProfile.specialInstructions }}</div>
+          }
+          @if (sc.customerProfile.portalUrl) {
+            <div class="below-warning" style="margin-bottom:8px">
+              ⚠ This customer also requires portal upload: {{ sc.customerProfile.portalUrl }} (a REQUIRED step for Accounting.)
+            </div>
+          }
+
+          @if (!hasSelectedCheckoutPhoto()) {
+            <div class="reminder-banner">
+              <b>You're about to send invoice {{ sc.invoiceNo }} to {{ sc.customerProfile.accountingContactName || 'the customer' }} without any after photos attached.</b><br />
+              Customers approve invoices faster when completion photos are included. The job's attachments are below — check any to include them in the email.
+            </div>
+          }
+
+          <b class="section-label" style="display:block;margin-top:10px">Check-out Complete attachments (after pics)</b>
+          @if (checkoutAttachmentOptions().length) {
+            <div class="attach-grid">
+              @for (opt of checkoutAttachmentOptions(); track opt.key) {
+                <div class="attach-card" [class.sel]="stagedAttachmentKeys().has(opt.key)">
+                  <label class="attach-check-bar" [class.sel]="stagedAttachmentKeys().has(opt.key)">
+                    <input type="checkbox" [checked]="stagedAttachmentKeys().has(opt.key)" (change)="toggleAttachment(stagedAttachmentKeys, opt.key)" />
+                    INCLUDE IN CUSTOMER EMAIL
+                  </label>
+                  <div class="attach-thumb" (click)="openLightbox(checkoutAttachmentOptions(), $index)">
+                    {{ attachmentIcon(opt) }}
+                    <span class="attach-thumb-badge">🔍 View full size</span>
+                  </div>
+                  <div class="attach-name">{{ opt.fileName }}</div>
+                  <span class="attach-tag">{{ opt.vendorName || '—' }} · {{ opt.uploadedOn ? (opt.uploadedOn | date: 'M/d/yy') : '—' }} · CHECK-OUT</span>
+                </div>
+              }
+            </div>
+          } @else {
+            <div class="muted" style="font-size:11.5px;margin:6px 0 2px">None.</div>
+          }
+
+          <b class="section-label" style="display:block;margin-top:14px">All vendor attachments</b>
+          @if (vendorAttachmentOptions().length) {
+            <div class="attach-grid">
+              @for (opt of vendorAttachmentOptions(); track opt.key) {
+                <div class="attach-card" [class.sel]="stagedAttachmentKeys().has(opt.key)">
+                  <label class="attach-check-bar" [class.sel]="stagedAttachmentKeys().has(opt.key)">
+                    <input type="checkbox" [checked]="stagedAttachmentKeys().has(opt.key)" (change)="toggleAttachment(stagedAttachmentKeys, opt.key)" />
+                    INCLUDE IN CUSTOMER EMAIL
+                  </label>
+                  <div class="attach-thumb" (click)="openLightbox(vendorAttachmentOptions(), $index)">
+                    {{ attachmentIcon(opt) }}
+                    <span class="attach-thumb-badge">🔍 View full size</span>
+                  </div>
+                  <div class="attach-name">{{ opt.fileName }}</div>
+                  <span class="attach-tag">{{ opt.vendorName || '—' }} · {{ opt.uploadedOn ? (opt.uploadedOn | date: 'M/d/yy') : '—' }}{{ opt.isCheckoutPhoto ? ' · CHECK-OUT' : '' }}</span>
+                </div>
+              }
+            </div>
+          } @else {
+            <div class="muted" style="font-size:11.5px;margin:6px 0 2px">None.</div>
+          }
+
+          <b class="section-label" style="display:block;margin-top:14px">All job attachments (customer &amp; vendors)</b>
+          @if (attachmentOptions().length) {
+            <div class="attach-grid">
+              @for (opt of attachmentOptions(); track opt.key) {
+                <div class="attach-card" [class.sel]="stagedAttachmentKeys().has(opt.key)">
+                  <label class="attach-check-bar" [class.sel]="stagedAttachmentKeys().has(opt.key)">
+                    <input type="checkbox" [checked]="stagedAttachmentKeys().has(opt.key)" (change)="toggleAttachment(stagedAttachmentKeys, opt.key)" />
+                    INCLUDE IN CUSTOMER EMAIL
+                  </label>
+                  <div class="attach-thumb" (click)="openLightbox(attachmentOptions(), $index)">
+                    {{ attachmentIcon(opt) }}
+                    <span class="attach-thumb-badge">🔍 View full size</span>
+                  </div>
+                  <div class="attach-name">{{ opt.fileName }}</div>
+                  <span class="attach-tag">{{ opt.vendorName || '—' }} · {{ opt.uploadedOn ? (opt.uploadedOn | date: 'M/d/yy') : '—' }}{{ opt.isCheckoutPhoto ? ' · CHECK-OUT' : '' }}</span>
+                </div>
+              }
+            </div>
+          } @else {
+            <div class="muted" style="font-size:11.5px;margin:6px 0 2px">No job files or vendor uploads on file.</div>
+          }
+
+          @if (sendError()) {
+            <div class="below-warning" style="margin-top:10px">{{ sendError() }}</div>
+          }
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn" [disabled]="sendSaving()" (click)="closeSendModal()">Cancel send</button>
+          <button type="button" class="btn green" [disabled]="sendSaving()" (click)="confirmSendInvoice()">
+            {{
+              sendSaving()
+                ? 'Sending…'
+                : stagedAttachmentKeys().size
+                  ? '✓ Attach ' + stagedAttachmentKeys().size + ' selected & send'
+                  : (sendIsResend() ? 'Re-send' : 'Send') + ' without photos → · ' + (sc.balanceDue | currency)
+            }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+}

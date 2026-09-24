@@ -1,0 +1,86 @@
+<div class="page">
+  <nav class="breadcrumb">
+    <a routerLink="/settings" class="breadcrumb__link">Settings</a>
+    <span class="breadcrumb__sep">/</span>
+    <span class="breadcrumb__current">Country</span>
+  </nav>
+
+  <div class="page__header">
+    <h1 class="page__title">Country</h1>
+  </div>
+
+  @if (error()) {
+    <div class="error-banner">{{ error() }}</div>
+  }
+
+  <div class="layout">
+    <!-- ── Left: form ── -->
+    <div class="panel panel--form">
+      <div class="panel__head">
+        Add New Country
+        @if (editingKey() !== null) { <span class="panel__edit-tag">Editing</span> }
+      </div>
+      <div class="panel__body">
+        <form (ngSubmit)="save()">
+          <div class="field">
+            <label class="field__label" for="shortName">Short Code</label>
+            <input id="shortName" type="text" class="field__input" [ngModel]="formShort()" (ngModelChange)="formShort.set($event)" name="shortName" placeholder="e.g. US (defaults to name)" />
+          </div>
+          <div class="field">
+            <label class="field__label" for="countryName">Name</label>
+            <input id="countryName" type="text" class="field__input" [ngModel]="formName()" (ngModelChange)="formName.set($event)" name="countryName" required placeholder="e.g. United States" />
+          </div>
+        </form>
+      </div>
+      <div class="panel__footer">
+        <button type="button" class="btn btn--primary" [disabled]="!canSave" (click)="save()">{{ editingKey() === null ? 'Save' : 'Update' }}</button>
+        <button type="button" class="btn btn--secondary" (click)="clearForm()">Clear</button>
+      </div>
+    </div>
+
+    <!-- ── Right: grid ── -->
+    <div class="list-col">
+      <div class="list-head">
+        <h3 class="list-title">Existing Countries</h3>
+        <input type="search" class="list-search" [ngModel]="search()" (ngModelChange)="search.set($event)" name="search" placeholder="Search by name or code…" />
+      </div>
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th class="th--num">SL</th>
+              <th class="th--code">Short Code</th>
+              <th>Name</th>
+              <th class="th--actions"></th>
+            </tr>
+          </thead>
+          <tbody>
+            @if (loading()) {
+              <tr><td colspan="4" class="td--empty">Loading countries…</td></tr>
+            } @else {
+            @for (row of filteredRows(); track row.countryKey; let idx = $index) {
+              <tr [class.tr--active]="editingKey() === row.countryKey">
+                <td class="td--num">{{ idx + 1 }}</td>
+                <td class="td--code"><span class="code-badge">{{ row.shortName }}</span></td>
+                <td class="td--name">{{ row.countryName }}</td>
+                <td class="td--actions">
+                  <button type="button" class="icon-btn icon-btn--edit" title="Edit" (click)="selectRow(row)">
+                    <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M10.586 1.586a2 2 0 0 1 2.828 2.828L5.5 12.328l-3.6.9.9-3.6 7.786-8.042Z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </button>
+                  <button type="button" class="icon-btn icon-btn--delete" title="Delete" (click)="confirmDelete(row)">
+                    <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M2.5 4.5h10M5.5 4.5V3a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v1.5m1.5 0-.5 8a1 1 0 0 1-1 1h-5a1 1 0 0 1-1-1l-.5-8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </button>
+                </td>
+              </tr>
+            } @empty {
+              <tr><td colspan="4" class="td--empty">{{ search().trim() ? 'No countries match your search.' : 'No countries defined.' }}</td></tr>
+            }
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<app-confirm-dialog />

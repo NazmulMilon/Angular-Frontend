@@ -1,0 +1,30 @@
+@if (isOpen()) {
+  <div class="modal-overlay" (click)="onOverlayClick($event)">
+    <div class="modal modal--notes-activity" role="dialog" aria-modal="true" aria-labelledby="jnaModalTitle">
+      <div class="modal__header">
+        <h3 class="modal__title" id="jnaModalTitle">
+          📋 Notes &amp; Activity
+          @if (po()) {
+            <span class="modal__po">— PO {{ po() }}</span>
+          }
+          <span class="modal__subtab">(V2 Notes &amp; Activity tab)</span>
+        </h3>
+        <button type="button" class="modal__close" (click)="onClose()" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal__body modal__body--notes-activity">
+        @if (jobKey()) {
+          <app-notes-activity
+            [embedJobKey]="jobKey() ?? ''"
+            [hideJobDetails]="true"
+            [initialActiveTab]="initialActiveTab()"
+            [initialVendorKey]="initialVendorKey()"
+            [designVariant]="'accounting'"
+          />
+        }
+      </div>
+      <div class="modal__footer">
+        <button type="button" class="btn btn--secondary" (click)="onClose()">Close</button>
+      </div>
+    </div>
+  </div>
+}

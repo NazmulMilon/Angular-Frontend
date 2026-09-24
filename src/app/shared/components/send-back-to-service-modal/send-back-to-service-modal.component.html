@@ -1,0 +1,47 @@
+@if (isOpen()) {
+  <div class="modal-overlay" (click)="onOverlayClick($event)">
+    <div class="modal modal--send-back-to-service" role="dialog" aria-modal="true" aria-labelledby="sbtsModalTitle">
+      <div class="modal__header">
+        <h3 class="modal__title" id="sbtsModalTitle">
+          ↩ Send Back to Account Manager
+          @if (po()) {
+            <span class="modal__po">— PO {{ po() }}</span>
+          }
+        </h3>
+        <button type="button" class="modal__close" (click)="onClose()" aria-label="Close">&times;</button>
+      </div>
+
+      <div class="modal__body">
+        @if (errorMessage()) {
+          <div class="sbts-error">{{ errorMessage() }}</div>
+        }
+
+        <div class="sbts-info">
+          The job STAYS on this screen with status <b>"Sent back to Service"</b>. Sending this does
+          two things at once:
+        </div>
+        <div class="sbts-info-box">
+          <div>1. 📋 <b>This job appears on the Account Manager's "Sent Back to Service" list</b>,
+            with your comments attached.</div>
+          <div class="sbts-info-box__row2">2. ✉ <b>The Account Manager is emailed</b> the same info
+            — they can log in to review it and send the job back to Accounting once resolved.</div>
+        </div>
+
+        <b class="sbts-label">Reason — Why it is sent back to Service?</b>
+        <textarea
+          class="notebox"
+          placeholder="e.g. Vendor cost needs to be renegotiated before we can approve this bill…"
+          [ngModel]="reason()"
+          (ngModelChange)="reason.set($event)"
+        ></textarea>
+      </div>
+
+      <div class="modal__footer">
+        <button type="button" class="btn" (click)="onClose()">Cancel</button>
+        <button type="button" class="btn ghost-amber" [disabled]="!canSend" (click)="send()">
+          Send
+        </button>
+      </div>
+    </div>
+  </div>
+}

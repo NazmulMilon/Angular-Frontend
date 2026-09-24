@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Reject Vendor Estimate for Resubmission — Backend Spec</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --surface: #1a2332;
+      --surface2: #243044;
+      --border: #2d3a4f;
+      --text: #e6edf3;
+      --muted: #8b9cb3;
+      --accent: #58a6ff;
+      --accent2: #3fb950;
+      --warn: #d29922;
+      --danger: #f85149;
+      --code-bg: #161b22;
+      --purple: #bc8cff;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      line-height: 1.6;
+      color: var(--text);
+      background: var(--bg);
+      margin: 0;
+      padding: 2rem;
+      max-width: 1100px;
+      margin-inline: auto;
+    }
+    h1 { color: var(--accent); border-bottom: 2px solid var(--border); padding-bottom: .5rem; }
+    h2 { color: var(--accent2); margin-top: 2.5rem; border-left: 4px solid var(--accent2); padding-left: .75rem; }
+    h3 { color: var(--warn); margin-top: 1.5rem; }
+    h4 { color: var(--muted); margin-top: 1rem; }
+    p, li { color: var(--text); }
+    a { color: var(--accent); }
+    code, pre {
+      font-family: "SF Mono", Consolas, monospace;
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+    }
+    code { padding: .1em .35em; font-size: .9em; }
+    pre { padding: 1rem; overflow-x: auto; font-size: .85em; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1rem 0;
+      font-size: .9em;
+    }
+    th, td {
+      border: 1px solid var(--border);
+      padding: .6rem .8rem;
+      text-align: left;
+      vertical-align: top;
+    }
+    th { background: var(--surface2); color: var(--accent); }
+    tr:nth-child(even) { background: var(--surface); }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.25rem;
+      margin: 1rem 0;
+    }
+    .note {
+      border-left: 4px solid var(--warn);
+      background: rgba(210, 153, 34, .08);
+      padding: .75rem 1rem;
+      margin: 1rem 0;
+      border-radius: 0 6px 6px 0;
+    }
+    .danger {
+      border-left: 4px solid var(--danger);
+      background: rgba(248, 81, 73, .08);
+      padding: .75rem 1rem;
+      margin: 1rem 0;
+      border-radius: 0 6px 6px 0;
+    }
+    .ok {
+      border-left: 4px solid var(--accent2);
+      background: rgba(63, 185, 80, .08);
+      padding: .75rem 1rem;
+      margin: 1rem 0;
+      border-radius: 0 6px 6px 0;
+    }
+    .tag {
+      display: inline-block;
+      padding: .15em .5em;
+      border-radius: 4px;
+      font-size: .75em;
+      font-weight: 600;
+      margin-right: .25rem;
+    }
+    .tag-post { background: #23863633; color: #3fb950; }
+    .tag-db { background: #8957e533; color: #bc8cff; }
+    .tag-frontend { background: #1f6feb33; color: #58a6ff; }
+    .status-pill {
+      display: inline-block;
+      padding: .2em .65em;
+      border-radius: 999px;
+      font-size: .8em;
+      font-weight: 700;
+      font-family: monospace;
+    }
+    .s0 { background: #da363333; color: #ff7b72; }
+    ul.compact li { margin: .25rem 0; }
+    .toc a { text-decoration: none; }
+    .toc li { margin: .35rem 0; }
+  </style>
+</head>
+<body>
+
+<h1>Reject Vendor Estimate for Resubmission — Backend Spec</h1>
+<p><strong>Status:</strong> Frontend (V2 Admin Portal) is implemented and wired to call this endpoint. Backend does not exist yet — this doc specifies what needs to be built.</p>
+<p><strong>Primary source for expected behavior:</strong> <code>context/VendorEstimate-Status-Lifecycle-Reference.html</code>, §9 "Status 0 — Estimate Reject / Resubmit" (legacy <code>ManageVendorInvoice.SaveVendorEstimate</code>, <code>ItemName == "0"</code> branch).</p>
+
+<nav class="card toc">
+  <h3>Table of Contents</h3>
+  <ol>
+    <li><a href="#overview">Overview</a></li>
+    <li><a href="#endpoint">Endpoint Contract</a></li>
+    <li><a href="#behavior">Required Behavior</a></li>
+    <li><a href="#tables">Tables Touched</a></li>
+    <li><a href="#frontend">What the Frontend Already Does</a></li>
+    <li><a href="#open-questions">Open Questions / Things to Confirm</a></li>
+  </ol>
+</nav>
+
+<!-- ============================================================ -->
+<h2 id="overview">1. Overview</h2>
+<div class="card">
+  <p>Admins need a way to reject a vendor's submitted estimate and ask them to resubmit, with an optional note explaining what to fix. This is <strong>Status 0</strong> in the legacy status dictionary — distinct from Status 3 ("Not Approved / Declined"), which is a dead-end path. Status 0 is <em>not terminal</em>: the vendor is expected to revise and resubmit.</p>
+  <p>This was intentionally scoped as a <strong>dedicated endpoint</strong> rather than folded into the generic <code>manage-status</code> endpoint, because — like the approval flow — it has real side effects beyond a status flip (vendor email, job status change, cleanup).</p>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="endpoint">2. Endpoint Contract</h2>
+
+<p><span class="tag tag-post">POST</span> <code>/api/v1/admin/vendor-status-action/reject-vendor-estimate</code></p>
+<p>(Same base path family as the existing <code>set-vendor-estimate-approved</code> endpoint.)</p>
+
+<h3>Request body</h3>
+<pre>{
+  estimateKey: string;   // VendorEstimate.InvoiceKey
+  jobKey: string;
+  vendorKey: string;
+  adminRemark?: string | null;   // optional — no required-field validation on the frontend
+}</pre>
+
+<h3>Response</h3>
+<p>Standard <code>ApiResponse&lt;T&gt;</code> envelope (matches the shape already used by every other endpoint in <code>VendorBillsService</code>):</p>
+<pre>{
+  status: boolean;
+  responseCode: number;
+  message: string;
+  data: {
+    emailSent: boolean;
+  };
+  details: { message?: string }[];
+  unixTime: number;
+  traceId: string | null;
+}</pre>
+
+<div class="note">
+  <strong>adminRemark is optional.</strong> This was a deliberate product decision — do not add required-field validation on the backend either, unless that decision changes.
+</div>
+
+<!-- ============================================================ -->
+<h2 id="behavior">3. Required Behavior</h2>
+
+<p>On a successful call, the endpoint should replicate the legacy <code>SaveVendorEstimate</code> <code>ItemName == "0"</code> branch:</p>
+
+<ol>
+  <li>Load the <code>VendorEstimate</code> row by <code>estimateKey</code>.</li>
+  <li>
+    Update the header:
+    <table>
+      <tr><th>Field</th><th>Value</th></tr>
+      <tr><td><code>Status</code></td><td><span class="status-pill s0">0</span></td></tr>
+      <tr><td><code>IsCancelled</code></td><td><code>true</code> — <strong>note:</strong> this flag is used for Status 0 specifically, not for Status 3 declines. Don't conflate the two.</td></tr>
+      <tr><td><code>IsApproved</code></td><td><code>false</code></td></tr>
+      <tr><td><code>IsNew</code></td><td><code>false</code></td></tr>
+      <tr><td><code>OtherRemark</code></td><td><code>"Rejected for resubmission::" + adminRemark</code></td></tr>
+      <tr><td><code>ApprovedBy</code></td><td>current admin's login/display name</td></tr>
+      <tr><td><code>OtherDate</code></td><td><code>UtcNow</code></td></tr>
+    </table>
+  </li>
+  <li>
+    Update job status: set <code>JobStatusKey</code> on <code>Job</code> (only if this vendor is the job's default vendor) and on <code>JobVendor</code>, using whatever the current equivalent of legacy's <code>GlobalClass.GetJobStatus(8)</code> is.
+  </li>
+  <li>
+    Run the cleanup equivalent to legacy's <code>CancelAllRegardingVendorEstimates(..., formoption=1)</code>:
+    <ul class="compact">
+      <li>Deletes/clears <code>JobActionNeeded</code> rows for ActionID ∈ {50, 61} for this Job+Vendor.</li>
+      <li>Clears related highlight/flag state.</li>
+      <li><strong>This does not touch sibling estimates</strong> — sibling-decline logic belongs to the approve flow, not reject. Do not port that behavior here.</li>
+    </ul>
+  </li>
+  <li>Write an audit/general note capturing the rejection and remark (legacy: note with inline estimate HTML).</li>
+  <li>
+    <strong>Email the vendor</strong> with the rejection reason — legacy equivalent: <code>SendEditVendorEstimateMailToVendor(InvoiceKey, VendorKey, AdminRemark)</code>. Set <code>data.emailSent</code> based on whether this succeeds. A failed email should <strong>not</strong> fail the whole request — the status change should still commit; surface the email failure via <code>message</code>/<code>emailSent: false</code> instead, consistent with how the approval chain treats email failures as a soft/non-fatal condition today.
+  </li>
+  <li>
+    Write a <code>JobStatusHistory</code> entry — legacy uses "Rejected for resubmission" (with Quote/Onsite variants depending on job stage, mirroring the pattern used in the approve endpoint's <code>UpdateVendorEstimateJobStatusHistoryAsync</code>).
+  </li>
+</ol>
+
+<div class="danger">
+  <strong>No ambient transaction in the legacy code.</strong> Each step commits independently there. Decide whether V2's backend should wrap this in a single transaction (recommended) rather than replicate the legacy partial-failure risk.
+</div>
+
+<!-- ============================================================ -->
+<h2 id="tables">4. Tables Touched</h2>
+<ul class="compact">
+  <li><span class="tag tag-db">UPDATE</span> <code>VendorEstimate</code> — header fields per §3.2</li>
+  <li><span class="tag tag-db">UPDATE</span> <code>Job</code> / <code>JobVendor</code> — <code>JobStatusKey</code></li>
+  <li><span class="tag tag-db">DELETE/UPDATE</span> <code>JobActionNeeded</code> — ActionID ∈ {50, 61}</li>
+  <li><span class="tag tag-db">INSERT</span> note/audit record</li>
+  <li><span class="tag tag-db">INSERT</span> <code>JobStatusHistory</code></li>
+  <li>Outbound email to vendor (no DB write beyond whatever the mail service logs)</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="frontend">5. What the Frontend Already Does</h2>
+<div class="ok">
+  <p>The V2 Angular frontend is fully wired and waiting on this endpoint:</p>
+  <ul class="compact">
+    <li><span class="tag tag-frontend">Frontend</span> <code>VendorBillsService.rejectVendorEstimateForResubmission(request)</code> calls this endpoint.</li>
+    <li><span class="tag tag-frontend">Frontend</span> A new <code>EstimateRejectPanelComponent</code> (optional remark textarea) opens when the admin picks "Estimate Reject / Resubmit" from the manage-status menu.</li>
+    <li><span class="tag tag-frontend">Frontend</span> On <code>status: true</code>, the estimate card's badge is <strong>optimistically patched</strong> to the "resubmit" variant and the panel closes — no full page reload.</li>
+    <li><span class="tag tag-frontend">Frontend</span> No sibling-estimate or job-status-banner logic runs client-side — all of that is this endpoint's responsibility.</li>
+    <li><span class="tag tag-frontend">Frontend</span> No special guards block triggering reject (no DNE checks, no "already rejected" gating) — same baseline as other simple status actions.</li>
+  </ul>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="open-questions">6. Open Questions / Things to Confirm</h2>
+<div class="note">
+  <ul class="compact">
+    <li>Should this run in a single DB transaction, or match legacy's per-step commits?</li>
+    <li>Exact current equivalent of <code>GlobalClass.GetJobStatus(8)</code> in the V2 backend's job-status service.</li>
+    <li>Confirm vendor email template/content for the "resubmit" notice — legacy uses <code>SendEditVendorEstimateMailToVendor</code>; does V2 have (or need) an equivalent template?</li>
+    <li>Whether a failed vendor email should surface as a warning-level <code>message</code> alongside <code>status: true</code>, or some other convention the API already uses elsewhere (check how the approval chain surfaces its own "email failed but approval succeeded" case for consistency).</li>
+  </ul>
+</div>
+
+<p style="margin-top:3rem;color:var(--muted);font-size:.85em;">
+  Generated for Admin Portal V2 backend handoff. Cross-check against <code>context/VendorEstimate-Status-Lifecycle-Reference.html</code> §9 and §20 (Gotchas) before implementing.
+</p>
+
+</body>
+</html>

@@ -1,0 +1,881 @@
+<!-- ============================================================
+     Customer & Vendor Invoicing Tab — Job Vendor Billing
+     ============================================================ -->
+
+<div class="page-container">
+
+  <!-- ================================================================
+       APP-LEVEL TABS — job-scoped destinations
+       ================================================================ -->
+  @if (jobKey()) {
+    <div class="app-tabs">
+      <span class="app-tab" [routerLink]="['/job', jobKey(), 'assign-vendor']">Assign Vendor</span>
+      <span class="app-tab" (click)="onEstimatesTabClick()">Estimates</span>
+      <span class="app-tab app-tab--active">Customer & Vendor Invoicing</span>
+      <span class="app-tab" [routerLink]="['/job', jobKey(), 'notes-activity']">Notes &amp; Activity</span>
+    </div>
+  }
+
+  <app-estimate-chat-interstitial-modal />
+
+  @if (jobKey()) {
+    <app-job-details-accordion
+      #jobDetailsAccordion
+      [jobKey]="jobKey()"
+      [defaultOpen]="false"
+      [activeNavTab]="activeNavTab()"
+      (navigateSection)="scrollToSection($event.sectionId, $event.tab)"
+    />
+  }
+
+  <!-- SECTION 1: CHECK-IN/OUT -->
+  <div id="section-check-in-out" class="vb-section-anchor"></div>
+  <app-accordion #checkInOutAccordion heading="" [defaultOpen]="false" variant="figma">
+    <div accordionHeaderActions class="vb-cio-accordion-head">
+      <div class="vb-cio-accordion-head__text">
+        <span class="vb-cio-accordion-head__title">Check-In / Out</span>
+        <span class="vb-cio-accordion-head__subtitle">Vendor visits, tech counts, and work performed</span>
+      </div>
+      @if (jobKey()) {
+        <div class="vb-cio-accordion-head__actions">
+          <button type="button" class="vb-cio-accordion-head__btn vb-cio-accordion-head__btn--outline" (click)="onRefreshCheckInOutLog()">
+            Check In/Out Log
+          </button>
+          <button type="button" class="vb-cio-accordion-head__btn vb-cio-accordion-head__btn--primary" (click)="onManualCheckInEntry()">
+            + Manual Entry
+          </button>
+        </div>
+      }
+    </div>
+
+    @if (jobKey()) {
+      <div class="cio-content">
+        @if (cioSuccessMessage()) {
+          <div class="cio-alert cio-alert--success" role="status">
+            <span>{{ cioSuccessMessage() }}</span>
+            <button type="button" class="cio-alert__close" (click)="cioSuccessMessage.set('')" aria-label="Dismiss">&times;</button>
+          </div>
+        }
+        @if (cioErrorMessage()) {
+          <div class="cio-alert cio-alert--error" role="alert">
+            <span>{{ cioErrorMessage() }}</span>
+            <button type="button" class="cio-alert__close" (click)="cioErrorMessage.set('')" aria-label="Dismiss">&times;</button>
+          </div>
+        }
+
+        <div class="cio-table-wrap">
+          <div class="cio-toolbar">
+            <div class="cio-toolbar__left">
+              <span>Show</span>
+              <select class="cio-select" [ngModel]="cioPageSize()" (ngModelChange)="onCioPageSizeChange($event)">
+                @for (opt of cioPageSizeOptions; track opt) {
+                  <option [value]="opt">{{ opt }}</option>
+                }
+              </select>
+              <span>entries</span>
+            </div>
+            <label class="cio-toolbar__search">
+              <span>Search:</span>
+              <input type="search" class="cio-search-input" [ngModel]="cioSearchText()" (ngModelChange)="onCioSearchInput($event)" />
+            </label>
+          </div>
+
+          @if (cioIsLoading()) {
+            <div class="cio-loading">Loading check-in/out records…</div>
+          } @else {
+            <div class="cio-table-scroll">
+              <table class="cio-table">
+                <thead>
+                  <tr>
+                    <th class="cio-th cio-th--sortable" (click)="cioSortBy(0)">Vendor <span class="cio-sort-icon" aria-hidden="true">▲▼</span></th>
+                    <th class="cio-th">Status</th>
+                    <th class="cio-th cio-th--sortable" (click)="cioSortBy(2)">Check In</th>
+                    <th class="cio-th cio-th--sortable" (click)="cioSortBy(3)">Check Out</th>
+                    <th class="cio-th cio-th--num"># Techs</th>
+                    <th class="cio-th">Works Performed</th>
+                    <th class="cio-th cio-th--notes">Notes</th>
+                    <th class="cio-th cio-th--action"></th>
+                    <th class="cio-th cio-th--action"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @if (cioRows().length === 0) {
+                    <tr><td colspan="9" class="cio-empty">No check-in/out records found.</td></tr>
+                  } @else {
+                    @for (row of cioRows(); track row.checkinKey) {
+                      <tr [class]="cioRowClass(row)">
+                        <td class="cio-td">
+                          <div class="cio-vendor">
+                            <span class="cio-vendor__name">{{ row.vendorName }}</span>
+                            @if (row.vendorTradeName) {
+                              <span class="cio-vendor__trade">{{ row.vendorTradeName }}</span>
+                            }
+                          </div>
+                        </td>
+                        <td class="cio-td">
+                          <span class="cio-status" [class]="'cio-status--' + row.statusBadgeVariant">
+                            <span class="cio-status__dot" aria-hidden="true"></span>
+                            {{ row.checkOutStatusDisplay }}
+                          </span>
+                        </td>
+                        <td class="cio-td">{{ row.checkInDisplay }}</td>
+                        <td class="cio-td">{{ row.checkOutDisplay }}</td>
+                        <td class="cio-td cio-td--num">{{ row.techCount ?? '—' }}</td>
+                        <td class="cio-td">{{ row.workPerformedDisplay }}</td>
+                        <td class="cio-td cio-td--notes">{{ row.notes || '—' }}</td>
+                        <td class="cio-td cio-td--action">
+                          <button type="button" class="cio-link" (click)="cioMarkViewed(row)">Viewed</button>
+                        </td>
+                        <td class="cio-td cio-td--action">
+                          <button type="button" class="cio-btn cio-btn--edit" (click)="openCioEditModal(row)">Edit</button>
+                        </td>
+                      </tr>
+                    }
+                  }
+                </tbody>
+              </table>
+            </div>
+
+            <div class="cio-footer">
+              <span>Showing {{ cioShowingFrom() }} to {{ cioShowingTo() }} of {{ cioTotalRecords() }} entries</span>
+              <div class="cio-pagination">
+                <button type="button" class="cio-btn cio-btn--outline cio-btn--sm" [disabled]="cioCurrentPage() <= 1" (click)="cioGoToPage(cioCurrentPage() - 1)">Previous</button>
+                <button type="button" class="cio-btn cio-btn--primary cio-btn--sm" disabled>{{ cioCurrentPage() }}</button>
+                <button type="button" class="cio-btn cio-btn--outline cio-btn--sm" [disabled]="cioCurrentPage() >= cioTotalPages()" (click)="cioGoToPage(cioCurrentPage() + 1)">Next</button>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+    }
+  </app-accordion>
+
+  <!-- SECTION 3: Attachments — Estimate Stage -->
+  <div id="section-attachments-estimate" class="vb-section-anchor"></div>
+  <app-accordion #attachmentsEstimateAccordion heading="" [defaultOpen]="false" variant="figma">
+    <div accordionHeaderActions class="vb-cio-accordion-head">
+      <div class="vb-cio-accordion-head__text">
+        <span class="vb-cio-accordion-head__title">Attachments — Estimate Stage</span>
+        <span class="vb-cio-accordion-head__subtitle">Files uploaded during vendor estimate or checkout estimating</span>
+      </div>
+    </div>
+
+    @if (jobKey()) {
+      <div class="vp-content">
+        @if (veSuccessMessage()) {
+          <div class="vp-alert vp-alert--success" role="status">
+            <span>{{ veSuccessMessage() }}</span>
+            <button type="button" class="vp-alert__close" (click)="veSuccessMessage.set('')" aria-label="Dismiss">&times;</button>
+          </div>
+        }
+        @if (veErrorMessage()) {
+          <div class="vp-alert vp-alert--error" role="alert">
+            <span>{{ veErrorMessage() }}</span>
+            <button type="button" class="vp-alert__close" (click)="veErrorMessage.set('')" aria-label="Dismiss">&times;</button>
+          </div>
+        }
+
+        <button
+          type="button"
+          class="inv-primary-btn vp-uncheck-all-btn"
+          [disabled]="!veHasNewFiles() || veUnchecking()"
+          (click)="onUncheckAllEstimateFiles()"
+        >
+          {{ veUnchecking() ? 'Unchecking…' : 'Uncheck All' }}
+        </button>
+
+        <div class="inv-table-wrap">
+          <div class="inv-toolbar">
+            <div class="inv-toolbar__left">
+              <span>Show</span>
+              <select class="inv-select" [ngModel]="vePageSize()" (ngModelChange)="onVePageSizeChange($event)">
+                @for (opt of vePageSizeOptions; track opt) {
+                  <option [value]="opt">{{ opt }}</option>
+                }
+              </select>
+              <span>entries</span>
+            </div>
+            <label class="inv-toolbar__search">
+              <span>Search:</span>
+              <input type="search" class="inv-search-input" [ngModel]="veSearchText()" (ngModelChange)="onVeSearchInput($event)" />
+            </label>
+          </div>
+
+          <div class="inv-table-scroll">
+            <table class="inv-table vp-table">
+              <thead>
+                <tr>
+                  <th class="inv-th inv-th--sortable vp-th--check" scope="col">
+                    Check <span class="inv-sort-icon" aria-hidden="true">▲</span>
+                  </th>
+                  <th scope="col">Vendor</th>
+                  <th scope="col">Type</th>
+                  <th scope="col">File Name</th>
+                  <th scope="col">Uploaded On</th>
+                  <th scope="col">Comment</th>
+                  <th scope="col">Uploaded By</th>
+                  <th class="vp-th--control" scope="col">Control</th>
+                  <th class="vp-th--delete" scope="col">Delete</th>
+                </tr>
+              </thead>
+              <tbody>
+                @if (veIsLoading()) {
+                  <tr>
+                    <td colspan="9" class="inv-empty">Loading vendor estimate files…</td>
+                  </tr>
+                } @else if (veFilteredFiles().length === 0) {
+                  <tr>
+                    <td colspan="9" class="inv-empty">
+                      @if (veFiles().length === 0) {
+                        No vendor estimate files attached.
+                      } @else {
+                        No vendor estimate files match your search.
+                      }
+                    </td>
+                  </tr>
+                } @else {
+                  @for (file of vePaginatedFiles(); track file.uploadKey) {
+                    <tr [class.vp-row--muted]="file.isVendorDeleted">
+                      <td class="vp-td vp-td--check">
+                        @if (file.isNew) {
+                          <button type="button" class="inv-act-btn inv-act-btn--uncheck-new" (click)="onUncheckNewEstimateFile(file)">
+                            Uncheck New
+                          </button>
+                        } @else {
+                          <span class="vp-checked-label">Checked</span>
+                        }
+                      </td>
+                      <td class="vp-td vp-td--vendor">
+                        <span class="vp-vendor-name">{{ file.vendorName || '—' }}</span>
+                      </td>
+                      <td class="vp-td">{{ file.fileType || '—' }}</td>
+                      <td class="vp-td">
+                        <span class="vp-file-cell">
+                          @if (vendorPaperFileBadge(file.fileName); as badge) {
+                            <span class="vp-file-badge">{{ badge }}</span>
+                          }
+                          <span class="vp-file-name">{{ file.fileName || '—' }}</span>
+                        </span>
+                      </td>
+                      <td class="vp-td">{{ file.uploadDateDisplay || '—' }}</td>
+                      <td class="vp-td" [class.vp-td--comment-empty]="!file.remark">{{ file.remark || '—' }}</td>
+                      <td class="vp-td">{{ file.uploadedByDisplay || '—' }}</td>
+                      <td class="vp-td vp-td--control">
+                        <button type="button" class="vp-action-link vp-action-link--view" (click)="openEstimateFile(file)">View File</button>
+                      </td>
+                      <td class="vp-td vp-td--delete">
+                        <button type="button" class="vp-action-link vp-action-link--delete" (click)="deleteEstimateFile(file)">Delete</button>
+                      </td>
+                    </tr>
+                  }
+                }
+              </tbody>
+            </table>
+          </div>
+
+          @if (veFilteredFiles().length > 0) {
+            <div class="inv-footer">
+              <span>Showing {{ veShowingFrom() }} to {{ veShowingTo() }} of {{ veFilteredFiles().length }} entries</span>
+              <div class="inv-pagination">
+                <button type="button" class="inv-page-btn" [disabled]="veCurrentPage() <= 1" (click)="veGoToPage(veCurrentPage() - 1)">Previous</button>
+                <button type="button" class="inv-page-btn inv-page-btn--active" disabled>{{ veCurrentPage() }}</button>
+                <button type="button" class="inv-page-btn" [disabled]="veCurrentPage() >= veTotalPages()" (click)="veGoToPage(veCurrentPage() + 1)">Next</button>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+    }
+  </app-accordion>
+
+  <!-- SECTION 4: Invoices -->
+  <div id="section-invoices" class="vb-section-anchor"></div>
+  <app-accordion #invoicesAccordion heading="" [defaultOpen]="false" variant="figma">
+    <div accordionHeaderActions class="vb-cio-accordion-head">
+      <div class="vb-cio-accordion-head__text">
+        <span class="vb-cio-accordion-head__title">Invoices</span>
+        <span class="vb-cio-accordion-head__subtitle">Vendor bills, credit-card charges, and vendor-submitted invoices</span>
+      </div>
+      @if (jobKey()) {
+        <div class="vb-cio-accordion-head__actions">
+          <button type="button" class="vb-cio-accordion-head__btn vb-cio-accordion-head__btn--outline" (click)="openLegacyUrl(legacyVendorBillsUrl())">
+            No Payable To Vendor
+          </button>
+          <button type="button" class="vb-cio-accordion-head__btn vb-cio-accordion-head__btn--outline" (click)="openLegacyUrl(legacyPayVendorCcUrl())">
+            Pay Vendor Credit Cards
+          </button>
+          <button type="button" class="vb-cio-accordion-head__btn vb-cio-accordion-head__btn--outline" (click)="openLegacyUrl(legacyAddNewBillUrl())">
+            + Add New Bill
+          </button>
+
+          <!-- Path 3 — create a customer estimate from a vendor estimate (old Customer & Vendor Invoicing / EIndex parity).
+               Opens a centered picker modal, so there is no clipped-dropdown problem. Paths 1 & 2 live on
+               the Estimates page; Path 4 is the per-row "Create RCS Invoice" button below. -->
+          <button
+            type="button"
+            class="vb-cio-accordion-head__btn vb-cio-accordion-head__btn--primary"
+            data-accordion-no-toggle
+            (click)="openVendorEstimatePicker()">
+            Create Customer Estimate
+          </button>
+        </div>
+      }
+    </div>
+
+    @if (jobKey()) {
+      <div class="inv-content">
+        @if (invErrorMessage()) {
+          <div class="inv-alert inv-alert--error" role="alert">
+            <span>{{ invErrorMessage() }}</span>
+            <button type="button" class="inv-alert__close" (click)="invErrorMessage.set('')" aria-label="Dismiss">&times;</button>
+          </div>
+        }
+
+        @if (invAlertMessage()) {
+          <div class="inv-alert inv-alert--info" role="status">
+            <span>{{ invAlertMessage() }}</span>
+          </div>
+        }
+
+        @if (invHasActiveCustomerInvoice()) {
+          <div class="inv-alert inv-alert--info" role="status">
+            <span>This job already has an active customer invoice. Creating another will add a second invoice.</span>
+          </div>
+        }
+
+        <h3 class="inv-block-label">Customer Invoices</h3>
+        <app-customer-invoices-list [jobKey]="jobKey()!" [highlightInvoiceKey]="highlightInvoiceKey()" (invoicesChanged)="onCustomerInvoiceListChanged()" />
+
+        <h3 class="inv-block-label">List of Bills</h3>
+
+        @if (invIsLoading()) {
+          <div class="inv-empty">Loading vendor bills…</div>
+        } @else {
+          <div class="inv-table-wrap">
+            <div class="inv-toolbar">
+              <div class="inv-toolbar__left">
+                <span>Show</span>
+                <select class="inv-select" [ngModel]="invBillsPageSize()" (ngModelChange)="onInvBillsPageSizeChange($event)">
+                  @for (opt of invBillsPageSizeOptions; track opt) {
+                    <option [value]="opt">{{ opt }}</option>
+                  }
+                </select>
+                <span>entries</span>
+              </div>
+              <label class="inv-toolbar__search">
+                <span>Search:</span>
+                <input type="search" class="inv-search-input" [ngModel]="invBillsSearchText()" (ngModelChange)="onInvBillsSearchInput($event)" />
+              </label>
+            </div>
+
+            <div class="inv-table-scroll">
+              <table class="inv-table">
+                <thead>
+                  <tr>
+                    <th class="inv-th inv-th--sortable">
+                      Date <span class="inv-sort-icon" aria-hidden="true">▼</span>
+                    </th>
+                    <th>Bill No</th>
+                    <th>Vendor</th>
+                    <th>Customer</th>
+                    <th>Status</th>
+                    <th>Due Date</th>
+                    <th>Control</th>
+                    <th>Vendor Payment</th>
+                    <th class="inv-th--action"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @if (invFilteredBills().length === 0) {
+                    <tr>
+                      <td colspan="9" class="inv-empty">
+                        @if (invBills().length === 0) {
+                          No vendor bills found for this job.
+                        } @else {
+                          No vendor bills match your search.
+                        }
+                      </td>
+                    </tr>
+                  } @else {
+                    @for (bill of invPaginatedBills(); track bill.billKey) {
+                      <tr [class]="invBillRowClass(bill)">
+                        <td>{{ bill.billDateDisplay || '—' }}</td>
+                        <td>{{ bill.billNo || '—' }}</td>
+                        <td class="inv-td--vendor">{{ bill.vendorName || '—' }}</td>
+                        <td class="inv-td--customer">{{ bill.customerName || '—' }}</td>
+                        <td>
+                          @if (bill.statusLabel) {
+                            <span class="inv-status-pill" [class]="'inv-status-pill--' + invBillStatusVariant(bill)">
+                              <span class="inv-status-pill__dot" aria-hidden="true"></span>
+                              {{ bill.statusLabel }}
+                            </span>
+                          } @else {
+                            —
+                          }
+                        </td>
+                        <td>{{ bill.dueDateDisplay || '—' }}</td>
+                        <td class="inv-td--control">
+                          @if (bill.isDeleted || bill.isVendorDeleted) {
+                            <span>—</span>
+                          } @else {
+                            <div class="inv-control-btns">
+                              <div class="inv-control-btns__row">
+                                <button type="button" class="inv-ctrl-btn inv-ctrl-btn--preview" (click)="openLegacyUrl(bill.previewUrl)">Preview</button>
+                                @if (bill.showEditButton) {
+                                  <button type="button" class="inv-ctrl-btn inv-ctrl-btn--edit" (click)="openLegacyUrl(bill.editUrl)">Edit</button>
+                                }
+                              </div>
+                              <button type="button" class="inv-ctrl-btn inv-ctrl-btn--accounting" (click)="openLegacyUrl(bill.accountingUrl)">Accounting</button>
+                            </div>
+                          }
+                        </td>
+                        <td class="inv-td--payment">
+                          <span class="inv-payment-label">{{ bill.paymentLabel }}</span>
+                          @if (bill.showPayCcButton) {
+                            <button type="button" class="inv-outline-btn" (click)="openLegacyUrl(bill.accountingUrl)">Pay Vendor CC now</button>
+                          }
+                          @if (bill.showEditPaymentButton) {
+                            <button type="button" class="inv-outline-btn" (click)="openLegacyUrl(bill.accountingUrl)">Edit Prev Payment</button>
+                          }
+                        </td>
+                        <td class="inv-td--action">
+                          @if (bill.showDeleteButton) {
+                            <button type="button" class="inv-outline-btn" (click)="openLegacyUrl(legacyVendorBillsUrl())">Delete</button>
+                          }
+                        </td>
+                      </tr>
+                    }
+                  }
+                </tbody>
+              </table>
+            </div>
+
+            @if (invFilteredBills().length > 0) {
+              <div class="inv-footer">
+                <span>Showing {{ invBillsShowingFrom() }} to {{ invBillsShowingTo() }} of {{ invFilteredBills().length }} entries</span>
+                <div class="inv-pagination">
+                  <button type="button" class="inv-page-btn" [disabled]="invBillsCurrentPage() <= 1" (click)="invBillsGoToPage(invBillsCurrentPage() - 1)">Previous</button>
+                  <button type="button" class="inv-page-btn inv-page-btn--active" disabled>{{ invBillsCurrentPage() }}</button>
+                  <button type="button" class="inv-page-btn" [disabled]="invBillsCurrentPage() >= invBillsTotalPages()" (click)="invBillsGoToPage(invBillsCurrentPage() + 1)">Next</button>
+                </div>
+              </div>
+            }
+          </div>
+        }
+
+        @if (invIsLoading()) {
+          <div class="inv-empty">Loading vendor invoices…</div>
+        } @else {
+          <div class="inv-table-wrap">
+            <div class="inv-toolbar">
+              <div class="inv-toolbar__left">
+                <span>Show</span>
+                <select class="inv-select" [ngModel]="invVendorPageSize()" (ngModelChange)="onInvVendorPageSizeChange($event)">
+                  @for (opt of invVendorPageSizeOptions; track opt) {
+                    <option [value]="opt">{{ opt }}</option>
+                  }
+                </select>
+                <span>entries</span>
+              </div>
+              <label class="inv-toolbar__search">
+                <span>Search:</span>
+                <input type="search" class="inv-search-input" [ngModel]="invSearchText()" (ngModelChange)="onInvVendorSearchInput($event)" />
+              </label>
+            </div>
+
+            <div class="inv-table-scroll">
+              <table class="inv-table">
+                <thead>
+                  <tr>
+                    <th class="inv-th inv-th--sortable">
+                      Invoice Date <span class="inv-sort-icon" aria-hidden="true">▲</span>
+                    </th>
+                    <th>Invoice No</th>
+                    <th>Portal Link</th>
+                    <th>Vendor</th>
+                    <th>Status</th>
+                    <th>Remarks</th>
+                    <th>Actions</th>
+                    <th>RCS Invoice</th>
+                    <th>Rates</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @if (invFilteredVendorInvoices().length === 0) {
+                    <tr>
+                      <td colspan="9" class="inv-empty">
+                        @if (invVendorInvoices().length === 0) {
+                          No vendor-submitted invoices found.
+                        } @else {
+                          No vendor-submitted invoices match your search.
+                        }
+                      </td>
+                    </tr>
+                  } @else {
+                    @for (inv of invPaginatedVendorInvoices(); track inv.invoiceKey) {
+                      <tr [class]="invVendorInvoiceRowClass(inv)">
+                        <td>{{ inv.invoiceDateDisplay || '—' }}</td>
+                        <td class="inv-td--link">{{ inv.invoiceNo || '—' }}</td>
+                        <td>
+                          @if (inv.contactKey && !inv.isVendorDeleted) {
+                            <button type="button" class="inv-text-link" (click)="openVendorLogin(inv.contactKey)">Vendor Login</button>
+                          } @else {
+                            —
+                          }
+                        </td>
+                        <td class="inv-td--vendor">{{ inv.vendorName || '—' }}</td>
+                        <td>
+                          <span class="inv-status-pill" [class]="'inv-status-pill--' + invVendorStatusVariant(inv)">
+                            <span class="inv-status-pill__dot" aria-hidden="true"></span>
+                            {{ inv.statusLabel }}
+                          </span>
+                        </td>
+                        <td class="inv-td--remarks">{{ inv.remarks || '—' }}</td>
+                        <td class="inv-td--actions">
+                          @if (inv.isVendorDeleted) {
+                            —
+                          } @else {
+                            <div class="inv-action-btns">
+                              <button type="button" class="inv-act-btn inv-act-btn--view" (click)="openLegacyUrl(inv.viewUrl)">View</button>
+                              <button type="button" class="inv-act-btn inv-act-btn--manage" (click)="openLegacyUrl(inv.manageUrl)">Manage</button>
+                              @if (inv.isNew && inv.unhighlightUrl) {
+                                <button type="button" class="inv-act-btn inv-act-btn--unhighlight" (click)="openLegacyUrl(inv.unhighlightUrl)">Unhighlight</button>
+                              }
+                            </div>
+                          }
+                        </td>
+                        <td>
+                          @if (!inv.isVendorDeleted && inv.canCreateInvoice) {
+                            <button type="button" class="inv-primary-btn" (click)="onCreateInvoiceFromVendorInvoice(inv)">Create RCS Invoice</button>
+                          } @else {
+                            —
+                          }
+                        </td>
+                        <td>
+                          @if (!inv.isVendorDeleted) {
+                            <button type="button" class="inv-primary-btn" (click)="onShowVendorRates(inv)">Rates</button>
+                          } @else {
+                            —
+                          }
+                        </td>
+                      </tr>
+                    }
+                  }
+                </tbody>
+              </table>
+            </div>
+
+            @if (invFilteredVendorInvoices().length > 0) {
+              <div class="inv-footer">
+                <span>Showing {{ invVendorShowingFrom() }} to {{ invVendorShowingTo() }} of {{ invFilteredVendorInvoices().length }} entries</span>
+                <div class="inv-pagination">
+                  <button type="button" class="inv-page-btn" [disabled]="invVendorCurrentPage() <= 1" (click)="invVendorGoToPage(invVendorCurrentPage() - 1)">Previous</button>
+                  <button type="button" class="inv-page-btn inv-page-btn--active" disabled>{{ invVendorCurrentPage() }}</button>
+                  <button type="button" class="inv-page-btn" [disabled]="invVendorCurrentPage() >= invVendorTotalPages()" (click)="invVendorGoToPage(invVendorCurrentPage() + 1)">Next</button>
+                </div>
+              </div>
+            }
+          </div>
+        }
+      </div>
+    }
+  </app-accordion>
+
+  <!-- SECTION 5: Attachments — Invoice Stage -->
+  <div id="section-attachments-invoice" class="vb-section-anchor"></div>
+  <app-accordion #attachmentsInvoiceAccordion heading="" [defaultOpen]="false" variant="figma">
+    <div accordionHeaderActions class="vb-cio-accordion-head">
+      <div class="vb-cio-accordion-head__text">
+        <span class="vb-cio-accordion-head__title">Attachments — Invoice Stage</span>
+        <span class="vb-cio-accordion-head__subtitle">Files &amp; vendor papers attached against this vendor invoice</span>
+      </div>
+      @if (jobKey()) {
+        <div class="vb-cio-accordion-head__actions">
+          <button type="button" class="vb-cio-accordion-head__btn vb-cio-accordion-head__btn--outline" (click)="openUploadVendorPapersModal()">
+            Upload Vendor Paperwork
+          </button>
+          <button type="button" class="vb-cio-accordion-head__btn vb-cio-accordion-head__btn--primary" (click)="openLegacyUrl(legacyAttachFileUrl())">
+            + Attach File
+          </button>
+        </div>
+      }
+    </div>
+
+    @if (jobKey()) {
+      <div class="vp-content">
+        @if (vpSuccessMessage()) {
+          <div class="vp-alert vp-alert--success" role="status">
+            <span>{{ vpSuccessMessage() }}</span>
+            <button type="button" class="vp-alert__close" (click)="vpSuccessMessage.set('')" aria-label="Dismiss">&times;</button>
+          </div>
+        }
+        @if (vpErrorMessage()) {
+          <div class="vp-alert vp-alert--error" role="alert">
+            <span>{{ vpErrorMessage() }}</span>
+            <button type="button" class="vp-alert__close" (click)="vpErrorMessage.set('')" aria-label="Dismiss">&times;</button>
+          </div>
+        }
+
+        <button
+          type="button"
+          class="inv-primary-btn vp-uncheck-all-btn"
+          [disabled]="!vpHasNewPapers() || vpUnchecking()"
+          (click)="onUncheckAllVendorPapers()"
+        >
+          {{ vpUnchecking() ? 'Unchecking…' : 'Uncheck All' }}
+        </button>
+
+        <div class="inv-table-wrap">
+          <div class="inv-toolbar">
+            <div class="inv-toolbar__left">
+              <span>Show</span>
+              <select class="inv-select" [ngModel]="vpPageSize()" (ngModelChange)="onVpPageSizeChange($event)">
+                @for (opt of vpPageSizeOptions; track opt) {
+                  <option [value]="opt">{{ opt }}</option>
+                }
+              </select>
+              <span>entries</span>
+            </div>
+            <label class="inv-toolbar__search">
+              <span>Search:</span>
+              <input type="search" class="inv-search-input" [ngModel]="vpSearchText()" (ngModelChange)="onVpSearchInput($event)" />
+            </label>
+          </div>
+
+          <div class="inv-table-scroll">
+            <table class="inv-table vp-table">
+              <thead>
+                <tr>
+                  <th class="inv-th inv-th--sortable vp-th--check" scope="col">
+                    Check <span class="inv-sort-icon" aria-hidden="true">▲</span>
+                  </th>
+                  <th scope="col">Vendor</th>
+                  <th scope="col">Type</th>
+                  <th scope="col">File Name</th>
+                  <th scope="col">Uploaded On</th>
+                  <th scope="col">Comment</th>
+                  <th scope="col">Uploaded By</th>
+                  <th class="vp-th--control" scope="col">Control</th>
+                  <th class="vp-th--delete" scope="col">Delete</th>
+                </tr>
+              </thead>
+              <tbody>
+                @if (vpIsLoading()) {
+                  <tr>
+                    <td colspan="9" class="inv-empty">Loading vendor papers…</td>
+                  </tr>
+                } @else if (vpFilteredPapers().length === 0) {
+                  <tr>
+                    <td colspan="9" class="inv-empty">
+                      @if (vpPapers().length === 0) {
+                        No vendor papers attached.
+                      } @else {
+                        No vendor papers match your search.
+                      }
+                    </td>
+                  </tr>
+                } @else {
+                  @for (paper of vpPaginatedPapers(); track paper.uploadKey) {
+                    <tr [class.vp-row--muted]="paper.isVendorDeleted">
+                      <td class="vp-td vp-td--check">
+                        @if (paper.isNew) {
+                          <button type="button" class="inv-act-btn inv-act-btn--uncheck-new" (click)="onUncheckNewVendorPaper(paper)">
+                            Uncheck New
+                          </button>
+                        } @else {
+                          <span class="vp-checked-label">Checked</span>
+                        }
+                      </td>
+                      <td class="vp-td vp-td--vendor">
+                        <span class="vp-vendor-name">{{ paper.vendorName || '—' }}</span>
+                      </td>
+                      <td class="vp-td">{{ paper.fileType || '—' }}</td>
+                      <td class="vp-td">
+                        <span class="vp-file-cell">
+                          @if (vendorPaperFileBadge(paper.fileName); as badge) {
+                            <span class="vp-file-badge">{{ badge }}</span>
+                          }
+                          <span class="vp-file-name">{{ paper.fileName || '—' }}</span>
+                        </span>
+                      </td>
+                      <td class="vp-td">{{ paper.uploadDateDisplay || '—' }}</td>
+                      <td class="vp-td" [class.vp-td--comment-empty]="!paper.remark">{{ paper.remark || '—' }}</td>
+                      <td class="vp-td">{{ paper.uploadedByDisplay || '—' }}</td>
+                      <td class="vp-td vp-td--control">
+                        <button type="button" class="vp-action-link vp-action-link--view" (click)="openVendorPaper(paper)">View File</button>
+                      </td>
+                      <td class="vp-td vp-td--delete">
+                        <button type="button" class="vp-action-link vp-action-link--delete" (click)="deleteVendorPaper(paper)">Delete</button>
+                      </td>
+                    </tr>
+                  }
+                }
+              </tbody>
+            </table>
+          </div>
+
+          @if (vpFilteredPapers().length > 0) {
+            <div class="inv-footer">
+              <span>Showing {{ vpShowingFrom() }} to {{ vpShowingTo() }} of {{ vpFilteredPapers().length }} entries</span>
+              <div class="inv-pagination">
+                <button type="button" class="inv-page-btn" [disabled]="vpCurrentPage() <= 1" (click)="vpGoToPage(vpCurrentPage() - 1)">Previous</button>
+                <button type="button" class="inv-page-btn inv-page-btn--active" disabled>{{ vpCurrentPage() }}</button>
+                <button type="button" class="inv-page-btn" [disabled]="vpCurrentPage() >= vpTotalPages()" (click)="vpGoToPage(vpCurrentPage() + 1)">Next</button>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+    }
+  </app-accordion>
+
+</div>
+
+<!-- Check-In/Out modals (outside accordions for z-index) -->
+@if (cioEditModalOpen()) {
+  <div class="cio-modal-overlay" (click)="closeCioEditModal()">
+    <div class="cio-modal" role="dialog" aria-labelledby="cio-edit-title" (click)="$event.stopPropagation()">
+      <header class="cio-modal__header">
+        <h3 id="cio-edit-title">Edit Vendor Check In / Out</h3>
+        <button type="button" class="cio-modal__close" (click)="closeCioEditModal()" aria-label="Close">&times;</button>
+      </header>
+      <div class="cio-modal__body">
+        @if (cioEditRow(); as row) {
+          <div class="cio-form-row">
+            <label class="cio-form-label">Vendor</label>
+            <p class="cio-form-static">{{ row.vendorName }}</p>
+          </div>
+          <div class="cio-form-row">
+            <label class="cio-form-label">Original Check In</label>
+            <p class="cio-form-static">{{ row.checkInDisplay }}</p>
+          </div>
+          <div class="cio-form-row">
+            <label class="cio-form-label" for="editNewCheckIn">New Check In</label>
+            <input id="editNewCheckIn" type="datetime-local" class="cio-input" [ngModel]="cioEditNewCheckIn()" (ngModelChange)="cioEditNewCheckIn.set($event)" [disabled]="!row.editCheckInLocal" />
+            <p class="cio-help">Can only be changed to a <strong>later</strong> time.</p>
+          </div>
+          @if (row.isCheckedOut) {
+            <div class="cio-form-row">
+              <label class="cio-form-label">Original Check Out</label>
+              <p class="cio-form-static">{{ row.checkOutDisplay }}</p>
+            </div>
+            <div class="cio-form-row">
+              <label class="cio-form-label" for="editNewCheckOut">New Check Out</label>
+              <input id="editNewCheckOut" type="datetime-local" class="cio-input" [ngModel]="cioEditNewCheckOut()" (ngModelChange)="cioEditNewCheckOut.set($event)" />
+              <p class="cio-help">Can only be changed to an <strong>earlier</strong> time.</p>
+            </div>
+          }
+          <div class="cio-form-row">
+            <label class="cio-form-label" for="editAdminNote">Admin Note <span class="cio-req">*</span></label>
+            <textarea id="editAdminNote" rows="4" class="cio-textarea" placeholder="This note is mandatory and will be recorded as a pink Note to Accounting." [ngModel]="cioEditAdminNote()" (ngModelChange)="cioEditAdminNote.set($event)"></textarea>
+          </div>
+          <div class="cio-accounting-note">
+            <strong>Note to Accounting:</strong> Any changes made here will be automatically recorded as a pink "Note to Accounting" with full details of the original and updated times.
+          </div>
+          @if (cioEditError()) {
+            <p class="cio-form-error" role="alert">{{ cioEditError() }}</p>
+          }
+        }
+      </div>
+      <footer class="cio-modal__footer">
+        <button type="button" class="cio-btn cio-btn--outline" (click)="closeCioEditModal()">Close</button>
+        <button type="button" class="cio-btn cio-btn--primary" [disabled]="cioEditSaving()" (click)="saveCioEdit()">
+          {{ cioEditSaving() ? 'Saving…' : 'Save Changes' }}
+        </button>
+      </footer>
+    </div>
+  </div>
+}
+
+@if (cioManualModalOpen()) {
+  <div class="cio-modal-overlay" (click)="closeCioManualEntry()">
+    <div class="cio-modal" role="dialog" aria-labelledby="cio-manual-title" (click)="$event.stopPropagation()">
+      <header class="cio-modal__header">
+        <h3 id="cio-manual-title">Manual Check-In Entry</h3>
+        <button type="button" class="cio-modal__close" (click)="closeCioManualEntry()" aria-label="Close">&times;</button>
+      </header>
+      <div class="cio-modal__body">
+        <div class="cio-form-row">
+          <label class="cio-form-label" for="manualVendor">Vendor</label>
+          <select id="manualVendor" class="cio-input" [ngModel]="cioManualVendorKey()" (ngModelChange)="cioManualVendorKey.set($event)">
+            <option value="">Select vendor…</option>
+            @for (v of cioManualVendors(); track v.jobVendorKey) {
+              <option [value]="v.jobVendorKey">{{ v.vendorName }}</option>
+            }
+          </select>
+        </div>
+        <div class="cio-form-row">
+          <label class="cio-form-label" for="manualCheckIn">Check-In Date/Time</label>
+          <input id="manualCheckIn" type="datetime-local" class="cio-input" [ngModel]="cioManualCheckInDate()" (ngModelChange)="cioManualCheckInDate.set($event)" />
+        </div>
+        <div class="cio-form-row">
+          <label class="cio-form-label" for="manualTechs">Number of Techs</label>
+          <input id="manualTechs" type="number" min="1" class="cio-input" [ngModel]="cioManualNoOfTech()" (ngModelChange)="cioManualNoOfTech.set(+$event || 1)" />
+        </div>
+        @if (cioManualError()) {
+          <p class="cio-form-error" role="alert">{{ cioManualError() }}</p>
+        }
+      </div>
+      <footer class="cio-modal__footer">
+        <button type="button" class="cio-btn cio-btn--outline" (click)="closeCioManualEntry()">Cancel</button>
+        <button type="button" class="cio-btn cio-btn--primary" [disabled]="cioManualSaving()" (click)="saveCioManualEntry()">
+          {{ cioManualSaving() ? 'Saving…' : 'Save Check-In' }}
+        </button>
+      </footer>
+    </div>
+  </div>
+}
+
+<!-- Path 3 — vendor-estimate source picker (feeds the native customer-estimate modal) -->
+@if (p3PickerOpen()) {
+  <div class="cio-modal-overlay" (click)="closeVendorEstimatePicker()">
+    <div class="cio-modal" role="dialog" aria-labelledby="p3-picker-title" (click)="$event.stopPropagation()">
+      <header class="cio-modal__header">
+        <h3 id="p3-picker-title">Create Customer Estimate from Vendor Estimate</h3>
+        <button type="button" class="cio-modal__close" (click)="closeVendorEstimatePicker()" aria-label="Close">&times;</button>
+      </header>
+      <div class="cio-modal__body">
+        @if (p3PickerLoading()) {
+          <p class="inv-empty">Loading vendor estimates…</p>
+        } @else if (p3PickerError()) {
+          <p class="cio-form-error" role="alert">{{ p3PickerError() }}</p>
+        } @else if (p3Estimates().length === 0) {
+          <p class="inv-empty">No vendor estimates are available for this job.</p>
+        } @else {
+          <p class="cci-picker__hint">Select the vendor estimate to build the customer estimate from:</p>
+          <ul class="cci-picker__list">
+            @for (est of p3Estimates(); track est.estimateKey) {
+              <li class="cci-picker__row">
+                <div class="cci-picker__info">
+                  <span class="cci-picker__vendor">{{ est.vendorName || 'Vendor' }}</span>
+                  <span class="cci-picker__meta">
+                    #{{ est.estimateNo || '—' }} · {{ est.estimateDateDisplay || '—' }} · {{ est.statusLabel }}
+                  </span>
+                </div>
+                <button type="button" class="inv-primary-btn" (click)="createCustomerEstimateFromVendorEstimate(est)">Use</button>
+              </li>
+            }
+          </ul>
+        }
+      </div>
+      <footer class="cio-modal__footer">
+        <button type="button" class="cio-btn cio-btn--outline" (click)="closeVendorEstimatePicker()">Cancel</button>
+      </footer>
+    </div>
+  </div>
+}
+
+<!-- Path 3 — native customer-estimate creation flow (shared with the Estimates section) -->
+<app-create-customer-estimate-modal
+  (customerEstimateCreated)="onCustomerEstimateCreated($event)"
+  (sendRequested)="onSendRequested($event)" />
+
+<app-send-customer-estimate-modal
+  (sent)="onCustomerEstimateSent($event)"
+  (cancelled)="onSendCancelled()" />
+
+<app-estimate-vendor-deposit-modal />
+
+<!-- Phase 2 — native customer-invoice creation (Paths 1/2/4) -->
+<app-create-customer-invoice-modal (customerInvoiceCreated)="onCustomerInvoiceCreated($event)" />
+

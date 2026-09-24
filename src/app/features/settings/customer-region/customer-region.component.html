@@ -1,0 +1,102 @@
+<div class="page">
+  <nav class="breadcrumb">
+    <a routerLink="/settings" class="breadcrumb__link">Settings</a>
+    <span class="breadcrumb__sep">/</span>
+    <span class="breadcrumb__current">Region</span>
+  </nav>
+
+  <div class="page__header">
+    <div class="page__header-row">
+      <div>
+        <h1 class="page__title">Region</h1>
+        <p class="page__subtitle">Define geographic regions for customers. Regions can be assigned to customer locations.</p>
+      </div>
+      @if (!isFormOpen) {
+        <button type="button" class="btn btn--primary btn--icon" (click)="startCreate()">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          Add Region
+        </button>
+      }
+    </div>
+  </div>
+
+  @if (error()) {
+    <div class="error-banner">{{ error() }}</div>
+  }
+
+  <!-- ── Inline Form ── -->
+  @if (isFormOpen) {
+    <div class="form-card" [class.form-card--edit]="!isNew()">
+      <div class="form-card__badge">{{ isNew() ? 'New Region' : 'Edit Region' }}</div>
+      <form (ngSubmit)="save()">
+        <div class="form-grid">
+          <div class="field">
+            <label class="field__label" for="customerKey">Customer</label>
+            <select id="customerKey" class="field__select" [ngModel]="formCustomerKey()" (ngModelChange)="formCustomerKey.set($event)" name="customerKey" required>
+              <option value="">— Select a customer —</option>
+              @for (c of customers(); track c.key) {
+                <option [value]="c.key">{{ c.name }}</option>
+              }
+            </select>
+          </div>
+
+          <div class="field">
+            <label class="field__label" for="regionName">Region</label>
+            <input id="regionName" type="text" class="field__input" [ngModel]="formRegionName()" (ngModelChange)="formRegionName.set($event)" name="regionName" required placeholder="e.g. Northeast, West Coast" />
+          </div>
+        </div>
+
+        <div class="form-card__actions">
+          <button type="submit" class="btn btn--primary" [disabled]="!canSave || saving()">
+            {{ saving() ? 'Saving…' : (isNew() ? 'Add' : 'Update') }}
+          </button>
+          <button type="button" class="btn btn--ghost" (click)="cancelEdit()">Cancel</button>
+        </div>
+      </form>
+    </div>
+  }
+
+  <!-- ── Table ── -->
+  @if (loading()) {
+    <div class="loading-note">Loading regions…</div>
+  } @else if (regions().length === 0) {
+    <div class="empty">
+      <p class="empty__text">No regions defined</p>
+      <p class="empty__hint">Click "Add Region" to create one.</p>
+    </div>
+  } @else {
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th class="th--num">#</th>
+            <th>Customer</th>
+            <th>Region</th>
+            <th class="th--actions"></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (r of regions(); track r.zoneId; let idx = $index) {
+            <tr [class.tr--active]="editingId() === r.zoneId">
+              <td class="td--num">{{ idx + 1 }}</td>
+              <td class="td--customer">{{ r.customerName }}</td>
+              <td class="td--region">
+                <span class="region-badge">{{ r.zoneName }}</span>
+              </td>
+              <td class="td--actions">
+                <button type="button" class="icon-btn icon-btn--edit" title="Edit" (click)="startEdit(r)">
+                  <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M10.586 1.586a2 2 0 0 1 2.828 2.828L5.5 12.328l-3.6.9.9-3.6 7.786-8.042Z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+                <button type="button" class="icon-btn icon-btn--delete" title="Delete" (click)="confirmDelete(r)">
+                  <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M2.5 4.5h10M5.5 4.5V3a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v1.5m1.5 0-.5 8a1 1 0 0 1-1 1h-5a1 1 0 0 1-1-1l-.5-8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>
+
+<app-confirm-dialog />

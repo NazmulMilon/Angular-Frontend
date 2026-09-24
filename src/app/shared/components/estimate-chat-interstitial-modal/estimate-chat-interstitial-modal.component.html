@@ -1,0 +1,26 @@
+<div
+  *ngIf="isVisible()"
+  class="eci-overlay"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="eci-modal-title"
+  (click)="close()"
+>
+  <div class="eci-container" (click)="$event.stopPropagation()">
+    <h2 id="eci-modal-title" class="eci-title">This job is Tech On-Site</h2>
+    <p class="eci-subtitle">
+      The vendor's submitted estimate can be reviewed and actioned right from the chat thread.
+    </p>
+
+    <div class="eci-actions">
+      <button type="button" class="eci-btn eci-btn--primary" (click)="chatWithVendor()">
+        Chat with vendor
+      </button>
+      <button type="button" class="eci-btn eci-btn--secondary" (click)="goToEstimates()">
+        Go to Estimates page
+      </button>
+    </div>
+
+    <button type="button" class="eci-close" (click)="close()" aria-label="Close">&times;</button>
+  </div>
+</div>

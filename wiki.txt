@@ -1,0 +1,13 @@
+Build command for uat environment
+    ng build --configuration=uat
+
+
+
+    Build command for production environment
+    ng build --configuration=production
+
+    Build command for dev environment
+    ng build --configuration=development
+
+    To run in a web server:
+    npx http-server -o "D:\RFI PROJECTS\AdminPortal V2\dist\rfi-admin-portal-v2\browser"

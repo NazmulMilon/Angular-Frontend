@@ -1,0 +1,130 @@
+<div class="moa-page">
+  <header class="moa-header">
+    <h1>⚠ Below Minimum Mark-up Approvals</h1>
+    <p class="muted">Customer invoices awaiting QC Manager approval to send below the minimum mark-up target.</p>
+  </header>
+
+  <div class="moa-layout">
+    <!-- Detail view (left) -->
+    <div class="moa-detail">
+      @if (errorMessage()) {
+        <div class="moa-error">{{ errorMessage() }}</div>
+      }
+
+      @if (!loading() && jobs().length === 0 && !errorMessage()) {
+        <div class="moa-empty">No invoices are currently awaiting override approval. 🎉</div>
+      }
+
+      @if (selectedListItem(); as item) {
+        <div class="moa-title-row">
+          <div>
+            <div class="moa-po">PO {{ item.po }} — {{ item.jobName }}</div>
+            <div class="moa-customer">{{ item.customerName }}</div>
+          </div>
+          <div class="moa-requested">
+            Requested by {{ item.requestedByName || 'Accounting' }}<br />
+            {{ formatDateTime(item.requestedOn) }}
+          </div>
+        </div>
+
+        @if (detailLoading()) {
+          <div class="moa-loading">Loading invoice detail…</div>
+        }
+        @if (detailError()) {
+          <div class="moa-error">{{ detailError() }}</div>
+        }
+
+        @if (detail(); as d) {
+          <div class="moa-stat-row">
+            <div class="moa-stat">
+              <div class="moa-stat-label">Combined vendor cost</div>
+              <div class="moa-stat-value">{{ d.combinedVendorCost | currency }}</div>
+            </div>
+            <div class="moa-stat">
+              <div class="moa-stat-label">Customer invoice total</div>
+              <div class="moa-stat-value">{{ d.invoiceTotal | currency }}</div>
+            </div>
+            <div class="moa-stat">
+              <div class="moa-stat-label">Current mark-up</div>
+              <div class="moa-stat-value bad">{{ d.markupPercent | number: '1.0-1' }}%</div>
+            </div>
+            <div class="moa-stat">
+              <div class="moa-stat-label">Minimum required</div>
+              <div class="moa-stat-value">{{ d.minMarkupTargetPercent | number: '1.0-1' }}% ({{ d.minMarkupTargetRuleLabel }})</div>
+            </div>
+          </div>
+
+          <b class="moa-section-label">Customer invoice line items</b>
+          <table class="moa-grid">
+            <thead>
+              <tr><th>Description</th><th class="num">Qty</th><th class="num">Rate</th><th class="num">Amount</th></tr>
+            </thead>
+            <tbody>
+              @for (l of d.invoiceLines; track $index) {
+                <tr>
+                  <td [innerHTML]="l.description"></td>
+                  <td class="num">{{ l.qty }}</td>
+                  <td class="num">{{ l.rate | currency }}</td>
+                  <td class="num">{{ l.amount | currency }}</td>
+                </tr>
+              } @empty {
+                <tr><td colspan="4" class="moa-empty-row">No line items on file.</td></tr>
+              }
+            </tbody>
+          </table>
+
+          <b class="moa-section-label">Approved vendor invoices on this job</b>
+          <table class="moa-grid">
+            <thead>
+              <tr><th>Vendor</th><th>Invoice No</th><th class="num">Total</th></tr>
+            </thead>
+            <tbody>
+              @for (v of d.vendorInvoices; track $index) {
+                <tr>
+                  <td>{{ v.vendorName }}</td>
+                  <td>{{ v.invoiceNo }}</td>
+                  <td class="num">{{ v.total | currency }}</td>
+                </tr>
+              } @empty {
+                <tr><td colspan="3" class="moa-empty-row">No vendor invoices on file yet.</td></tr>
+              }
+            </tbody>
+          </table>
+
+          @if (decisionError()) {
+            <div class="moa-error">{{ decisionError() }}</div>
+          }
+          <div class="moa-actions">
+            <button type="button" class="btn green" [disabled]="deciding()" (click)="approve()">
+              ✓ Approve override
+            </button>
+            <button type="button" class="btn ghost-red" [disabled]="deciding()" (click)="reject()">
+              ✕ Reject
+            </button>
+          </div>
+        }
+      }
+    </div>
+
+    <!-- Job list (right) -->
+    <div class="moa-list">
+      @if (loading()) {
+        <div class="moa-loading">Loading…</div>
+      }
+      @for (job of jobs(); track job.jobKey) {
+        <button
+          type="button"
+          class="moa-job-card"
+          [class.moa-job-card--active]="job.jobKey === selectedJobKey()"
+          (click)="selectJob(job.jobKey)"
+        >
+          <div class="moa-job-card__po">PO {{ job.po }}</div>
+          <div class="moa-job-card__name">{{ job.jobName }}</div>
+          <div class="moa-job-card__customer">{{ job.customerName }}</div>
+          <div class="moa-job-card__markup">{{ job.markupPercentAtRequest | number: '1.0-1' }}% vs {{ job.minMarkupTargetAtRequest | number: '1.0-1' }}% min</div>
+          <div class="moa-job-card__meta">{{ formatDateTime(job.requestedOn) }}</div>
+        </button>
+      }
+    </div>
+  </div>
+</div>

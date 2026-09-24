@@ -1,0 +1,196 @@
+<div class="page">
+  <!-- ── Drill-down breadcrumb ── -->
+  <nav class="breadcrumb">
+    <a routerLink="/settings" class="breadcrumb__link">Settings</a>
+    <span class="breadcrumb__sep">/</span>
+    <button type="button" class="breadcrumb__link breadcrumb__link--btn" (click)="goToCountries()">GIS — Countries</button>
+    @if (level() !== 'country' && selectedCountry(); as ct) {
+      <span class="breadcrumb__sep">/</span>
+      @if (level() === 'state') {
+        <span class="breadcrumb__current">{{ ct.name }} — States</span>
+      } @else {
+        <button type="button" class="breadcrumb__link breadcrumb__link--btn" (click)="goToStates()">{{ ct.name }} — States</button>
+      }
+    }
+    @if (level() === 'city' && selectedState(); as st) {
+      <span class="breadcrumb__sep">/</span>
+      <span class="breadcrumb__current">{{ st.name }} — Cities</span>
+    }
+  </nav>
+
+  @if (error()) {
+    <div class="error-banner">{{ error() }}</div>
+  }
+
+  <!-- ══════════ COUNTRY LEVEL ══════════ -->
+  @if (level() === 'country') {
+    <div class="page__header"><h1 class="page__title">GIS — Countries</h1></div>
+    <div class="layout">
+      <div class="panel">
+        <div class="panel__head">
+          Add Country
+          @if (editCountryKey() !== null) { <span class="panel__edit-tag">Editing</span> }
+        </div>
+        <div class="panel__body">
+          <div class="field">
+            <label class="field__label" for="coCode">Short Code</label>
+            <input id="coCode" type="text" class="field__input" [ngModel]="fCountryCode()" (ngModelChange)="fCountryCode.set($event)" name="coCode" placeholder="e.g. US (defaults to name)" />
+          </div>
+          <div class="field">
+            <label class="field__label" for="coName">Name</label>
+            <input id="coName" type="text" class="field__input" [ngModel]="fCountryName()" (ngModelChange)="fCountryName.set($event)" name="coName" placeholder="e.g. United States" />
+          </div>
+        </div>
+        <div class="panel__footer">
+          <button type="button" class="btn btn--primary" [disabled]="!canSaveCountry" (click)="saveCountry()">{{ editCountryKey() === null ? 'Add' : 'Save' }}</button>
+          <button type="button" class="btn btn--secondary" (click)="clearCountryForm()">Clear</button>
+        </div>
+      </div>
+
+      <div class="list-col">
+        <h3 class="list-title">Countries</h3>
+        <div class="table-wrap">
+          <table class="table">
+            <thead><tr><th class="th--code">Code</th><th>Name</th><th class="th--actions"></th></tr></thead>
+            <tbody>
+              @if (loading()) {
+                <tr><td colspan="3" class="td--empty">Loading countries…</td></tr>
+              } @else {
+                @for (c of countries(); track c.key) {
+                  <tr [class.tr--active]="editCountryKey() === c.key">
+                    <td><span class="code-badge">{{ c.code }}</span></td>
+                    <td class="td--name">{{ c.name }}</td>
+                    <td class="td--actions">
+                      <button type="button" class="icon-btn" title="Edit" (click)="editCountry(c)">
+                        <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M10.586 1.586a2 2 0 0 1 2.828 2.828L5.5 12.328l-3.6.9.9-3.6 7.786-8.042Z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                      </button>
+                      <button type="button" class="drill-btn" (click)="drillToStates(c)">States →</button>
+                    </td>
+                  </tr>
+                } @empty {
+                  <tr><td colspan="3" class="td--empty">No countries yet. Add one to begin.</td></tr>
+                }
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ══════════ STATE LEVEL ══════════ -->
+  @if (level() === 'state' && selectedCountry(); as ct) {
+    <div class="page__header"><h1 class="page__title">{{ ct.name }} — States</h1></div>
+    <p class="page__note">States are shared across all countries (grouping is for display only).</p>
+    <div class="layout">
+      <div class="panel">
+        <div class="panel__head">
+          Add State
+          @if (editStateKey() !== null) { <span class="panel__edit-tag">Editing</span> }
+        </div>
+        <div class="panel__body">
+          <div class="field">
+            <label class="field__label">Country</label>
+            <div class="fixed-parent">{{ ct.name }} ({{ ct.code }})</div>
+          </div>
+          <div class="field">
+            <label class="field__label" for="stCode">Code</label>
+            <input id="stCode" type="text" class="field__input" [ngModel]="fStateCode()" (ngModelChange)="fStateCode.set($event)" name="stCode" placeholder="e.g. CA" />
+          </div>
+          <div class="field">
+            <label class="field__label" for="stName">Name</label>
+            <input id="stName" type="text" class="field__input" [ngModel]="fStateName()" (ngModelChange)="fStateName.set($event)" name="stName" placeholder="e.g. California" />
+          </div>
+        </div>
+        <div class="panel__footer">
+          <button type="button" class="btn btn--primary" [disabled]="!canSaveState" (click)="saveState()">{{ editStateKey() === null ? 'Add' : 'Save' }}</button>
+          <button type="button" class="btn btn--secondary" (click)="clearStateForm()">Clear</button>
+        </div>
+      </div>
+
+      <div class="list-col">
+        <h3 class="list-title">States</h3>
+        <div class="table-wrap">
+          <table class="table">
+            <thead><tr><th class="th--code">Code</th><th>Name</th><th class="th--actions"></th></tr></thead>
+            <tbody>
+              @if (loading()) {
+                <tr><td colspan="3" class="td--empty">Loading states…</td></tr>
+              } @else {
+                @for (s of states(); track s.key) {
+                  <tr [class.tr--active]="editStateKey() === s.key">
+                    <td><span class="code-badge">{{ s.code }}</span></td>
+                    <td class="td--name">{{ s.name }}</td>
+                    <td class="td--actions">
+                      <button type="button" class="icon-btn" title="Edit" (click)="editState(s)">
+                        <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M10.586 1.586a2 2 0 0 1 2.828 2.828L5.5 12.328l-3.6.9.9-3.6 7.786-8.042Z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                      </button>
+                      <button type="button" class="drill-btn" (click)="drillToCities(s)">Cities →</button>
+                    </td>
+                  </tr>
+                } @empty {
+                  <tr><td colspan="3" class="td--empty">No states defined.</td></tr>
+                }
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ══════════ CITY LEVEL ══════════ -->
+  @if (level() === 'city' && selectedState(); as st) {
+    <div class="page__header"><h1 class="page__title">{{ st.name }} — Cities</h1></div>
+    <div class="layout">
+      <div class="panel">
+        <div class="panel__head">
+          Add City
+          @if (editCityKey() !== null) { <span class="panel__edit-tag">Editing</span> }
+        </div>
+        <div class="panel__body">
+          <div class="field">
+            <label class="field__label">State</label>
+            <div class="fixed-parent">{{ st.name }} ({{ st.code }})</div>
+          </div>
+          <div class="field">
+            <label class="field__label" for="ctName">City Name</label>
+            <input id="ctName" type="text" class="field__input" [ngModel]="fCityName()" (ngModelChange)="fCityName.set($event)" name="ctName" placeholder="e.g. San Francisco" />
+          </div>
+        </div>
+        <div class="panel__footer">
+          <button type="button" class="btn btn--primary" [disabled]="!canSaveCity" (click)="saveCity()">{{ editCityKey() === null ? 'Add' : 'Save' }}</button>
+          <button type="button" class="btn btn--secondary" (click)="clearCityForm()">Clear</button>
+        </div>
+      </div>
+
+      <div class="list-col">
+        <h3 class="list-title">Cities in {{ st.name }}</h3>
+        <div class="table-wrap">
+          <table class="table">
+            <thead><tr><th>Name</th><th>State</th><th class="th--actions"></th></tr></thead>
+            <tbody>
+              @if (loading()) {
+                <tr><td colspan="3" class="td--empty">Loading cities…</td></tr>
+              } @else {
+                @for (c of cities(); track c.key) {
+                  <tr [class.tr--active]="editCityKey() === c.key">
+                    <td class="td--name">{{ c.name }}</td>
+                    <td>{{ stateName(c.stateKey) }}</td>
+                    <td class="td--actions">
+                      <button type="button" class="icon-btn" title="Edit" (click)="editCity(c)">
+                        <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M10.586 1.586a2 2 0 0 1 2.828 2.828L5.5 12.328l-3.6.9.9-3.6 7.786-8.042Z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                      </button>
+                    </td>
+                  </tr>
+                } @empty {
+                  <tr><td colspan="3" class="td--empty">No cities in this state yet.</td></tr>
+                }
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  }
+</div>

@@ -1,0 +1,73 @@
+@if (isOpen()) {
+  <div class="modal-overlay" (click)="onOverlayClick($event)">
+    @if (step() === 'confirm') {
+      <div class="modal modal--ins-override" role="dialog" aria-modal="true" aria-labelledby="iocModalTitle">
+        <div class="modal__header">
+          <h3 class="modal__title" id="iocModalTitle">
+            ⚠ Override insurance block
+            @if (vendorName()) {
+              <span class="modal__po">— {{ vendorName() }}</span>
+            }
+          </h3>
+          <button type="button" class="modal__close" (click)="onClose()" aria-label="Close">&times;</button>
+        </div>
+
+        <div class="modal__body">
+          @if (errorMessage()) {
+            <div class="ioc-error">{{ errorMessage() }}</div>
+          }
+
+          <div class="ioc-problem-box">
+            {{ summary() }}
+            <ul class="ioc-problem-list">
+              @for (p of problems(); track p) {
+                <li>{{ p }}</li>
+              }
+            </ul>
+            The override is logged and the <b>CFO and Controller are emailed a flag immediately</b>.
+          </div>
+
+          <div class="ioc-note-box">
+            <b>This override does not change the vendor invoice or bill amount.</b>
+            It's a record-only audit entry that unlocks payable approval for this vendor going
+            forward — the deduction percent(s) above are logged for accounting reference only.
+          </div>
+        </div>
+
+        <div class="modal__footer">
+          <button type="button" class="btn" [disabled]="applying()" (click)="onClose()">Cancel</button>
+          <button type="button" class="btn ghost-amber" [disabled]="applying()" (click)="apply()">
+            {{ applying() ? 'Applying…' : '⚠ Apply override & email CFO/Controller' }}
+          </button>
+        </div>
+      </div>
+    } @else {
+      <div class="modal modal--ins-override" role="dialog" aria-modal="true" aria-labelledby="iocSentModalTitle">
+        <div class="modal__header">
+          <h3 class="modal__title" id="iocSentModalTitle">✉ Flag emailed — CFO &amp; Controller</h3>
+          <button type="button" class="modal__close" (click)="onClose()" aria-label="Close">&times;</button>
+        </div>
+
+        <div class="modal__body">
+          <div class="ioc-email-preview">
+            <div class="ioc-email-header">
+              @if (sentToDisplay()) {
+                <div><b>To:</b> {{ sentToDisplay() }}</div>
+              }
+              @if (sentSubject()) {
+                <div><b>Subject:</b> {{ sentSubject() }}</div>
+              }
+            </div>
+            @if (sentBodyPreview()) {
+              <div class="ioc-email-body">{{ sentBodyPreview() }}</div>
+            }
+          </div>
+        </div>
+
+        <div class="modal__footer">
+          <button type="button" class="btn" (click)="onClose()">Close</button>
+        </div>
+      </div>
+    }
+  </div>
+}

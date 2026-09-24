@@ -1,0 +1,29 @@
+/**
+ * Estimates Page Styles
+ * Layout and navigation aligned with Customer & Vendor Invoicing / Notes & Activity page patterns.
+ */
+
+@use '../../../shared/styles/app-tabs';
+
+:host {
+  display: block;
+  width: 100%;
+  padding: 14px 20px;
+  overflow-x: hidden;
+  background: #f1f5f9;
+  min-height: 100%;
+  box-sizing: border-box;
+}
+
+.page-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-x: hidden;
+}
+
+@media (max-width: 768px) {
+  :host {
+    padding: 16px;
+  }
+}

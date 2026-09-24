@@ -1,0 +1,138 @@
+:host {
+  --cd-ink: #17202e;
+  --cd-muted: #5b6b80;
+  --cd-line: #dde4ec;
+  --cd-line-strong: #c7cdd6;
+  --cd-card: #ffffff;
+  --cd-danger: #c6303e;
+  --cd-danger-hover: #ad2534;
+  --cd-primary: #2563eb;
+  --cd-primary-hover: #1d4ed8;
+  --cd-shadow-lg: 0 20px 40px rgba(15, 22, 36, 0.2);
+  --cd-overlay: rgba(15, 22, 36, 0.45);
+}
+
+.cd-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: var(--cd-overlay);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: cd-fade 120ms ease-out;
+}
+
+.cd-modal {
+  width: min(440px, 100%);
+  background: var(--cd-card);
+  border-radius: 8px;
+  box-shadow: var(--cd-shadow-lg);
+  animation: cd-pop 120ms ease-out;
+}
+
+.cd-modal__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 20px 12px;
+}
+
+.cd-modal__title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--cd-ink);
+}
+
+.cd-modal__close {
+  border: none;
+  background: transparent;
+  font-size: 22px;
+  cursor: pointer;
+  color: var(--cd-muted);
+  line-height: 1;
+  padding: 0;
+}
+
+.cd-modal__body {
+  padding: 0 20px 8px;
+}
+
+.cd-modal__message {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--cd-muted);
+}
+
+.cd-modal__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 20px 16px;
+}
+
+.cd-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 7px 14px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  line-height: 1.2;
+  border: 1px solid transparent;
+}
+
+.cd-btn--outline {
+  background: var(--cd-card);
+  color: var(--cd-ink);
+  border-color: var(--cd-line-strong);
+
+  &:hover {
+    background: #f5f7fa;
+  }
+}
+
+.cd-btn--danger {
+  background: var(--cd-danger);
+  color: #fff;
+  border-color: var(--cd-danger);
+
+  &:hover {
+    background: var(--cd-danger-hover);
+    border-color: var(--cd-danger-hover);
+  }
+}
+
+.cd-btn--primary {
+  background: var(--cd-primary);
+  color: #fff;
+  border-color: var(--cd-primary);
+
+  &:hover {
+    background: var(--cd-primary-hover);
+    border-color: var(--cd-primary-hover);
+  }
+}
+
+.cd-btn:focus-visible {
+  outline: 2px solid var(--cd-primary);
+  outline-offset: 2px;
+}
+
+@keyframes cd-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes cd-pop {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}

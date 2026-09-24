@@ -1,0 +1,66 @@
+@if (isVisible()) {
+  <div class="cci-overlay" (click)="close()">
+    <div class="cci-modal" role="dialog" aria-labelledby="sie-title" (click)="$event.stopPropagation()">
+      <header class="cci-modal__header">
+        <div>
+          <h3 id="sie-title" class="cci-modal__title">Email Invoice to Customer</h3>
+          <span class="cci-modal__subtitle">Invoice #{{ row()?.invoiceNo || '' }}</span>
+        </div>
+        <button type="button" class="cci-modal__close" (click)="close()" aria-label="Close">&times;</button>
+      </header>
+
+      <div class="cci-modal__body">
+        @if (errorMessage()) {
+          <div class="cci-alert cci-alert--error" role="alert">
+            <span>{{ errorMessage() }}</span>
+            <button type="button" class="cci-alert__close" (click)="errorMessage.set('')" aria-label="Dismiss">&times;</button>
+          </div>
+        }
+
+        @if (loadingRecipients()) {
+          <p class="cci-empty">Loading recipients…</p>
+        } @else {
+          <div class="cci-field">
+            <span class="cci-field__label">Customer contacts</span>
+            @if (allRecipients().length === 0) {
+              <p class="cci-empty">No contacts found for this job's customer.</p>
+            } @else {
+              <div class="sie-recipients">
+                @if (accountContacts().length > 0) {
+                  <p class="sie-recipients__group-label">Account</p>
+                  @for (c of accountContacts(); track c.contactKey) {
+                    <label class="sie-recipient">
+                      <input type="checkbox" [checked]="isSelected(c.contactKey)" (change)="toggleRecipient(c.contactKey)" />
+                      <span>{{ c.name || c.email }} <small>({{ c.email }})</small></span>
+                    </label>
+                  }
+                }
+                @if (locationContacts().length > 0) {
+                  <p class="sie-recipients__group-label">Location</p>
+                  @for (c of locationContacts(); track c.contactKey) {
+                    <label class="sie-recipient">
+                      <input type="checkbox" [checked]="isSelected(c.contactKey)" (change)="toggleRecipient(c.contactKey)" />
+                      <span>{{ c.name || c.email }} <small>({{ c.email }})</small></span>
+                    </label>
+                  }
+                }
+              </div>
+            }
+          </div>
+
+          <label class="cci-field cci-field--wide">
+            <span class="cci-field__label">Note (optional)</span>
+            <textarea rows="4" class="cci-input" [ngModel]="customNotes()" (ngModelChange)="customNotes.set($event)"></textarea>
+          </label>
+        }
+      </div>
+
+      <footer class="cci-modal__footer">
+        <button type="button" class="cci-btn cci-btn--outline" (click)="close()" [disabled]="sending()">Cancel</button>
+        <button type="button" class="cci-btn cci-btn--primary" (click)="send()" [disabled]="sending() || loadingRecipients()">
+          {{ sending() ? 'Sending…' : 'Send Mail' }}
+        </button>
+      </footer>
+    </div>
+  </div>
+}

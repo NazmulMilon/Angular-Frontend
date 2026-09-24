@@ -1,0 +1,73 @@
+<div class="page">
+  <nav class="breadcrumb">
+    <a routerLink="/settings" class="breadcrumb__link">Settings</a>
+    <span class="breadcrumb__sep">/</span>
+    <span class="breadcrumb__current">Note Footer</span>
+  </nav>
+
+  <div class="page__header">
+    <h1 class="page__title">Note Footer</h1>
+    <p class="page__subtitle">Edit the body content of predefined note footers. Select a footer to edit its details.</p>
+  </div>
+
+  @if (error()) {
+    <div class="error-banner">{{ error() }}</div>
+  }
+
+  <h3 class="list-title">Note Footers</h3>
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th class="th--name">Footer For</th>
+          <th>Details</th>
+          <th class="th--actions"></th>
+        </tr>
+      </thead>
+      <tbody>
+        @if (loading()) {
+          <tr><td colspan="3" class="td--empty">Loading footers…</td></tr>
+        } @else {
+        @for (row of rows(); track row.key) {
+          <tr [class.tr--active]="editingKey() === row.key">
+            <td class="td--name">{{ row.footerName }}</td>
+            <td class="td--detail">{{ preview(row.detail) }}</td>
+            <td class="td--actions">
+              <button type="button" class="btn btn--select" (click)="selectRow(row)">Edit</button>
+            </td>
+          </tr>
+        } @empty {
+          <tr><td colspan="3" class="td--empty">No note footers defined.</td></tr>
+        }
+        }
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ── Edit-only form (appears when a footer is selected) ── -->
+  @if (editingFooter(); as footer) {
+    <div class="panel">
+      <div class="panel__head">Edit Footer <span class="panel__edit-tag">{{ footer.footerName }}</span></div>
+      <div class="panel__body">
+        <form (ngSubmit)="save()">
+          <div class="form-row">
+            <label class="form-row__label" for="footerName">Footer For</label>
+            <div class="form-row__control">
+              <input id="footerName" type="text" class="field__input field__input--readonly" [value]="footer.footerName" readonly />
+            </div>
+          </div>
+          <div class="form-row form-row--stack">
+            <label class="form-row__label">Details</label>
+            <div class="form-row__control">
+              <app-rich-text-editor [ngModel]="formDetail()" (ngModelChange)="formDetail.set($event)" name="footerDetail" required placeholder="Footer content ..." />
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="panel__footer">
+        <button type="button" class="btn btn--primary" [disabled]="!canSave" (click)="save()">Save</button>
+        <button type="button" class="btn btn--secondary" (click)="cancelEdit()">Cancel</button>
+      </div>
+    </div>
+  }
+</div>

@@ -1,0 +1,40 @@
+<div class="rte">
+  <div class="rte__toolbar">
+    <button type="button" class="rte__btn" title="Bold" (mousedown)="$event.preventDefault()" (click)="exec('bold')"><b>B</b></button>
+    <button type="button" class="rte__btn" title="Italic" (mousedown)="$event.preventDefault()" (click)="exec('italic')"><i>I</i></button>
+    <button type="button" class="rte__btn" title="Underline" (mousedown)="$event.preventDefault()" (click)="exec('underline')"><u>U</u></button>
+    <span class="rte__sep"></span>
+    <button type="button" class="rte__btn" title="Bulleted list" (mousedown)="$event.preventDefault()" (click)="exec('insertUnorderedList')">• List</button>
+    <button type="button" class="rte__btn" title="Numbered list" (mousedown)="$event.preventDefault()" (click)="exec('insertOrderedList')">1. List</button>
+    <span class="rte__sep"></span>
+    <button type="button" class="rte__btn" title="Insert link" (mousedown)="$event.preventDefault()" (click)="openLink()">
+      <svg width="14" height="14" viewBox="0 0 15 15" fill="none"><path d="M6 9a3 3 0 0 0 4.24 0l2-2A3 3 0 0 0 8 2.76l-1 1M9 6a3 3 0 0 0-4.24 0l-2 2A3 3 0 0 0 7 12.24l1-1" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <button type="button" class="rte__btn" title="Clear formatting" (mousedown)="$event.preventDefault()" (click)="clearFormat()">Clear</button>
+  </div>
+
+  @if (showLinkInput()) {
+    <div class="rte__link">
+      <input
+        type="url"
+        class="rte__link-input"
+        [value]="linkUrl()"
+        (input)="linkUrl.set($any($event.target).value)"
+        (keydown.enter)="applyLink(); $event.preventDefault()"
+        (keydown.escape)="cancelLink()"
+        placeholder="https://example.com"
+      />
+      <button type="button" class="rte__btn rte__btn--apply" (click)="applyLink()">Add</button>
+      <button type="button" class="rte__btn" (click)="cancelLink()">Cancel</button>
+    </div>
+  }
+
+  <div
+    #editor
+    class="rte__editor"
+    contenteditable="true"
+    [attr.data-placeholder]="placeholder"
+    (input)="onInput()"
+    (blur)="onBlur()"
+  ></div>
+</div>

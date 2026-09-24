@@ -1,0 +1,264 @@
+<div class="add-job">
+
+  <div
+    class="modal-overlay"
+    [class.open]="isVisible()"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="addJobModalTitle"
+    (click)="close()"
+  >
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-head">
+        <h3 id="addJobModalTitle">Add job</h3>
+        <div class="spacer"></div>
+        <button type="button" class="modal-close" aria-label="Close" (click)="close()">×</button>
+      </div>
+
+      <div class="modal-body">
+        @if (loading()) {
+          <div class="aj-state">Loading form…</div>
+        } @else if (loadError()) {
+          <div class="aj-state aj-state--err">{{ loadError() }}</div>
+        } @else {
+          <!-- CUSTOMER -->
+          <section class="card">
+            <div class="card-head">
+              <h2>Customer</h2>
+              <p>Who this job is for and where the work happens.</p>
+            </div>
+            <div class="card-body">
+              <div class="field" [class.invalid]="invalid()['customer']">
+                <label for="customer">Customer name <span class="req">*</span></label>
+                <select id="customer" [ngModel]="customer()" (ngModelChange)="customer.set($event); onCustomerChange()">
+                  <option value="">Select a customer</option>
+                  @for (c of customerOptions(); track c.value) {
+                    <option [value]="c.value">{{ c.text }}</option>
+                  }
+                </select>
+                <span class="err">Select a customer to continue.</span>
+              </div>
+
+              <div class="field" [class.invalid]="invalid()['contact']">
+                <label for="contact">Contact <span class="req">*</span></label>
+                <select id="contact" [disabled]="!customer() || contactsLoading()" [ngModel]="contact()" (ngModelChange)="contact.set($event); onContactChange()">
+                  <option value="">{{ !customer() ? 'Select a customer first' : contactsLoading() ? 'Loading contacts…' : 'Select a contact' }}</option>
+                  @for (c of contactOptions(); track c.value) {
+                    <option [value]="c.value">{{ c.text }}</option>
+                  }
+                </select>
+                <span class="hint">Loads automatically when a customer is selected.</span>
+                <span class="err">Select a contact for this job.</span>
+              </div>
+
+              <div class="field" [class.invalid]="invalid()['location']">
+                <label for="location">Service location <span class="req">*</span></label>
+                <div class="with-action">
+                  <select id="location" [disabled]="!customer() || locationsLoading()" [ngModel]="location()" (ngModelChange)="location.set($event); onLocationChange()">
+                    <option value="">{{ !customer() ? 'Select a customer first' : locationsLoading() ? 'Loading locations…' : 'Select a location' }}</option>
+                    @for (l of locationOptions(); track l.locationKey) {
+                      <option [value]="l.locationKey">{{ l.lname }}{{ l.address ? ' — ' + l.address : '' }}</option>
+                    }
+                  </select>
+                  <button type="button" class="icon-btn" title="Add new location" aria-label="Add new location" (click)="openLocationModal()">+</button>
+                </div>
+                <span class="hint">Loads automatically when a customer is selected.</span>
+                <span class="err">Select a service location for this job.</span>
+              </div>
+            </div>
+          </section>
+
+          <!-- JOB DETAILS -->
+          <section class="card">
+            <div class="card-head">
+              <h2>Job details</h2>
+              <p>What the work is and how urgent it is.</p>
+            </div>
+            <div class="card-body">
+              <div class="field">
+                <label for="jobname">Client job name <span class="opt">(optional)</span></label>
+                <input type="text" id="jobname" placeholder="Leave blank to auto-generate from the location + date" [ngModel]="jobName()" (ngModelChange)="jobName.set($event)">
+              </div>
+
+              <div class="grid-2">
+                <div class="field" [class.invalid]="invalid()['trade']">
+                  <label for="trade">Trade <span class="req">*</span></label>
+                  <select id="trade" [ngModel]="trade()" (ngModelChange)="trade.set($event); onTradeChange()">
+                    <option value="">Select a trade</option>
+                    @for (t of tradeOptions(); track t.value) {
+                      <option [value]="t.value">{{ t.text }}</option>
+                    }
+                  </select>
+                  <span class="err">Select the trade for this job.</span>
+                </div>
+
+                <div class="field" [class.invalid]="invalid()['jobType']">
+                  <label for="jobType">Job type <span class="req">*</span></label>
+                  <select id="jobType" [ngModel]="jobType()" (ngModelChange)="jobType.set($event); onJobTypeChange()">
+                    <option value="">Select a job type</option>
+                    @for (j of jobTypeOptions(); track j.value) {
+                      <option [value]="j.value">{{ j.text }}</option>
+                    }
+                  </select>
+                  <span class="err">Select a job type.</span>
+                </div>
+              </div>
+
+              <div class="field">
+                <label for="eta">Vendor ETA window <span class="req">*</span></label>
+                <div class="eta-row">
+                  <input type="number" id="eta" min="1" step="1" inputmode="numeric" [disabled]="etaLoading()" [ngModel]="eta()" (ngModelChange)="eta.set($event); onEtaInput()">
+                  <span class="eta-unit">{{ etaLoading() ? 'loading…' : etaUnit() }}</span>
+                  <span class="eta-source" [class.custom]="etaSource() === 'Custom'">{{ etaSource() }}</span>
+                </div>
+                <span class="hint">How long the assigned vendor has to set their ETA, counted from assignment. Prefilled from Settings based on the selected job type — edit to override for this job only.</span>
+              </div>
+
+              <div class="field">
+                <label for="accountManager">Account manager</label>
+                <select id="accountManager" [ngModel]="accountManager()" (ngModelChange)="accountManager.set($event)" disabled>
+                  <option value="">Unassigned</option>
+                  @for (a of accountManagerOptions(); track a.value) {
+                    <option [value]="a.value">{{ a.text }}</option>
+                  }
+                </select>
+              </div>
+
+              <div class="field">
+                <label for="desc">Service description</label>
+                <textarea id="desc" placeholder="Describe the work to be done. This is shared with the assigned vendor on the work order." [ngModel]="description()" (ngModelChange)="description.set($event)"></textarea>
+              </div>
+            </div>
+          </section>
+
+          <!-- DOCUMENTS (UI-only for now) -->
+          <section class="card">
+            <div class="card-head">
+              <h2>Documents <span class="opt" style="font-size:.8rem;font-weight:500">(internal)</span></h2>
+              <p>Attach photos, estimates, or reference files for this job. Internal only. Files are staged as you add them and attached to the job when you save.</p>
+            </div>
+            <div class="card-body">
+              <div class="field">
+                <label for="doctype">Document type</label>
+                <select id="doctype" [ngModel]="docType()" (ngModelChange)="docType.set($event)">
+                  <option value="">Attachment (default)</option>
+                  @for (t of documentTypeOptions(); track t.value) {
+                    <option [value]="t.value">{{ t.text }}</option>
+                  }
+                </select>
+                <span class="hint">Applied to files as you add them below. Change it before adding a file of a different type.</span>
+              </div>
+
+              <label class="dropzone" tabindex="0" role="button" aria-label="Upload files" [class.disabled]="uploading()">
+                @if (uploading()) {
+                  Uploading…
+                } @else {
+                  Drop files here, or <strong>click to browse</strong>
+                }
+                <input type="file" multiple hidden [disabled]="uploading()" (change)="onDocFiles($any($event.target).files); $any($event.target).value=''">
+              </label>
+
+              <table aria-label="Attached documents">
+                <thead>
+                  <tr><th style="width:22%">Type</th><th>Document name</th><th style="width:14%">Actions</th></tr>
+                </thead>
+                <tbody>
+                  @if (stagedFiles().length === 0) {
+                    <tr class="empty-row"><td colspan="3">No documents attached yet. Files you add will appear here.</td></tr>
+                  } @else {
+                    @for (d of stagedFiles(); track d.fileKey) {
+                      <tr>
+                        <td><span class="doc-type-chip">{{ docTypeLabel(d) }}</span></td>
+                        <td>{{ d.title || d.fileName }}</td>
+                        <td><button type="button" class="remove-link" (click)="removeDoc(d.fileKey)">Remove</button></td>
+                      </tr>
+                    }
+                  }
+                </tbody>
+              </table>
+            </div>
+          </section>
+        }
+      </div>
+
+      <div class="modal-foot">
+        <span class="status">{{ statusText() }}</span>
+        <button type="button" class="btn btn-ghost" (click)="close()">Cancel</button>
+        <button type="button" class="btn btn-primary" [disabled]="saving() || loading() || uploading()" (click)="saveAndClose()">{{ saving() ? 'Saving…' : 'Save and Close' }}</button>
+        <button type="button" class="btn btn-primary" [disabled]="saving() || loading() || uploading()" (click)="saveAndRoute()">{{ saving() ? 'Saving…' : 'Save and Route to Assign Vendor' }}</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" [class.show]="toastShow()" [class.ok]="toastKind() === 'ok'" [class.err]="toastKind() === 'err'">
+    {{ toastMsg() }}
+  </div>
+
+  <!-- ADD SERVICE LOCATION — POSTs to LocationController.CreateLocation -->
+  <div class="modal-overlay location-overlay" [class.open]="locationModalOpen()" role="dialog" aria-modal="true" aria-labelledby="locationModalTitle" (click)="closeLocationModal()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-head">
+        <h3 id="locationModalTitle">Add service location</h3>
+        <div class="spacer"></div>
+        <button type="button" class="modal-close" aria-label="Close" (click)="closeLocationModal()">×</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="field">
+          <label for="ml-name">Location name <span class="req">*</span></label>
+          <input type="text" id="ml-name" placeholder="e.g. Mc Donald's (1234)" [ngModel]="mlName()" (ngModelChange)="mlName.set($event)">
+        </div>
+
+        <div class="field">
+          <label for="ml-address">Address <span class="req">*</span></label>
+          <input type="text" id="ml-address" [ngModel]="mlAddress()" (ngModelChange)="mlAddress.set($event)">
+        </div>
+
+        <div class="field">
+          <label for="ml-address2">Address line 2</label>
+          <input type="text" id="ml-address2" placeholder="Suite# or Room#, if any" [ngModel]="mlAddress2()" (ngModelChange)="mlAddress2.set($event)">
+        </div>
+
+        <div class="grid-2">
+          <div class="field">
+            <label for="ml-state">State <span class="req">*</span></label>
+            <select id="ml-state" [ngModel]="mlStateKey()" (ngModelChange)="mlStateKey.set($event); onMlStateChange()">
+              <option [ngValue]="''">Select a state</option>
+              @for (s of mlStateOptions(); track s.value) {
+                <option [ngValue]="s.value">{{ s.text }}</option>
+              }
+            </select>
+          </div>
+          <div class="field">
+            <label for="ml-city">City <span class="req">*</span></label>
+            <select id="ml-city" [disabled]="mlStateKey() === '' || mlCityLoading()" [ngModel]="mlCityKey()" (ngModelChange)="mlCityKey.set($event)">
+              <option [ngValue]="''">{{ mlStateKey() === '' ? 'Select a state first' : mlCityLoading() ? 'Loading cities…' : 'Select a city' }}</option>
+              @for (c of mlCityOptions(); track c.value) {
+                <option [ngValue]="c.value">{{ c.text }}</option>
+              }
+            </select>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="ml-zip">Zip code <span class="opt">(optional)</span></label>
+          <input type="text" id="ml-zip" inputmode="numeric" [ngModel]="mlZip()" (ngModelChange)="mlZip.set($event)">
+        </div>
+
+        <div class="field">
+          <label for="ml-email">Location email <span class="opt">(optional)</span></label>
+          <input type="text" id="ml-email" [ngModel]="mlEmail()" (ngModelChange)="mlEmail.set($event)">
+        </div>
+
+        <div class="field">
+          <label for="ml-phone">Location phone no <span class="opt">(optional)</span></label>
+          <input type="text" id="ml-phone" [ngModel]="mlPhone()" (ngModelChange)="mlPhone.set($event)">
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn btn-ghost" (click)="closeLocationModal()">Cancel</button>
+        <button type="button" class="btn btn-primary" [disabled]="locationSaving()" (click)="saveLocationModal()">{{ locationSaving() ? 'Saving…' : 'Save location' }}</button>
+      </div>
+    </div>
+  </div>
+</div>

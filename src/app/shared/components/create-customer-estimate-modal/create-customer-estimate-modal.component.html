@@ -1,0 +1,562 @@
+<!-- ══════════════════════════════════════════════════════════════
+       CREATE CUSTOMER ESTIMATE (single vendor estimate → customer estimate)
+       Ported from Estimates V2 mockup — custEstModal / NOTE 17.
+       ══════════════════════════════════════════════════════════════ -->
+@if (isVisible()) {
+  <div class="cce-back" (click)="close()">
+    <div class="cce-modal" (click)="$event.stopPropagation()">
+      <!-- Header -->
+      <div class="cce-head">
+        <h3>
+          @switch (mode()) {
+            @case ('view') { Customer estimate }
+            @case ('edit') { Editing customer estimate }
+            @default { Creating customer estimate from vendor estimate }
+          }
+          @if (estimateNo() || vendorName()) {
+            <span class="cce-head__sub">
+              @if (estimateNo()) { · Est #{{ estimateNo() }} }
+              @if (vendorName()) { · {{ vendorName() }} }
+            </span>
+          }
+        </h3>
+        <button type="button" class="cce-x" (click)="close()" [disabled]="isSaving()" aria-label="Close">✕</button>
+      </div>
+
+      <!-- Terms bar + minimum-markup popover -->
+      <div class="cce-terms">
+        <div class="cce-terms__spacer"></div>
+        <div class="cce-minmarkup-wrap">
+          <button type="button" class="cce-minmarkup" (click)="showMinPop = !showMinPop">Minimum Markup Values</button>
+          @if (showMinPop) {
+            <div class="cce-minmarkup-pop">
+              <button type="button" class="cce-minmarkup-pop__x" (click)="showMinPop = false" aria-label="Close">✕</button>
+              <b>Minimum Markup Values</b>
+              @if (minMarkupPolicy(); as policy) {
+                <table>
+                  <tr><th>#</th><th>Description</th><th>Cost Over Value</th><th>Markup %</th></tr>
+                  <tr [class.cce-minmarkup-row--active]="activeMinMarkupRow()?.kind === 'emergency'">
+                    <td>1</td><td>Only for Emergency Jobs</td><td>N/A</td><td>{{ policy.markupPercentageForEmergency.toFixed(2) }}%</td>
+                  </tr>
+                  <tr [class.cce-minmarkup-row--active]="activeMinMarkupRow()?.kind === 'nonEmergency'">
+                    <td>2</td><td>Only for Non-Emergency Jobs</td><td>N/A</td><td>{{ policy.markupPercentageForNonEmergency.toFixed(2) }}%</td>
+                  </tr>
+                  @for (tier of sortedMinMarkupTiers(); track tier.costOverValue) {
+                    <tr [class.cce-minmarkup-row--active]="activeMinMarkupRow()?.kind === 'tier' && activeMinMarkupRow()?.costOverValue === tier.costOverValue">
+                      <td>{{ $index + 3 }}</td>
+                      <td>Cost Tier</td>
+                      <td>{{ formatCurrency(tier.costOverValue) }}</td>
+                      <td>{{ tier.markupPercentage.toFixed(2) }}%</td>
+                    </tr>
+                  }
+                </table>
+                <div class="cce-minmarkup-pop__active-note">
+                  Highlighted row is the markup currently required for this estimate ({{ minMarkupPercent() | number:'1.2-2' }}%, vendor total {{ formatCurrency(vendorTotal()) }}).
+                </div>
+              } @else {
+                <table>
+                  <tr><th>#</th><th>Description</th><th>Cost Over Value</th><th>Markup %</th></tr>
+                  <tr><td>1</td><td>Only for Emergency Jobs</td><td>N/A</td><td>50.00%</td></tr>
+                  <tr><td>2</td><td>Only for Non-Emergency Jobs</td><td>N/A</td><td>40.00%</td></tr>
+                </table>
+              }
+              <div class="cce-minmarkup-pop__note">
+                Save gate: the customer estimate total cannot be saved below this markup over the vendor cost.
+                "Send For Approval" overrides.
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- Body -->
+      <div class="cce-body">
+        @if (isLoading()) {
+          <div class="cce-status cce-status--info">{{ mode() === 'create' ? 'Building customer estimate preview…' : 'Loading customer estimate…' }}</div>
+        } @else {
+          @if (errorMessage()) {
+            <div class="cce-status cce-status--error">{{ errorMessage() }}</div>
+          }
+          @if (mode() === 'create' && showPriorDepositNotice()) {
+            <div class="cce-status cce-status--warning">{{ priorDepositNoticeText() }}</div>
+          }
+          @if (successMessage()) {
+            <div class="cce-status cce-status--success">{{ successMessage() }}</div>
+          }
+
+          <!-- History tabs: only shown when a superseded (previous) estimate exists -->
+          @if (previousEstimate(); as prev) {
+            <div class="cce-tabs" role="tablist">
+              <button
+                type="button"
+                class="cce-tab"
+                [class.cce-tab--active]="activeTab() === 'current'"
+                role="tab"
+                [attr.aria-selected]="activeTab() === 'current'"
+                (click)="activeTab.set('current')">Current</button>
+              <button
+                type="button"
+                class="cce-tab"
+                [class.cce-tab--active]="activeTab() === 'previous'"
+                role="tab"
+                [attr.aria-selected]="activeTab() === 'previous'"
+                (click)="activeTab.set('previous')">
+                Previous
+                <span class="cce-tab__sub">{{ prev.createdDate ? (prev.createdDate | date:'M/d/yy') : 'archived' }}</span>
+              </button>
+            </div>
+          }
+
+          @if (!viewingArchived()) {
+          <!-- Vendor source section -->
+          <div class="cce-section">
+            <div class="cce-sechead">
+              <div class="cce-secvendor">
+                @if (isMultiVendor()) {
+                  Combined estimate from {{ vendorEstimateKeys().length }} vendors
+                } @else {
+                  Estimate of {{ vendorName() || 'Vendor' }}
+                  @if (estimateNo()) { <span class="cce-estid">· source Est #{{ estimateNo() }}</span> }
+                }
+              </div>
+              @if (!isMultiVendor()) {
+                @if (isReadOnly()) {
+                  <span class="cce-title cce-title--ro">{{ estimateTitle() || 'Untitled estimate' }}</span>
+                } @else {
+                  <input
+                    class="cce-title"
+                    placeholder="Please Enter Estimate Title"
+                    [ngModel]="estimateTitle()"
+                    (ngModelChange)="estimateTitle.set($event)" />
+                }
+              }
+            </div>
+
+            <div class="cce-tablewrap">
+              <table class="cce-table">
+                <colgroup>
+                  <col style="width:11%" /><col style="width:28%" /><col style="width:12%" />
+                  <col style="width:12%" /><col style="width:7%" /><col style="width:7%" />
+                  <col style="width:15%" /><col style="width:5%" />
+                </colgroup>
+                <thead>
+                  <tr>
+                    <th>Charge Type</th><th>Description</th><th class="num">Qty</th><th class="num">Rate</th>
+                    <th class="num">Markup % from Profile</th><th class="num">Actual Markup %</th>
+                    <th class="num">Row Total</th><th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @if (isMultiVendor()) {
+                    @for (group of groupedRows(); track group.vendorEstimateKey) {
+                      <tr class="cce-vendorgroup">
+                        <td colspan="8">
+                          {{ group.vendorName }}
+                          <span class="cce-vendorgroup__meta">
+                            · {{ group.rows.length }} line{{ group.rows.length === 1 ? '' : 's' }}
+                            · Subtotal {{ formatCurrency(group.subtotal) }}
+                          </span>
+                          @if (isReadOnly()) {
+                            @if (group.portionTitle) {
+                              <span class="cce-vendorgroup__title">· {{ group.portionTitle }}</span>
+                            }
+                          } @else {
+                            <input
+                              class="cce-vendorgroup__title-input"
+                              placeholder="Please enter estimate title for this vendor's section (i.e. Plumbing Portion of Quote)"
+                              [ngModel]="group.portionTitle"
+                              (ngModelChange)="setPortionTitle(group.vendorEstimateKey, $event)"
+                              (click)="$event.stopPropagation()" />
+                          }
+                        </td>
+                      </tr>
+                      @for (r of group.rows; track r.customerEstimateDetailKey ?? r.description) {
+                        <ng-container [ngTemplateOutlet]="rowPair" [ngTemplateOutletContext]="{ $implicit: r, i: rows().indexOf(r) }"></ng-container>
+                      }
+                    }
+                  } @else {
+                    @for (r of rows(); track $index) {
+                      <ng-container [ngTemplateOutlet]="rowPair" [ngTemplateOutletContext]="{ $implicit: r, i: $index }"></ng-container>
+                    }
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Shared row-pair template (vendor source row + editable customer row) used by both the
+               flat single-vendor list and the grouped multi-vendor list above. -->
+          <ng-template #rowPair let-r let-i="i">
+            <tr class="cce-vrow">
+              <td><span class="cce-tag cce-tag--v">Vendor</span>{{ r.chargeType }}</td>
+              <td>{{ r.description }}</td>
+              <td class="num">{{ r.vendorQty }}</td>
+              <td class="num">{{ formatCurrency(r.vendorRate) }}</td>
+              <td class="num">—</td>
+              <td class="num">—</td>
+              <td class="num">{{ formatCurrency(r.vendorAmount) }}</td>
+              <td></td>
+            </tr>
+            <tr class="cce-crow">
+              <td><span class="cce-tag cce-tag--c">Customer</span>{{ r.chargeType }}</td>
+              <td>
+                @if (isReadOnly()) {
+                  <span class="cce-cell-ro">{{ r.description }}</span>
+                } @else {
+                  <textarea
+                    class="cce-cell-text"
+                    [ngModel]="r.description"
+                    (ngModelChange)="editRow(i, 'description', $event)"></textarea>
+                }
+              </td>
+              <td class="num">
+                @if (isReadOnly()) {
+                  {{ r.customerQty }}
+                } @else {
+                  <input
+                    class="cce-cell-input" type="number" step="0.25"
+                    [ngModel]="r.customerQty"
+                    (ngModelChange)="editRow(i, 'customerQty', $event)" />
+                }
+              </td>
+              <td class="num">
+                @if (isReadOnly()) {
+                  {{ formatCurrency(r.customerRate) }}
+                } @else {
+                  <input
+                    class="cce-cell-input" type="number" step="0.01"
+                    [ngModel]="r.customerRate"
+                    (ngModelChange)="editRow(i, 'customerRate', $event)" />
+                }
+              </td>
+              <td class="num">{{ r.profileMarkupPercent != null ? (r.profileMarkupPercent | number:'1.0-2') + '%' : '—' }}</td>
+              <td class="num">{{ actualMarkup(r) | number:'1.2-2' }}%</td>
+              <td class="num">{{ formatCurrency(r.customerRate * r.customerQty) }}</td>
+              <td class="num">
+                @if (!isReadOnly()) {
+                  <button type="button" class="cce-del" title="Delete line" (click)="requestDelete(i, false)">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <polyline points="3 6 5 6 21 6"></polyline>
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                      <line x1="10" y1="11" x2="10" y2="17"></line>
+                      <line x1="14" y1="11" x2="14" y2="17"></line>
+                    </svg>
+                  </button>
+                }
+              </td>
+            </tr>
+          </ng-template>
+
+          <!-- Admin markup + added charges -->
+          <div class="cce-adminblock">
+            <div class="cce-blocktitle">Admin Markup and Added Charge Types</div>
+            <div class="cce-tablewrap">
+              <table class="cce-table">
+                <colgroup>
+                  <col style="width:11%" /><col style="width:28%" /><col style="width:12%" />
+                  <col style="width:12%" /><col style="width:7%" /><col style="width:7%" />
+                  <col style="width:15%" /><col style="width:5%" />
+                </colgroup>
+                <tbody>
+                  @for (x of extras(); track $index) {
+                    <tr class="cce-crow">
+                      <td>{{ x.chargeType }} <span class="cce-added">added</span></td>
+                      <td>
+                        @if (isReadOnly()) {
+                          <span class="cce-cell-ro">{{ x.description }}</span>
+                        } @else {
+                          <textarea
+                            class="cce-cell-text"
+                            [ngModel]="x.description"
+                            (ngModelChange)="editExtra($index, 'description', $event)"></textarea>
+                        }
+                      </td>
+                      <td class="num">
+                        @if (isReadOnly()) {
+                          {{ x.customerQty }}
+                        } @else {
+                          <input
+                            class="cce-cell-input" type="number" step="0.25"
+                            [ngModel]="x.customerQty"
+                            (ngModelChange)="editExtra($index, 'customerQty', $event)" />
+                        }
+                      </td>
+                      <td class="num">
+                        @if (isReadOnly()) {
+                          {{ formatCurrency(x.customerRate) }}
+                        } @else {
+                          <input
+                            class="cce-cell-input" type="number" step="0.01"
+                            [ngModel]="x.customerRate"
+                            (ngModelChange)="editExtra($index, 'customerRate', $event)" />
+                        }
+                      </td>
+                      <td class="num">—</td>
+                      <td class="num">—</td>
+                      <td class="num">{{ formatCurrency(x.customerRate * x.customerQty) }}</td>
+                      <td class="num">
+                        @if (!isReadOnly()) {
+                          <button type="button" class="cce-del" title="Delete line" (click)="requestDelete($index, true)">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                              <polyline points="3 6 5 6 21 6"></polyline>
+                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                              <line x1="10" y1="11" x2="10" y2="17"></line>
+                              <line x1="14" y1="11" x2="14" y2="17"></line>
+                            </svg>
+                          </button>
+                        }
+                      </td>
+                    </tr>
+                  }
+
+                  @if (adminOn() && adminMarkupPercent() > 0) {
+                    <tr class="cce-adminrow">
+                      <td>Admin fee % mark-up <span class="cce-added">(from customer profile)</span></td>
+                      <td>{{ adminMarkupPercent() | number:'1.2-2' }}%</td>
+                      <td></td><td></td>
+                      <td class="num">{{ adminMarkupPercent() }}%</td>
+                      <td></td>
+                      <td class="num">{{ formatCurrency(adminFee()) }}</td>
+                      <td class="num">
+                        @if (!isReadOnly()) {
+                          <button type="button" class="cce-del" title="Remove admin fee from this estimate" (click)="removeAdminFee()">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                              <polyline points="3 6 5 6 21 6"></polyline>
+                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                              <line x1="10" y1="11" x2="10" y2="17"></line>
+                              <line x1="14" y1="11" x2="14" y2="17"></line>
+                            </svg>
+                          </button>
+                        }
+                      </td>
+                    </tr>
+                  } @else if (adminMarkupPercent() > 0 && !isReadOnly()) {
+                    <tr class="cce-adminrow">
+                      <td colspan="8" class="cce-adminrow__removed">
+                        Admin fee removed from this estimate.
+                        <button type="button" class="cce-linkbtn" (click)="restoreAdminFee()">
+                          + Add Admin Fee ({{ adminMarkupPercent() }}% from profile)
+                        </button>
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+
+            <div class="cce-grand">
+              <span class="cce-subfig">{{ isMultiVendor() ? 'Combined Vendors Total' : 'Vendor Total' }}: <b>{{ formatCurrency(vendorTotal()) }}</b></span>
+              <span class="cce-subfig">Markup %: <b>{{ grandMarkupPercent() | number:'1.2-2' }}%</b></span>
+              <span class="cce-subfig">GRAND TOTAL: <b class="cce-grandval">{{ formatCurrency(grandTotal()) }}</b></span>
+            </div>
+          </div>
+          } @else if (previousEstimate(); as prev) {
+            <!-- Archived (previous) estimate — read-only summary, vendor columns hidden -->
+            <div class="cce-section cce-section--archived">
+              <div class="cce-archived-note">
+                Read-only — a previous version that was superseded when a newer estimate was created.
+                Vendor cost details aren't retained for archived versions.
+              </div>
+              <div class="cce-sechead">
+                <span class="cce-title cce-title--ro">{{ prev.estimateTitle || 'Untitled estimate' }}</span>
+                @if (prev.wasSentToCustomer) { <span class="cce-estid">· was sent to customer</span> }
+              </div>
+              <div class="cce-tablewrap">
+                <table class="cce-table">
+                  <thead>
+                    <tr>
+                      <th>Charge Type</th><th>Description</th>
+                      <th class="num">Qty</th><th class="num">Rate</th><th class="num">Row Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (li of prev.lineItems; track $index) {
+                      <tr class="cce-crow">
+                        <td>{{ li.chargeType }}</td>
+                        <td><span class="cce-cell-ro">{{ li.description }}</span></td>
+                        <td class="num">{{ li.customerQty }}</td>
+                        <td class="num">{{ formatCurrency(li.customerRate) }}</td>
+                        <td class="num">{{ formatCurrency(li.customerAmount) }}</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+              <div class="cce-grand">
+                <span class="cce-subfig">GRAND TOTAL: <b>{{ formatCurrency(prev.customerTotal) }}</b></span>
+              </div>
+            </div>
+          }
+        }
+      </div>
+
+      <!-- Add more line item (editing only; hidden on the read-only archived tab) -->
+      @if (!isReadOnly() && !viewingArchived()) {
+      <div class="cce-addrow">
+        <span class="cce-addrow__label">
+          Add more line Items <span class="cce-addrow__hint">(goes to Admin Markup &amp; Added Charge Types)</span>:
+        </span>
+        <label><input type="radio" name="cceNewType" [value]="0" [ngModel]="newCostIncurred()" (ngModelChange)="newCostIncurred.set($event)" /> Cost Incurred</label>
+        <label><input type="radio" name="cceNewType" [value]="1" [ngModel]="newCostIncurred()" (ngModelChange)="newCostIncurred.set($event)" /> Proposed</label>
+        <select [ngModel]="newChargeKey()" (ngModelChange)="newChargeKey.set($event)">
+          <option value="">Charge Type…</option>
+          @for (opt of customChargeTypeOptions; track opt.key) {
+            <option [value]="opt.key">{{ opt.label }}</option>
+          }
+        </select>
+        <label>Rate: <input type="number" placeholder="Rate" class="cce-addrow__rate" [ngModel]="newRate()" (ngModelChange)="newRate.set(+$event || 0)" /></label>
+        <label>Qty: <input type="number" placeholder="Qty" class="cce-addrow__qty" [ngModel]="newQty()" (ngModelChange)="newQty.set(+$event || 0)" /></label>
+        <button type="button" class="cce-btn cce-btn--blue" (click)="addLine()">Add more line Item</button>
+      </div>
+      }
+
+      <!-- Footer -->
+      @if (!isReadOnly() && !viewingArchived() && customerDepositApprovalPending()) {
+        <div class="cce-status cce-status--warning">
+          This estimate has a customer deposit awaiting SVC-manager approval — it cannot be sent to the customer until that approval clears.
+        </div>
+      }
+      <div class="cce-foot">
+        @if (canSaveAsInvoice()) {
+          <button type="button" class="cce-btn cce-btn--primary" (click)="requestSaveAsInvoice()"
+            [disabled]="isLoading() || isSaving()"
+            title="Create a customer invoice from this estimate">
+            Save As Invoice
+          </button>
+        }
+        @if (isReadOnly() || viewingArchived()) {
+          @if (isPersisted() && customerEstimateKey() && !viewingArchived() && customerDepositApprovalPending()) {
+            <span class="cce-foot__notice">Awaiting SVC-manager deposit approval — cannot resend to customer yet.</span>
+          }
+          @if (canResendEmail()) {
+            <button type="button" class="cce-btn cce-btn--send" (click)="resendToCustomer()" [disabled]="isLoading() || isSaving()">Resend to Customer</button>
+          }
+          <button type="button" class="cce-btn cce-btn--ghost" (click)="close()">Close</button>
+        } @else {
+          <button
+            type="button"
+            class="cce-btn cce-btn--send"
+            (click)="save('mail')"
+            [disabled]="isLoading() || isSaving() || customerDepositApprovalPending()"
+            [title]="customerDepositApprovalPending() ? 'Awaiting SVC-manager deposit approval' : ''">
+            Save &amp; Send to Customer
+          </button>
+          <button type="button" class="cce-btn" (click)="save('save')" [disabled]="isLoading() || isSaving()">Save</button>
+          <button type="button" class="cce-btn cce-btn--ghost" (click)="close()" [disabled]="isSaving()">Cancel / Back</button>
+        }
+        <div class="cce-foot__spacer"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Trip→Labor cross-write proposal (client-side-only, creation grid only) -->
+  @if (tripCrossWriteProposal(); as tripProposal) {
+    <div class="cce-back" (click)="dismissTripCrossWrite()">
+      <div class="cce-modal cce-modal--sm" (click)="$event.stopPropagation()">
+        <div class="cce-head">
+          <h3>Move Trip Charge to Labor?</h3>
+          <button type="button" class="cce-x" (click)="dismissTripCrossWrite()" aria-label="Close">✕</button>
+        </div>
+        <div class="cce-body cce-body--pad">
+          <p>
+            That Trip charge change moved the total by {{ formatCurrency(tripProposal.delta) }}. Move it
+            to Labor instead — the Trip charge will revert to its original amount, and
+            <b>{{ tripProposal.additionalHours | number:'1.2-2' }}</b> hours will be added to the Labor
+            line ({{ tripProposal.currentHours | number:'1.2-2' }} → <b>{{ tripProposal.resultingHours | number:'1.2-2' }}</b>
+            hrs at {{ formatCurrency(tripProposal.laborRate) }}/hr)?
+          </p>
+        </div>
+        <div class="cce-foot">
+          <div class="cce-foot__spacer"></div>
+          <button type="button" class="cce-btn cce-btn--send" (click)="applyTripCrossWrite()">Move to Labor</button>
+          <button type="button" class="cce-btn cce-btn--ghost" (click)="dismissTripCrossWrite()">No, Keep My Trip Charge Edit</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Minimum-markup adjustment proposal (server-computed propose-then-confirm gate) -->
+  @if (adjustmentProposal(); as proposal) {
+    <div class="cce-back" (click)="dismissProposedAdjustment()">
+      <div class="cce-modal cce-modal--lg" (click)="$event.stopPropagation()">
+        <div class="cce-head">
+          <h3>Estimate Is Below Minimum Markup</h3>
+          <button type="button" class="cce-x" (click)="dismissProposedAdjustment()" aria-label="Close">✕</button>
+        </div>
+        <div class="cce-body cce-body--pad">
+          <p>{{ proposal.underlying.explanationMessage }}</p>
+
+          @if (proposal.materialLineAdjustments.length > 0) {
+            <p>
+              First, a {{ proposal.materialLineAdjustments[0].markupPercentApplied }}% markup is applied
+              to {{ proposal.materialLineAdjustments.length }}
+              material line{{ proposal.materialLineAdjustments.length === 1 ? '' : 's' }}:
+            </p>
+            <ul class="cce-markup-line-list">
+              @for (adj of proposal.materialLineAdjustments; track adj.lineItemKey) {
+                <li>
+                  {{ formatCurrency(adj.currentAmount) }} → <b>{{ formatCurrency(adj.resultingAmount) }}</b>
+                  (+{{ formatCurrency(adj.amountAdded) }})
+                </li>
+              }
+            </ul>
+          }
+
+          @if (!proposal.noLaborLineAvailable) {
+            @if (proposal.laborLineAdjustments.length > 0) {
+              <p>
+                To close the remaining shortfall, we can split it evenly across
+                {{ proposal.laborLineAdjustments.length }}
+                labor line{{ proposal.laborLineAdjustments.length === 1 ? '' : 's' }}:
+              </p>
+              <ul class="cce-markup-line-list">
+                @for (adj of proposal.laborLineAdjustments; track adj.lineItemKey) {
+                  <li>
+                    {{ formatCurrency(adj.shareOfShortfall) }} share: add <b>{{ adj.additionalHours }}</b>
+                    hours ({{ adj.currentHours }} → <b>{{ adj.resultingHours }}</b> hrs at
+                    {{ formatCurrency(adj.laborRate) }}/hr)
+                  </li>
+                }
+              </ul>
+            }
+            <p>
+              Bringing the customer total to <b>{{ formatCurrency(proposal.resultingCustomerGrandTotal) }}</b>.
+            </p>
+          } @else {
+            <p>
+              There's no labor line on this estimate to automatically adjust — edit a line below to
+              meet the minimum, then Save again.
+            </p>
+          }
+        </div>
+        <div class="cce-foot">
+          <div class="cce-foot__spacer"></div>
+          @if (!proposal.noLaborLineAvailable) {
+            <button type="button" class="cce-btn cce-btn--send" (click)="acceptProposedAdjustment()">Apply Proposed Fix</button>
+          }
+          <button type="button" class="cce-btn cce-btn--ghost" (click)="dismissProposedAdjustment()">I'll Adjust Manually</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Delete line-item confirmation -->
+  @if (pendingDelete()) {
+    <div class="cce-back" (click)="cancelDelete()">
+      <div class="cce-modal cce-modal--sm" (click)="$event.stopPropagation()">
+        <div class="cce-head">
+          <h3>Delete line item?</h3>
+          <button type="button" class="cce-x" (click)="cancelDelete()" aria-label="Close">✕</button>
+        </div>
+        <div class="cce-body cce-body--pad">
+          Are you sure you want to delete this line item?
+        </div>
+        <div class="cce-foot">
+          <div class="cce-foot__spacer"></div>
+          <button type="button" class="cce-btn cce-btn--send" (click)="confirmDelete()">Delete</button>
+          <button type="button" class="cce-btn cce-btn--ghost" (click)="cancelDelete()">Cancel</button>
+        </div>
+      </div>
+    </div>
+  }
+}

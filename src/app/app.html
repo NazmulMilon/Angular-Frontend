@@ -1,0 +1,65 @@
+<!-- Application Shell -->
+<div class="app-shell" [class.app-shell--embed]="hideAppChrome()">
+  @if (!hideAppChrome()) {
+    <header class="app-header">
+      <div class="app-header__left">
+        <a class="app-header__brand" [href]="legacyAdminHomeUrl">
+          <img
+            class="app-header__logo"
+            src="/RFILogo3.png"
+            alt="retailfixit"
+          />
+        </a>
+        @if (legacyAssignVendorV1Url(); as v1Url) {
+          <a
+            class="app-header__legacy-link"
+            [href]="v1Url"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            V1 Main Job Page
+          </a>
+        }
+        @if (canAccessSettings()) {
+          <a class="app-header__legacy-link" routerLink="/settings">
+            Settings and Setup
+          </a>
+        }
+        <a class="app-header__legacy-link" routerLink="/customers">
+          Customers
+        </a>
+        <div class="app-header__dropdown">
+          <button type="button" class="app-header__legacy-link app-header__dropdown-trigger">
+            Accounting ▾
+          </button>
+          <div class="app-header__dropdown-menu">
+            <a class="app-header__dropdown-item" routerLink="/accounting/sent-back-to-service">
+              Jobs sent back from Accounting
+            </a>
+            <a class="app-header__dropdown-item" routerLink="/accounting/move-to-accounting">
+              Move to Accounting
+            </a>
+            <a class="app-header__dropdown-item" routerLink="/accounting/markup-override-approval">
+              Below Minimum Mark-up Approvals
+            </a>
+          </div>
+        </div>
+      </div>
+      <nav class="app-header__nav">
+        <button type="button" class="nav-link" (click)="openAddJob()">
+          Add Job
+        </button>
+        <span class="app-header__version">v2.0.0.2</span>
+      </nav>
+    </header>
+  }
+  <main class="app-main" [class.app-main--embed]="hideAppChrome()">
+    <router-outlet />
+  </main>
+  <!-- Global job chat (v1 UI parity); shown on every route including embed -->
+  <app-live-chat-widget />
+
+  @defer (when addJobDeferred()) {
+    <app-add-job #addJobRef />
+  }
+</div>

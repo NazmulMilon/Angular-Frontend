@@ -1,0 +1,38 @@
+@if (isVisible()) {
+  <div class="cd-overlay" (click)="cancel()">
+    <div
+      class="cd-modal"
+      role="alertdialog"
+      aria-modal="true"
+      aria-labelledby="cd-title"
+      aria-describedby="cd-message"
+      (click)="$event.stopPropagation()"
+    >
+      <header class="cd-modal__header">
+        <h3 id="cd-title" class="cd-modal__title">{{ title() }}</h3>
+        <button type="button" class="cd-modal__close" (click)="cancel()" aria-label="Close">&times;</button>
+      </header>
+
+      <div class="cd-modal__body">
+        <p id="cd-message" class="cd-modal__message">{{ message() }}</p>
+      </div>
+
+      <footer class="cd-modal__footer">
+        @if (cancelText()) {
+          <button #cancelBtn type="button" class="cd-btn cd-btn--outline" (click)="cancel()">
+            {{ cancelText() }}
+          </button>
+        }
+        <button
+          type="button"
+          class="cd-btn"
+          [class.cd-btn--danger]="tone() === 'danger'"
+          [class.cd-btn--primary]="tone() === 'primary'"
+          (click)="confirm()"
+        >
+          {{ confirmText() }}
+        </button>
+      </footer>
+    </div>
+  </div>
+}

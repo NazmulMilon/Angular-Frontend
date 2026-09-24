@@ -1,0 +1,202 @@
+@if (line().counterThisLine) {
+  <div
+    class="negline"
+    [class.negline--compact]="compact()"
+    [class.negline--warn]="flagType() === 'warn'"
+    [class.negline--good]="flagType() === 'good'"
+  >
+    <div class="negline__top">
+      <span class="negline__item-wrap">
+        <span class="negline__dot" aria-hidden="true"></span>
+        <span class="negline__item-name">{{ itemLabel() }}</span>
+        @if (line().itemCode) {
+          <span class="negline__item-code">{{ line().itemCode }}</span>
+        }
+      </span>
+      <span class="negline__flag" [class.negline__flag--warn]="flagType() === 'warn'" [class.negline__flag--good]="flagType() === 'good'">
+        {{ flagLabel() }}
+      </span>
+    </div>
+
+    <div class="negline__price-and-gauge">
+      <div class="negline__values">
+        <span class="negline__vendor-val num">{{ line().vendorValue | number: '1.2-2' }}</span>
+        <span class="negline__arrow" aria-hidden="true">→</span>
+        <span class="negline__suggest-val num">{{ displayValue() | number: '1.2-2' }}</span>
+        <span class="negline__delta" [ngClass]="deltaClass()">{{ deltaLabel() }}</span>
+      </div>
+      <div class="negline__gauge">
+        <div class="negline__gauge-ring-wrap">
+          <svg viewBox="0 0 36 36" class="negline__gauge-ring" aria-hidden="true">
+            <circle class="negline__gauge-track" cx="18" cy="18" r="15.5"></circle>
+            <circle
+              class="negline__gauge-fill"
+              cx="18"
+              cy="18"
+              r="15.5"
+              style="stroke-dasharray: 97.4"
+              [style.stroke-dashoffset]="gaugeDashOffset(confidencePct())"
+            ></circle>
+          </svg>
+          <span class="negline__gauge-pct">{{ confidencePct() }}%</span>
+        </div>
+        @if (line().floor != null && line().ceiling != null) {
+          <span class="negline__gauge-range num">{{ line().floor | number: '1.0-0' }}–{{ line().ceiling | number: '1.0-0' }}</span>
+        }
+      </div>
+    </div>
+
+    <div class="negline__actions-row">
+      <span class="negline-state" [ngClass]="stateClass()">{{ stateLabel() }}</span>
+      <span class="negline__actions">
+        @if (!hasDecision()) {
+          @if (!hasNoCounterToUse()) {
+            <button type="button" class="negline-btn negline-btn--accept" [disabled]="disabled()" (click)="onDecisionClick('accept')">
+              Use Counter
+            </button>
+          }
+          <button
+            type="button"
+            class="negline-btn negline-btn--edit"
+            [class.negline-btn--active]="isExpanded('edit')"
+            [disabled]="disabled()"
+            (click)="onDecisionClick('edit')"
+          >
+            Edit
+          </button>
+        } @else {
+          <button type="button" class="negline-btn negline-btn--ghost" [disabled]="disabled()" (click)="onChangeClick()">
+            Change
+          </button>
+        }
+        <button
+          type="button"
+          class="negline-btn negline-btn--link"
+          [class.negline-btn--active]="isExpanded('msg')"
+          (click)="toggleMessage($event)"
+        >
+          Message@if (message().trim().length > 0 || messageEdited()) {<span class="negline__msg-flag">●</span>}
+        </button>
+        @if (hasReasoning()) {
+          <button
+            type="button"
+            class="negline-btn negline-btn--link"
+            [class.negline-btn--active]="isExpanded('info')"
+            (click)="toggleInfo($event)"
+          >
+            Info
+          </button>
+        }
+      </span>
+    </div>
+
+    @if (isExpanded('info')) {
+      <div class="negline-xp negline-xp--info" (click)="$event.stopPropagation()">
+        <h4>Counter</h4>
+        <p>
+          <b class="num">{{ line().vendorValue | number: '1.2-2' }} → {{ line().suggestedValue | number: '1.2-2' }}</b>
+          @if (reduction() !== 0) {
+            <span> ({{ reduction() | number: '1.2-2' }} reduction)</span>
+          }
+        </p>
+        @if (line().displaySuggestion) {
+          <h4>How the vendor estimate will be changed</h4>
+          <p><span class="negline-xp__mechbox">{{ line().displaySuggestion }}</span></p>
+        }
+        <h4>Agent reasoning</h4>
+        <p>{{ reasoning() }}</p>
+        @if (line().confidence != null || (line().floor != null && line().ceiling != null)) {
+          <h4>Details</h4>
+          <p>
+            <span>Confidence {{ confidencePct() }}%</span>
+            @if (line().floor != null && line().ceiling != null) {
+              <span> · Fair band {{ line().floor | number: '1.2-2' }}–{{ line().ceiling | number: '1.2-2' }}</span>
+            }
+            @if (line().deltaPct != null) {
+              <span> · Change {{ line().deltaPct! > 0 ? '+' : '' }}{{ line().deltaPct | number: '1.0-1' }}%</span>
+            }
+          </p>
+        }
+      </div>
+    }
+
+    @if (isExpanded('msg')) {
+      <div class="negline-xp" (click)="$event.stopPropagation()">
+        <div class="negline-vmsg">
+          <label>
+            <span>
+              Message to vendor (sent with this line)
+              @if (messageEdited()) {
+                <span class="negline__edited-flag">edited</span>
+              }
+            </span>
+            <button type="button" class="negline-reset-link" (click)="onResetMessage()">Reset to agent draft</button>
+          </label>
+          <textarea
+            rows="3"
+            [ngModel]="message()"
+            (ngModelChange)="onMessageInput($event)"
+            placeholder="Message the vendor about this line…"
+          ></textarea>
+          <div class="negline-vmsg__hint">Auto-drafted by the negotiating agent — edit freely. The vendor sees this text on this line item.</div>
+        </div>
+      </div>
+    }
+
+    @if (isExpanded('edit')) {
+      <div class="negline-xp" (click)="$event.stopPropagation()">
+        <div class="negline-edit-grid">
+          <label class="negline-field">
+            <span>Qty</span>
+            <input
+              type="number"
+              step="0.25"
+              min="0"
+              [ngModel]="editQtyDraft()"
+              (ngModelChange)="setEditQtyDraft($event)"
+            />
+          </label>
+          <label class="negline-field">
+            <span>Rate / unit</span>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              [ngModel]="editRateDraft()"
+              (ngModelChange)="setEditRateDraft($event)"
+            />
+          </label>
+          <div class="negline-edit-total">
+            Counter total:
+            <b class="num">{{ editCounterTotal() != null ? (editCounterTotal()! | number: '1.2-2') : '—' }}</b>
+          </div>
+          <div class="negline__actions" style="margin-left: 0">
+            <button type="button" class="negline-btn negline-btn--accept" (click)="confirmEdit()">Save counter</button>
+            <button type="button" class="negline-btn negline-btn--ghost" (click)="cancelEdit()">Cancel</button>
+          </div>
+        </div>
+      </div>
+    }
+  </div>
+} @else {
+  <div class="negline negline--passthrough" [class.negline--compact]="compact()">
+    <span class="negline-state negline-state--none">No negotiation suggested</span>
+    <span class="negline__quiet">Pass-through — not auto-negotiated.</span>
+    @if (hasReasoning()) {
+      <button
+        type="button"
+        class="negline-btn negline-btn--link"
+        [class.negline-btn--active]="isExpanded('info')"
+        (click)="toggleInfo($event)"
+      >
+        Info
+      </button>
+    }
+  </div>
+  @if (isExpanded('info')) {
+    <div class="negline-xp negline-xp--info" (click)="$event.stopPropagation()">
+      <h4>Agent reasoning</h4>
+      <p>{{ reasoning() }}</p>
+    </div>
+  }
+}

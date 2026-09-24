@@ -1,0 +1,193 @@
+@if (isOpen()) {
+  <div class="modal-overlay" (click)="onOverlayClick($event)">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="ivModalTitle">
+      <div class="modal-head">
+        <h3 id="ivModalTitle">🛡 Vendor Insurance Validation — {{ vendorName() || 'Vendor' }}</h3>
+        <button type="button" class="x" (click)="onClose()" aria-label="Close">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        @if (errorMessage()) {
+          <div class="iv-error">{{ errorMessage() }}</div>
+        }
+        @if (successMessage()) {
+          <div class="iv-success">{{ successMessage() }}</div>
+        }
+
+        @if (loading()) {
+          <div class="iv-loading">Loading insurance validation…</div>
+        } @else if (state(); as s) {
+          @if (!s.verified) {
+            <div class="iv-problem-banner">
+              ⚠ <b>{{ s.problems.join(' · ') }}</b>
+              <button type="button" class="btn sm iv-btn-amber" [disabled]="isResending()" (click)="resendEmail()">
+                📧 Re-send insurance request email
+              </button>
+            </div>
+          }
+
+          <div class="iv-types">
+            <div class="iv-type-block">
+              <div class="iv-type-head">
+                <b>General Liability Ins</b>
+                <span class="badge" [class.b-green]="s.gl.state === 'current'" [class.b-red]="s.gl.state === 'expired' || s.gl.state === 'missing'" [class.b-gray]="s.gl.state === 'not-required'">
+                  {{ stateBadgeLabel(s.gl.state, s.gl.expiry) }}
+                </span>
+              </div>
+
+              <div class="iv-carry-label">DOES THE COMPANY CARRY GENERAL LIABILITY?</div>
+              <div class="iv-carry-radios">
+                <label><input type="radio" name="gl-carry" [checked]="gl().carry" (change)="onGlCarryChange(true)" /> YES</label>
+                <label><input type="radio" name="gl-carry" [checked]="!gl().carry" (change)="onGlCarryChange(false)" /> NO — not required</label>
+              </div>
+
+              @if (gl().carry) {
+                <div class="iv-carry-label">GL INSURANCE EXPIRY</div>
+                <input
+                  type="date"
+                  class="iv-date-input"
+                  [min]="todayInputValue"
+                  [disabled]="!glDateEditable"
+                  [ngModel]="gl().expiry"
+                  (ngModelChange)="onGlExpiryChange($event)"
+                />
+                @if (!glDateEditable) {
+                  <div class="iv-date-locked-note">🔒 Upload a new certificate below to update this date.</div>
+                }
+
+                <div class="iv-cert-row">
+                  @if (s.gl.fileName) {
+                    📄 {{ s.gl.fileName }}
+                    @if (s.gl.fileUrl) {
+                      <a [href]="s.gl.fileUrl" target="_blank" class="iv-doc-link">📄 View / Download certificate</a>
+                    }
+                  } @else {
+                    <span class="muted">No certificate uploaded yet.</span>
+                  }
+                </div>
+
+                <div class="iv-upload-row">
+                  <label class="iv-upload-label">
+                    📎 Upload new certificate
+                    <input type="file" accept=".pdf,.png,.jpg,.jpeg" (change)="onGlFileSelected($event)" />
+                  </label>
+                  @if (gl().file) {
+                    <span class="iv-selected-file">{{ gl().file!.name }}</span>
+                  }
+                </div>
+
+                @if (s.gl.pending; as p) {
+                  <div class="iv-pending-banner">
+                    ⏳ Vendor submitted a certificate on {{ formatDateTime(p.submittedOn) }}
+                    ({{ p.fileName }}, proposed expiry {{ formatDate(p.proposedExpiry) }})
+                    @if (p.fileUrl) {
+                      <a [href]="p.fileUrl" target="_blank" class="iv-doc-link">📄 View / Download submitted certificate</a>
+                    }
+                    — awaiting review.
+                    <div class="iv-pending-actions">
+                      <button type="button" class="btn sm btn-success" [disabled]="isApproving() === 'gl' || isRejecting() === 'gl'" (click)="approvePending('gl')">
+                        ✓ Accept
+                      </button>
+                      <button type="button" class="btn sm btn-danger" [disabled]="isApproving() === 'gl' || isRejecting() === 'gl'" (click)="rejectPending('gl')">
+                        ✕ Reject — request resubmit
+                      </button>
+                    </div>
+                  </div>
+                }
+              } @else {
+                <div class="iv-notrequired-note">
+                  This coverage is not required for this vendor — this section shows as satisfied.
+                  Toggle back to YES to re-require it (triggers the vendor email on next resend).
+                </div>
+              }
+            </div>
+
+            <div class="iv-type-block">
+              <div class="iv-type-head">
+                <b>Workers Comp</b>
+                <span class="badge" [class.b-green]="s.wc.state === 'current'" [class.b-red]="s.wc.state === 'expired' || s.wc.state === 'missing'" [class.b-gray]="s.wc.state === 'not-required'">
+                  {{ stateBadgeLabel(s.wc.state, s.wc.expiry) }}
+                </span>
+              </div>
+
+              <div class="iv-carry-label">DOES THE COMPANY CARRY WORKERS COMP?</div>
+              <div class="iv-carry-radios">
+                <label><input type="radio" name="wc-carry" [checked]="wc().carry" (change)="onWcCarryChange(true)" /> YES</label>
+                <label><input type="radio" name="wc-carry" [checked]="!wc().carry" (change)="onWcCarryChange(false)" /> NO — not required</label>
+              </div>
+
+              @if (wc().carry) {
+                <div class="iv-carry-label">WC INSURANCE EXPIRY</div>
+                <input
+                  type="date"
+                  class="iv-date-input"
+                  [min]="todayInputValue"
+                  [disabled]="!wcDateEditable"
+                  [ngModel]="wc().expiry"
+                  (ngModelChange)="onWcExpiryChange($event)"
+                />
+                @if (!wcDateEditable) {
+                  <div class="iv-date-locked-note">🔒 Upload a new certificate below to update this date.</div>
+                }
+
+                <div class="iv-cert-row">
+                  @if (s.wc.fileName) {
+                    📄 {{ s.wc.fileName }}
+                    @if (s.wc.fileUrl) {
+                      <a [href]="s.wc.fileUrl" target="_blank" class="iv-doc-link">📄 View / Download certificate</a>
+                    }
+                  } @else {
+                    <span class="muted">No certificate uploaded yet.</span>
+                  }
+                </div>
+
+                <div class="iv-upload-row">
+                  <label class="iv-upload-label">
+                    📎 Upload new certificate
+                    <input type="file" accept=".pdf,.png,.jpg,.jpeg" (change)="onWcFileSelected($event)" />
+                  </label>
+                  @if (wc().file) {
+                    <span class="iv-selected-file">{{ wc().file!.name }}</span>
+                  }
+                </div>
+
+                @if (s.wc.pending; as p) {
+                  <div class="iv-pending-banner">
+                    ⏳ Vendor submitted a certificate on {{ formatDateTime(p.submittedOn) }}
+                    ({{ p.fileName }}, proposed expiry {{ formatDate(p.proposedExpiry) }})
+                    @if (p.fileUrl) {
+                      <a [href]="p.fileUrl" target="_blank" class="iv-doc-link">📄 View / Download submitted certificate</a>
+                    }
+                    — awaiting review.
+                    <div class="iv-pending-actions">
+                      <button type="button" class="btn sm btn-success" [disabled]="isApproving() === 'wc' || isRejecting() === 'wc'" (click)="approvePending('wc')">
+                        ✓ Accept
+                      </button>
+                      <button type="button" class="btn sm btn-danger" [disabled]="isApproving() === 'wc' || isRejecting() === 'wc'" (click)="rejectPending('wc')">
+                        ✕ Reject — request resubmit
+                      </button>
+                    </div>
+                  </div>
+                }
+              } @else {
+                <div class="iv-notrequired-note">
+                  This coverage is not required for this vendor — this section shows as satisfied.
+                  Toggle back to YES to re-require it (triggers the vendor email on next resend).
+                </div>
+              }
+            </div>
+          </div>
+        }
+      </div>
+
+      <div class="modal-foot">
+        <button type="button" class="btn" (click)="onClose()">Close</button>
+        @if (state()) {
+          <button type="button" class="btn btn-success" [disabled]="isSaving()" (click)="save()">
+            💾 Save Insurance Info
+          </button>
+        }
+      </div>
+    </div>
+  </div>
+}

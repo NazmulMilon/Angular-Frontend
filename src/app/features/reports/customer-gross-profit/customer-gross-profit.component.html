@@ -1,0 +1,555 @@
+<div class="page">
+  <div class="page-header">
+    <h2>Customer Gross Profit</h2>
+    <div class="page-header-actions">
+      <span class="record-count">{{ filteredRecords() }} of {{ totalRecords() }} records</span>
+      <button
+        class="export-btn"
+        [disabled]="exporting() || rows().length === 0"
+        (click)="exportToExcel()"
+      >
+        @if (exporting()) {
+          <span class="export-spinner"></span>
+          Exporting…
+        } @else {
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+            <path
+              d="M2 11v3h12v-3M8 1v9M4.5 6.5 8 10l3.5-3.5"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+          Export to Excel
+        }
+      </button>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="filters-bar">
+    <app-multi-select
+      label="Customers"
+      placeholder="All Customers"
+      [options]="customerOptions()"
+      [selectedKeys]="selectedCustomers()"
+      (selectedKeysChange)="onCustomerChange($event)"
+    />
+    <app-multi-select
+      label="Priorities"
+      placeholder="All Priorities"
+      [options]="priorityOptions()"
+      [selectedKeys]="selectedPriorities()"
+      (selectedKeysChange)="onPriorityChange($event)"
+    />
+    <app-multi-select
+      label="Account Managers"
+      placeholder="All Account Managers"
+      [options]="accountManagerOptions()"
+      [selectedKeys]="selectedAccountManagers()"
+      (selectedKeysChange)="onAccountManagerChange($event)"
+    />
+    <app-multi-select
+      label="Trades"
+      placeholder="All Trades"
+      [options]="tradeOptions()"
+      [selectedKeys]="selectedTrades()"
+      (selectedKeysChange)="onTradeChange($event)"
+    />
+
+    <div class="date-range-filter">
+      <label class="filter-label">Date Range</label>
+      <select
+        class="date-preset-select"
+        [ngModel]="datePreset()"
+        (ngModelChange)="onDatePresetChange($event)"
+      >
+        <option value="all">No Date Filter</option>
+        <option value="day">Day</option>
+        <option value="week">Week</option>
+        <option value="month">Month</option>
+        <option value="quarter">Quarter</option>
+        <option value="custom">Custom Range</option>
+      </select>
+
+      @if (!datePickerExpanded() && dateRangeLabel()) {
+        <div class="date-summary" (click)="datePickerExpanded.set(true)">
+          <span class="date-summary__text">{{ dateRangeLabel() }}</span>
+          <svg class="date-summary__icon" width="14" height="14" viewBox="0 0 16 16" fill="none">
+            <path d="M11.5 2.5l2 2-8 8H3.5v-2l8-8z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+      }
+
+      @if (datePickerExpanded()) {
+        @if (datePreset() === 'day') {
+          <input
+            type="date"
+            class="date-input date-input--clickable"
+            [ngModel]="dayDate()"
+            (ngModelChange)="onDayDateChange($event)"
+            (click)="openPicker($event)"
+          />
+        }
+
+        @if (datePreset() === 'week') {
+          <div class="week-picker">
+            <input
+              type="date"
+              class="date-input date-input--clickable"
+              [ngModel]="weekDate()"
+              (ngModelChange)="onWeekDateChange($event)"
+              (click)="openPicker($event)"
+            />
+            @if (weekRangeLabel()) {
+              <span class="week-label">{{ weekRangeLabel() }}</span>
+            }
+          </div>
+        }
+
+        @if (datePreset() === 'month') {
+          <div class="month-picker">
+            <select
+              class="year-select"
+              [ngModel]="monthYear()"
+              (ngModelChange)="onMonthYearChange(+$event)"
+            >
+              @for (yr of quarterYears; track yr) {
+                <option [value]="yr">{{ yr }}</option>
+              }
+            </select>
+            <div class="month-row">
+              @for (m of monthList; track m.value) {
+                <label
+                  class="month-radio"
+                  [class.month-radio--active]="selectedMonth() === m.value"
+                >
+                  <input
+                    type="radio"
+                    name="month"
+                    [value]="m.value"
+                    [checked]="selectedMonth() === m.value"
+                    (change)="onMonthSelect(m.value)"
+                  />
+                  {{ m.label }}
+                </label>
+              }
+            </div>
+          </div>
+        }
+
+        @if (datePreset() === 'quarter') {
+          <div class="quarter-picker">
+            <select
+              class="year-select"
+              [ngModel]="quarterYear()"
+              (ngModelChange)="onQuarterYearChange(+$event)"
+            >
+              @for (yr of quarterYears; track yr) {
+                <option [value]="yr">{{ yr }}</option>
+              }
+            </select>
+            <div class="quarter-row">
+              @for (q of [1, 2, 3, 4]; track q) {
+                <label
+                  class="quarter-radio"
+                  [class.quarter-radio--active]="selectedQuarter() === q"
+                  [title]="quarterTooltips[q]"
+                >
+                  <input
+                    type="radio"
+                    name="quarter"
+                    [value]="q"
+                    [checked]="selectedQuarter() === q"
+                    (change)="onQuarterChange(q)"
+                  />
+                  Q{{ q }}
+                </label>
+              }
+            </div>
+          </div>
+        }
+
+        @if (datePreset() === 'custom') {
+          <div class="custom-dates">
+            <input
+              type="date"
+              class="date-input date-input--clickable"
+              [ngModel]="customDateFrom()"
+              (ngModelChange)="customDateFrom.set($event); onCustomDateChange()"
+              (click)="openPicker($event)"
+            />
+            <span class="date-sep">to</span>
+            <input
+              type="date"
+              class="date-input date-input--clickable"
+              [ngModel]="customDateTo()"
+              [min]="customDateFrom()"
+              (ngModelChange)="customDateTo.set($event); onCustomDateChange()"
+              (click)="openPicker($event)"
+            />
+          </div>
+        }
+      }
+    </div>
+
+    <div class="column-chooser">
+      <app-multi-select
+        label="Columns"
+        placeholder="Choose columns"
+        [options]="columnOptions"
+        [selectedKeys]="selectedColumnKeys()"
+        (selectedKeysChange)="onColumnSelectionChange($event)"
+      />
+      <button class="apply-cols-btn" title="Apply column selection" (click)="applyColumns()">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+          <path
+            d="M1 1h6v6H1zM9 1h6v6H9zM1 9h6v6H1zM9 9h6v6H9z"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+        Apply
+      </button>
+    </div>
+  </div>
+
+  <!-- Data table -->
+  <div class="table-card" [class.table-card--loading]="loading()">
+    @if (loading()) {
+      <div class="loading-overlay">
+        <div class="spinner"></div>
+      </div>
+    }
+
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            @for (col of displayedColumns(); track col.field; let i = $index) {
+              <th
+                [style.width]="col.width"
+                [style.text-align]="col.align ?? 'left'"
+                class="sortable"
+                (click)="sortBy(i)"
+              >
+                <span class="th-content">
+                  {{ col.header }}
+                  @if (sort().col === i) {
+                    <span class="sort-icon">
+                      {{ sort().dir === 'asc' ? '&#9650;' : '&#9660;' }}
+                    </span>
+                  }
+                </span>
+              </th>
+            }
+          </tr>
+        </thead>
+        <tbody>
+          @if (rows().length === 0 && !loading()) {
+            <tr>
+              <td [attr.colspan]="displayedColumns().length" class="empty-row">
+                No records found. Adjust your filters and try again.
+              </td>
+            </tr>
+          }
+          @for (row of rows(); track row.jobPO ?? $index) {
+            <tr>
+              @for (col of displayedColumns(); track col.field) {
+                @switch (col.type) {
+                  @case ('date') {
+                    <td [style.text-align]="col.align ?? 'left'">
+                      @if (cellValue(row, col.field)) {
+                        {{ cellValue(row, col.field) | date: 'MM/dd/yyyy' }}
+                      } @else {
+                        —
+                      }
+                    </td>
+                  }
+                  @case ('currency') {
+                    <td class="text-right">
+                      {{ cellValue(row, col.field) | currency: 'USD' : 'symbol' : '1.2-2' }}
+                    </td>
+                  }
+                  @case ('currency-nullable') {
+                    <td class="text-right">
+                      @if (cellValue(row, col.field) !== null) {
+                        {{ cellValue(row, col.field) | currency: 'USD' : 'symbol' : '1.2-2' }}
+                      } @else {
+                        —
+                      }
+                    </td>
+                  }
+                  @case ('profit') {
+                    <td class="text-right" [class]="getProfitClass(+cellValue(row, col.field)!)">
+                      {{ cellValue(row, col.field) | currency: 'USD' : 'symbol' : '1.2-2' }}
+                    </td>
+                  }
+                  @case ('percent') {
+                    <td class="text-right">
+                      @if (cellValue(row, col.field) !== null) {
+                        {{ cellValue(row, col.field) | number: '1.1-1' }}%
+                      } @else {
+                        —
+                      }
+                    </td>
+                  }
+                  @case ('boolean') {
+                    <td [style.text-align]="col.align ?? 'left'">
+                      @if (
+                        cellValue(row, col.field) === true || cellValue(row, col.field) === 'true'
+                      ) {
+                        Yes
+                      } @else if (
+                        cellValue(row, col.field) === false || cellValue(row, col.field) === 'false'
+                      ) {
+                        No
+                      } @else {
+                        —
+                      }
+                    </td>
+                  }
+                  @default {
+                    <td
+                      [style.text-align]="col.align ?? 'left'"
+                      [class.cell-ellipsis]="
+                        col.field === 'locationAddress' || col.field === 'trade'
+                      "
+                      [class.cell-wrap]="col.field === 'location'"
+                      [title]="
+                        col.field === 'locationAddress' || col.field === 'trade'
+                          ? (cellValue(row, col.field) ?? '')
+                          : ''
+                      "
+                    >
+                      @if (col.field === 'priority' && row.priorityColor) {
+                        <span class="priority-badge" [style.background-color]="row.priorityColor">
+                          {{ cellValue(row, col.field) }}
+                        </span>
+                      } @else {
+                        {{ cellValue(row, col.field) }}
+                      }
+                    </td>
+                  }
+                }
+              }
+            </tr>
+          }
+        </tbody>
+        @if (rows().length > 0) {
+          <tfoot>
+            <tr class="totals-row">
+              @for (col of displayedColumns(); track col.field; let first = $first) {
+                @if (first) {
+                  <td class="totals-label">Page Total</td>
+                } @else if (isSumColumn(col.field)) {
+                  <td
+                    class="text-right totals-value"
+                    [class]="col.field === 'rowProfitAmount' ? getProfitClass(getColumnSum(col.field)) : ''"
+                  >
+                    {{ getColumnSum(col.field) | currency: 'USD' : 'symbol' : '1.2-2' }}
+                  </td>
+                } @else {
+                  <td></td>
+                }
+              }
+            </tr>
+          </tfoot>
+        }
+      </table>
+    </div>
+
+    <!-- Pagination -->
+    <div class="pagination-bar">
+      <div class="page-size">
+        <label>Show</label>
+        <input
+          type="number"
+          class="page-size-input"
+          min="1"
+          placeholder="100"
+          [value]="pageLength()"
+          #pageSizeInput
+          (keydown.enter)="onPageSizeInput(pageSizeInput)"
+          (blur)="onPageSizeInput(pageSizeInput)"
+        />
+        <label>entries</label>
+      </div>
+      <div class="page-nav">
+        <button class="page-btn" [disabled]="currentPage() <= 1" (click)="goToPage(1)">
+          First
+        </button>
+        <button
+          class="page-btn"
+          [disabled]="currentPage() <= 1"
+          (click)="goToPage(currentPage() - 1)"
+        >
+          Prev
+        </button>
+        <span class="page-info">Page {{ currentPage() }} of {{ totalPages() }}</span>
+        <div class="page-jump">
+          <input
+            type="number"
+            class="page-jump-input"
+            min="1"
+            [max]="totalPages()"
+            placeholder="#"
+            #pageInput
+            (keydown.enter)="goToPageFromInput(pageInput)"
+          />
+          <button class="page-btn" (click)="goToPageFromInput(pageInput)">Go</button>
+        </div>
+        <button
+          class="page-btn"
+          [disabled]="currentPage() >= totalPages()"
+          (click)="goToPage(currentPage() + 1)"
+        >
+          Next
+        </button>
+        <button
+          class="page-btn"
+          [disabled]="currentPage() >= totalPages()"
+          (click)="goToPage(totalPages())"
+        >
+          Last
+        </button>
+      </div>
+    </div>
+  </div>
+
+  @if (rows().length > 0) {
+    <p class="vendor-notice">
+      Vendor approvals are used to estimate costs before bills are submitted, which may cause slight
+      variations if the final bill is lower than approved amount.
+    </p>
+  }
+
+  <!-- Summary Panel -->
+  @if (rows().length > 0) {
+    <div class="summary-panel">
+      <h3 class="summary-title">Summary</h3>
+
+      <div class="summary-grid">
+        <div class="summary-item">
+          <span class="summary-label">Customer Invoice Total</span>
+          <span class="summary-value">{{
+            sumCustomerInvoice() | currency: 'USD' : 'symbol' : '1.2-2'
+          }}</span>
+        </div>
+        <div class="summary-item">
+          <span class="summary-label">Vendor Bill Total</span>
+          <span class="summary-value">{{
+            sumVendorBill() | currency: 'USD' : 'symbol' : '1.2-2'
+          }}</span>
+        </div>
+        <div class="summary-item">
+          <span class="summary-label">Revised DNE Total</span>
+          <span class="summary-value">{{
+            sumVendorRevisedDNE() | currency: 'USD' : 'symbol' : '1.2-2'
+          }}</span>
+        </div>
+        <div class="summary-item">
+          <span class="summary-label">Total Vendor Exp</span>
+          <span class="summary-value">{{
+            totalVendorExp() | currency: 'USD' : 'symbol' : '1.2-2'
+          }}</span>
+        </div>
+        <div class="summary-item">
+          <span class="summary-label">Gross Profit</span>
+          <span class="summary-value" [class]="getProfitClass(grossProfit())">
+            {{ grossProfit() | currency: 'USD' : 'symbol' : '1.2-2' }}
+          </span>
+        </div>
+        <div class="summary-item">
+          <span class="summary-label">Gross Profit %</span>
+          <span class="summary-value" [class]="getProfitClass(grossProfitPercent())">
+            {{ grossProfitPercent() | number: '1.1-1' }}%
+          </span>
+        </div>
+      </div>
+
+      <div class="summary-divider"></div>
+
+      <div class="input-row">
+        <label class="input-label">Overhead Component %</label>
+        <!--<input
+          type="text"
+          inputmode="numeric"
+          pattern="[0-9]*"
+          maxlength="2"
+          class="num-input num-input--fixed"
+          min="0"
+          max="99"
+          step="1"
+          placeholder="0"
+          [ngModel]="overheadPercent()"
+          (ngModelChange)="overheadPercent.set(Math.min(99, Math.max(0, $event ?? 0)))"
+        />-->
+        <input
+          type="number"
+          min="0"
+          max="99"
+          step="1"
+          class="num-input num-input--fixed"
+          [ngModel]="overheadPercent()"
+          (ngModelChange)="setOverheadPercent($event)"
+          (input)="onInput($event)"
+        />
+      </div>
+      <div class="input-row">
+        <label class="input-label">Overhead Amount</label>
+        <input
+          type="text"
+          class="num-input num-input--fixed num-input--readonly"
+          readonly
+          [value]="overheadAmount() | currency: 'USD' : 'symbol' : '1.2-2'"
+        />
+      </div>
+      <div class="input-row">
+        <label class="input-label">Wage Component ($)</label>
+        <input
+          type="number"
+          class="num-input num-input--fixed"
+          min="0"
+          step="0.01"
+          placeholder="0.00"
+          [ngModel]="wageComponent()"
+          (ngModelChange)="wageComponent.set($event ?? 0)"
+        />
+      </div>
+      <div class="summary-divider"></div>
+      <div class="input-row" [class]="getProfitClass(netIncome())">
+        <label class="input-label">
+          <span class="info-trigger">
+            <svg class="info-icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5" />
+              <path
+                d="M8 7v4M8 5.5v-.01"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linecap="round"
+              />
+            </svg>
+            <span class="info-tooltip">
+              Gross Profit ({{ grossProfit() | currency: 'USD' : 'symbol' : '1.2-2' }}) &minus;
+              Overhead ({{ overheadAmount() | currency: 'USD' : 'symbol' : '1.2-2' }}) &minus; Wage
+              ({{ wageComponent() | currency: 'USD' : 'symbol' : '1.2-2' }}) =
+              {{ netIncome() | currency: 'USD' : 'symbol' : '1.2-2' }}
+            </span>
+          </span>
+          Net Income</label
+        >
+        <input
+          type="text"
+          class="num-input num-input--fixed num-input--readonly"
+          [class]="getProfitClass(netIncome())"
+          readonly
+          [value]="netIncome() | currency: 'USD' : 'symbol' : '1.2-2'"
+        />
+      </div>
+    </div>
+  }
+</div>

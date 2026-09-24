@@ -1,0 +1,25 @@
+<!-- ============================================================
+     Estimates Tab — job-scoped Estimating / On-Site Approval page
+     ============================================================ -->
+
+<div class="page-container">
+
+  <!-- ================================================================
+       APP-LEVEL TABS — job-scoped destinations
+       ================================================================ -->
+  @if (jobKey()) {
+    <div class="app-tabs">
+      <span class="app-tab" [routerLink]="['/job', jobKey(), 'assign-vendor']">Assign Vendor</span>
+      <span class="app-tab app-tab--active">Estimates</span>
+      <span class="app-tab" [routerLink]="['/job', jobKey(), 'vendor-bills']">Customer & Vendor Invoicing</span>
+      <span class="app-tab" [routerLink]="['/job', jobKey(), 'notes-activity']">Notes &amp; Activity</span>
+    </div>
+  }
+
+  @if (jobKey()) {
+    <app-job-details-accordion [jobKey]="jobKey()" [defaultOpen]="false" [showNav]="false" />
+  }
+
+  <app-job-estimates-section [jobKey]="jobKey()" />
+
+</div>

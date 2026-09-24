@@ -1,0 +1,433 @@
+@if (isOpen()) {
+  <div class="modal-overlay" (click)="onOverlayClick($event)">
+    <div class="modal modal--attachments" role="dialog" aria-modal="true" aria-labelledby="jamModalTitle">
+      <div class="modal__header">
+        <h3 class="modal__title" id="jamModalTitle">
+          📎 Job File &amp; Attachments
+          @if (po()) {
+            <span class="modal__po">— PO {{ po() }}</span>
+          }
+        </h3>
+        <button type="button" class="modal__close" (click)="onClose()" aria-label="Close">&times;</button>
+      </div>
+
+      <div class="modal__body">
+        @if (errorMessage()) {
+          <div class="jam-error">{{ errorMessage() }}</div>
+        }
+        @if (successMessage()) {
+          <div class="jam-success">{{ successMessage() }}</div>
+        }
+
+        <!-- ============ Add a File ============ -->
+        <div class="jam-add-file">
+          <div class="jam-add-file__left">
+            <div class="jam-field-label">DOCUMENT TYPE**</div>
+            <select
+              class="jam-select"
+              [ngModel]="uploadDocTypeKey()"
+              (ngModelChange)="uploadDocTypeKey.set($event)"
+            >
+              <option value=""></option>
+              @for (dt of docTypes(); track dt.value) {
+                <option [value]="dt.value">{{ dt.text }}</option>
+              }
+            </select>
+
+            <div class="jam-field-label" style="margin-top: 10px">COMMENTS :</div>
+            <input
+              type="text"
+              class="jam-input"
+              [ngModel]="uploadComment()"
+              (ngModelChange)="uploadComment.set($event)"
+            />
+
+            <button type="button" class="btn primary sm jam-save-btn" [disabled]="uploading()" (click)="onSave()">
+              {{ uploading() ? 'Saving…' : 'Save this File' }}
+            </button>
+          </div>
+
+          <div class="jam-add-file__right">
+            <div class="jam-drop-label">Click on the area below/ Drop files here to upload</div>
+            <div
+              class="jam-drop"
+              [class.active]="dragActive()"
+              (click)="onFilePick(fileInput)"
+              (dragover)="onDragOver($event)"
+              (dragleave)="onDragLeave($event)"
+              (drop)="onDrop($event)"
+            >
+              @if (pendingFiles().length === 0) {
+                Drop Your files/Images here or Click here to upload
+              } @else {
+                <div class="jam-pending-list">
+                  @for (f of pendingFiles(); track f.name; let i = $index) {
+                    <span class="jam-pending-chip">
+                      📄 {{ f.name }} — ready to save
+                      <button type="button" class="jam-pending-remove" (click)="onRemovePendingFile(i); $event.stopPropagation()">&times;</button>
+                    </span>
+                  }
+                </div>
+              }
+            </div>
+            <input
+              #fileInput
+              type="file"
+              multiple
+              hidden
+              (change)="onFileInputChange($event)"
+            />
+          </div>
+        </div>
+
+        <!-- ============ Vendor Papers Under This Job ============ -->
+        <div class="jam-sec-bar">VENDOR PAPERS UNDER THIS JOB</div>
+        <div class="jam-table-wrap">
+          <table class="grid">
+            <thead>
+              <tr>
+                <th>Type</th>
+                <th>File Name</th>
+                <th>Uploaded On</th>
+                <th>Comment</th>
+                <th>Uploaded By</th>
+                <th>Control</th>
+              </tr>
+            </thead>
+            <tbody>
+              @if (vendorPapersLoading()) {
+                <tr><td colspan="6" class="jam-muted jam-center">Loading…</td></tr>
+              } @else if (vendorPapersList().length === 0) {
+                <tr><td colspan="6" class="jam-muted jam-center">No vendor papers</td></tr>
+              } @else {
+                @for (p of vendorPapersList(); track p.fileKey) {
+                  <tr>
+                    <td>{{ p.fileType }}</td>
+                    <td>{{ p.fileName }}</td>
+                    <td>{{ p.uploadDate }}</td>
+                    <td>{{ p.comment }}</td>
+                    <td>{{ p.staffName || p.vendorName }}</td>
+                    <td><a href="#" class="jam-link" (click)="onViewVendorPaper(p); $event.preventDefault()">View File</a></td>
+                  </tr>
+                }
+              }
+            </tbody>
+          </table>
+        </div>
+
+        <!-- ============ Files Under This Job ============ -->
+        <div class="jam-sec-bar">FILES UNDER THIS JOB</div>
+        <div class="jam-table-wrap">
+          <table class="grid">
+            <thead>
+              <tr>
+                <th>Added On</th>
+                <th>Section / Document Type</th>
+                <th>Document Name</th>
+                <th>Added By</th>
+                <th>View Files</th>
+                <th>Delete</th>
+              </tr>
+            </thead>
+            <tbody>
+              @if (filesLoading()) {
+                <tr><td colspan="6" class="jam-muted jam-center">Loading…</td></tr>
+              } @else if (filesList().length === 0) {
+                <tr><td colspan="6" class="jam-muted jam-center">No data available in table</td></tr>
+              } @else {
+                @for (f of filesList(); track f.fileKey) {
+                  <tr>
+                    <td>{{ f.addedOn }}</td>
+                    <td>{{ f.documentTypeName }}</td>
+                    <td>{{ f.title }}</td>
+                    <td>{{ f.addedByName }}</td>
+                    <td><a href="#" class="jam-link" (click)="onViewFile(f); $event.preventDefault()">View File</a></td>
+                    <td>
+                      <button
+                        type="button"
+                        class="btn sm"
+                        [disabled]="filesDeletingKey() === f.fileKey"
+                        (click)="onRequestDelete(f)"
+                      >
+                        🗑
+                      </button>
+                    </td>
+                  </tr>
+                }
+              }
+            </tbody>
+          </table>
+        </div>
+
+        @if (deleteConfirmFile(); as delFile) {
+          <div class="jam-confirm-overlay" (click)="onCancelDelete()">
+            <div class="jam-confirm" (click)="$event.stopPropagation()">
+              <div class="jam-confirm__text">
+                Delete "{{ delFile.title }}"? This cannot be undone.
+              </div>
+              <div class="jam-confirm__actions">
+                <button type="button" class="btn sm" (click)="onCancelDelete()">Cancel</button>
+                <button type="button" class="btn sm jam-btn-danger" (click)="onConfirmDelete()">Delete</button>
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+
+      <div class="modal__footer">
+        <button type="button" class="btn" (click)="onClose()">Close</button>
+      </div>
+    </div>
+
+    <!-- ================================================================
+         APPROVE CUSTOMER ESTIMATE ON BEHALF MODAL
+         (triggered after uploading a "Customer Additional Approval" file
+          when the job has an unapproved customer estimate — legacy parity)
+         ================================================================ -->
+    @if (approveEstimateModalOpen()) {
+      <div class="jam-submodal-overlay" (click)="approveEstimateSaving() ? null : onCloseApproveEstimateModal()"></div>
+      <div
+        class="jam-submodal jam-submodal--narrow"
+        role="dialog"
+        aria-labelledby="jam-approve-est-title"
+        aria-modal="true"
+        (click)="$event.stopPropagation()"
+      >
+        <div class="jam-submodal__header">
+          <h2 id="jam-approve-est-title">Approve an Estimate on Behalf of the Customer</h2>
+          <button
+            type="button"
+            class="jam-submodal__close"
+            [disabled]="approveEstimateSaving()"
+            (click)="onCloseApproveEstimateModal()"
+            aria-label="Close"
+          >&times;</button>
+        </div>
+
+        <div class="jam-submodal__body">
+          <p class="jam-approve-est__intro">
+            This job has customer estimate(s) awaiting a response. Select one below to approve on
+            behalf of the customer.
+          </p>
+          <div class="jam-approve-est__dne">
+            Customer DNE: <strong>{{ approveEstimateCustomerDne() | currency }}</strong>
+          </div>
+
+          <ul class="jam-approve-est__list">
+            @for (est of approveEstimateList(); track est.invoiceKey) {
+              <li class="jam-approve-est__item">
+                <div class="jam-approve-est__info">
+                  <span class="jam-approve-est__name">
+                    {{ est.estimateTitle || ('Estimate #' + (est.mcEstimate ?? '—')) }}
+                  </span>
+                  <span class="jam-approve-est__total">{{ est.total | currency }}</span>
+                </div>
+                <button
+                  type="button"
+                  class="btn primary sm"
+                  [disabled]="approveEstimateSaving()"
+                  (click)="onApproveEstimateOnBehalf(est)"
+                >{{ approveEstimateSaving() ? 'Approving…' : 'Approve on Behalf of the Customer' }}</button>
+              </li>
+            }
+          </ul>
+        </div>
+
+        <div class="jam-submodal__footer">
+          <button
+            type="button"
+            class="btn sm"
+            [disabled]="approveEstimateSaving()"
+            (click)="onCloseApproveEstimateModal()"
+          >Cancel</button>
+        </div>
+      </div>
+    }
+
+    <!-- ================================================================
+         CHANGE JOB STATUS CONFIRM MODAL
+         (doc-type-driven prompt after upload — legacy statusModal / statusModalV parity)
+         ================================================================ -->
+    @if (statusChangeModalOpen()) {
+      <div class="jam-submodal-overlay" (click)="onCancelStatusChange()"></div>
+      <div
+        class="jam-submodal jam-submodal--narrow"
+        role="dialog"
+        aria-labelledby="jam-status-change-title"
+        aria-modal="true"
+        (click)="$event.stopPropagation()"
+      >
+        <div class="jam-submodal__header">
+          <h2 id="jam-status-change-title">Change Job Status</h2>
+          <button
+            type="button"
+            class="jam-submodal__close"
+            (click)="onCancelStatusChange()"
+            aria-label="Close"
+          >&times;</button>
+        </div>
+
+        <div class="jam-submodal__body">
+          <div class="jam-status-change__prompt">
+            Change JOB status to "{{ statusChangeTargetLabel() }}"?
+          </div>
+        </div>
+
+        <div class="jam-submodal__footer">
+          <button
+            type="button"
+            class="btn sm"
+            [disabled]="statusChangeSaving()"
+            (click)="onCancelStatusChange()"
+          >No</button>
+          <button
+            type="button"
+            class="btn primary sm"
+            [disabled]="statusChangeSaving()"
+            (click)="onConfirmStatusChange()"
+          >
+            @if (statusChangeSaving()) { Saving… } @else { Yes }
+          </button>
+        </div>
+      </div>
+    }
+
+    <!-- ================================================================
+         SEND ESTIMATE TO VENDOR MODAL  (RBR-483)
+         Opens after a vendor-estimate file is saved. Mirrors legacy
+         #ModalSendEstimateToVendor ("Vendor Estimates").
+         ================================================================ -->
+    @if (sendEstimateModalOpen()) {
+      <div class="jam-submodal-overlay" (click)="onCloseSendEstimateModal()"></div>
+      <div
+        class="jam-submodal jam-send-estimate-modal"
+        role="dialog"
+        aria-labelledby="jam-send-estimate-title"
+        aria-modal="true"
+        (click)="$event.stopPropagation()"
+      >
+        <div class="jam-submodal__header">
+          <h2 id="jam-send-estimate-title">Vendor Estimates</h2>
+          <button
+            type="button"
+            class="jam-submodal__close"
+            (click)="onCloseSendEstimateModal()"
+            aria-label="Close"
+          >&times;</button>
+        </div>
+
+        <div class="jam-submodal__body">
+          @if (sendEstimateError()) {
+            <div class="jam-error">{{ sendEstimateError() }}</div>
+          }
+          @if (sendEstimateMessage()) {
+            <div class="jam-success">{{ sendEstimateMessage() }}</div>
+          }
+
+          <div class="jam-send-estimate__note">
+            <strong>NOTE:</strong>
+            <div>You can select the <span class="jam-send-estimate__note-green">GREEN</span> button to Create estimate on behalf of the vendor</div>
+            <div class="jam-send-estimate__note-or">OR</div>
+            <div>You can select the <span class="jam-send-estimate__note-orange">ORANGE</span> button to email the Link to vendor to upload estimate in the portal</div>
+          </div>
+
+          @if (sendEstimateLoading()) {
+            <div class="jam-muted jam-center">Loading vendor contacts…</div>
+          } @else if (sendEstimateVendors().length === 0) {
+            <div class="jam-muted jam-center">No vendor is assigned to this job yet.</div>
+          } @else {
+            <div class="jam-send-estimate__vendors">
+              @for (vendor of sendEstimateVendors(); track vendor.jobVendorKey) {
+                <div class="jam-send-estimate__vendor">
+                  <label class="jam-send-estimate__vendor-head">
+                    <input
+                      type="radio"
+                      name="jamSendEstimateVendor"
+                      [value]="vendor.jobVendorKey"
+                      [checked]="sendEstimateSelectedVendorKey() === vendor.jobVendorKey"
+                      (change)="onSelectSendEstimateVendor(vendor)"
+                    />
+                    <strong>{{ vendor.vendorName || 'Vendor' }}</strong>
+                    @if (vendor.isDefault) { <span class="jam-send-estimate__default-tag">(Default)</span> }
+                  </label>
+
+                  @if (vendor.contacts.length > 0) {
+                    <div class="jam-send-estimate__contacts">
+                      @for (contact of vendor.contacts; track contact.contactKey) {
+                        <label class="jam-send-estimate__contact">
+                          <input
+                            type="checkbox"
+                            [checked]="sendEstimateSelectedContacts().has(contact.contactKey)"
+                            (change)="onToggleSendEstimateContact(contact.contactKey)"
+                          />
+                          <span class="jam-send-estimate__contact-name">{{ contact.cname || '—' }}</span>
+                          <span class="jam-send-estimate__contact-email">( {{ contact.email || '—' }} )</span>
+                          @if (contact.isDefault) { <span class="jam-send-estimate__default-tag">(DEFAULT)</span> }
+                        </label>
+                      }
+                    </div>
+                  } @else {
+                    <div class="jam-send-estimate__no-contacts">No contacts on file for this vendor.</div>
+                  }
+                </div>
+              }
+            </div>
+
+            <div class="jam-field">
+              <label class="jam-field-label" for="jam-send-estimate-note">Email note</label>
+              <textarea
+                id="jam-send-estimate-note"
+                class="jam-input jam-textarea"
+                rows="3"
+                [ngModel]="sendEstimateEmailNote()"
+                (ngModelChange)="sendEstimateEmailNote.set($event)"
+              ></textarea>
+            </div>
+
+            <div class="jam-field">
+              <label class="jam-field-label" for="jam-send-estimate-custom-email">
+                Custom email <span class="jam-send-estimate__field-hint">(optional, only applicable when sending estimate)</span>
+              </label>
+              <input
+                id="jam-send-estimate-custom-email"
+                type="email"
+                class="jam-input"
+                [ngModel]="sendEstimateCustomEmail()"
+                (ngModelChange)="sendEstimateCustomEmail.set($event)"
+                placeholder="name@example.com"
+              />
+            </div>
+          }
+        </div>
+
+        <div class="jam-submodal__footer jam-send-estimate__footer">
+          <div class="jam-send-estimate__actions">
+            <button
+              type="button"
+              class="btn jam-send-estimate__btn--green"
+              [disabled]="sendEstimateLoading() || sendEstimateSending() || sendEstimateSent() || sendEstimateVendors().length === 0"
+              (click)="onCreateEstimateOnBehalf()"
+            >Create estimate on behalf of the vendors</button>
+            <button
+              type="button"
+              class="btn jam-send-estimate__btn--orange"
+              [disabled]="sendEstimateLoading() || sendEstimateSending() || sendEstimateSent() || sendEstimateVendors().length === 0"
+              (click)="onSendEstimateEmail()"
+            >
+              @if (sendEstimateSending()) {
+                Sending…
+              } @else {
+                Send email to vendor
+              }
+            </button>
+          </div>
+          <button
+            type="button"
+            class="btn sm"
+            (click)="onCloseSendEstimateModal()"
+          >Close</button>
+        </div>
+      </div>
+    }
+  </div>
+}

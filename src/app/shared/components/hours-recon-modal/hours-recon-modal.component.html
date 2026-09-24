@@ -1,0 +1,185 @@
+@if (isOpen()) {
+  <div class="modal-overlay" (click)="onOverlayClick($event)">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="hrModalTitle">
+      <div class="modal-head">
+        <h3 id="hrModalTitle">⏱ Check-in / Out &amp; Hours vs Billed — {{ vendorName() || 'Vendor' }}</h3>
+        <button type="button" class="x" (click)="onClose()" aria-label="Close">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        @if (errorMessage()) {
+          <div class="hr-error">{{ errorMessage() }}</div>
+        }
+        @if (successMessage()) {
+          <div class="hr-success">{{ successMessage() }}</div>
+        }
+
+        @if (loading()) {
+          <div class="hr-loading">Loading check-in/out &amp; hours data…</div>
+        } @else if (state(); as s) {
+          <div class="hr-section-label">Check-in / Out records (Hours &amp; No of Tech editable — edits are logged)</div>
+          <div class="hr-table-wrap">
+            <table class="hr-grid">
+              <thead>
+                <tr>
+                  <th>Tech</th>
+                  <th>Check In</th>
+                  <th>Check Out</th>
+                  <th class="num">Hours</th>
+                  <th class="num">No of Tech</th>
+                  <th>Works Performed</th>
+                  <th class="num">Tech-Hrs</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of editRows(); track row.checkinKey) {
+                  <tr>
+                    <td>{{ row.techName || '--' }} <span class="hr-badge">Complete</span></td>
+                    <td>{{ formatDateTime(row.checkInTime) }}</td>
+                    <td>{{ formatDateTime(row.checkOutTime) }}</td>
+                    <td class="num">
+                      <input
+                        type="number"
+                        step="0.25"
+                        min="0"
+                        [max]="row.originalHours"
+                        class="hr-cell-input"
+                        [ngModel]="row.hours"
+                        (ngModelChange)="onHoursInput(row, $event)"
+                      />
+                    </td>
+                    <td class="num">
+                      <input
+                        type="number"
+                        step="1"
+                        min="0"
+                        [max]="row.originalTechCount ?? 0"
+                        [disabled]="(row.originalTechCount ?? 0) <= 1"
+                        class="hr-cell-input"
+                        [ngModel]="row.techCount"
+                        (ngModelChange)="onTechCountInput(row, $event)"
+                      />
+                    </td>
+                    <td class="hr-works-performed">
+                      <b [class.hr-works-performed--yes]="row.workPerformed" [class.hr-works-performed--no]="row.workPerformed === false">
+                        {{ row.workPerformed === true ? 'Y' : row.workPerformed === false ? 'N' : '--' }}
+                      </b>
+                    </td>
+                    <td class="num hr-tech-hrs">{{ techHrs(row).toFixed(2) }}</td>
+                  </tr>
+                  <tr class="hr-workdesc-row">
+                    <td colspan="7"><b>WORKS PERFORMED:</b> {{ row.workDescription || '—' }}</td>
+                  </tr>
+                } @empty {
+                  <tr><td colspan="7" class="hr-empty">No check-in records</td></tr>
+                }
+              </tbody>
+              <tfoot>
+                <tr class="hr-total-row">
+                  <td colspan="3" class="hr-total-label">Total on-site hours</td>
+                  <td class="num">{{ s.onsiteHours.toFixed(2) }}</td>
+                  <td colspan="3"></td>
+                </tr>
+                <tr class="hr-total-row">
+                  <td colspan="6" class="hr-total-label">Total on-site tech-hours</td>
+                  <td class="num">{{ techHrsTotal().toFixed(2) }}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+
+          <div class="hr-section-label" style="margin-top: 14px">
+            Hourly labor billed on {{ s.invoiceSourceLabel || 'no vendor invoice' }}
+          </div>
+          <div class="hr-table-wrap">
+            <table class="hr-grid">
+              <thead>
+                <tr>
+                  <th>Line</th>
+                  <th class="num">Hours (qty)</th>
+                  <th class="num">Rate</th>
+                  <th class="num">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (line of s.billedLaborLines; track line.laborKey) {
+                  <tr>
+                    <td>{{ line.description || '--' }}</td>
+                    <td class="num">{{ line.hours.toFixed(2) }}</td>
+                    <td class="num">{{ formatMoney(line.rate) }}</td>
+                    <td class="num">{{ formatMoney(line.total) }}</td>
+                  </tr>
+                } @empty {
+                  <tr><td colspan="4" class="hr-empty">No hourly labor lines on file — nothing to reconcile.</td></tr>
+                }
+              </tbody>
+              @if (s.billedLaborLines.length) {
+                <tfoot>
+                  <tr class="hr-total-row">
+                    <td class="hr-total-label">Total billed hours</td>
+                    <td class="num">{{ s.billedHours.toFixed(2) }}</td>
+                    <td></td>
+                    <td class="num">{{ formatMoney(billedTotalAmount(s)) }}</td>
+                  </tr>
+                </tfoot>
+              }
+            </table>
+          </div>
+
+          <div class="hr-variance" style="margin-top: 12px">
+            @if (!s.billedLaborLines.length || !s.checkIns.length) {
+              <!-- nothing to compare -->
+            } @else if (s.diff > 0.1) {
+              <div class="hr-banner hr-banner--red">
+                ⚖ <b>Vendor billed MORE than on-site time:</b> billed <b>{{ s.billedHours.toFixed(2) }} hrs</b>
+                vs check-in/out <b>{{ s.onsiteHours.toFixed(2) }} hrs</b> (+{{ s.diff.toFixed(2) }}).
+                You may reduce the invoice down to the on-site hours — the reduction applies immediately.
+              </div>
+            } @else if (s.diff < -0.1) {
+              <div class="hr-banner hr-banner--amber">
+                ⚖ <b>Vendor billed LESS than on-site time</b> (billed <b>{{ s.billedHours.toFixed(2) }}</b> vs on-site
+                <b>{{ s.onsiteHours.toFixed(2) }} hrs</b>). <b>No adjustment available</b> — the vendor bill can only
+                be REDUCED to check-in/out times; the system will not increase a bill to balance hours.
+              </div>
+            } @else {
+              <div class="hr-banner hr-banner--green">
+                ✓ Billed labor (<b>{{ s.billedHours.toFixed(2) }} hrs</b>) matches on-site time
+                (<b>{{ s.onsiteHours.toFixed(2) }} hrs</b>).
+              </div>
+            }
+          </div>
+
+          @if (s.checkInWaived) {
+            <div class="hr-waiver-banner">
+              ⚠ Check-in requirement WAIVED by {{ s.checkInWaivedByName || 'AM' }} — "{{ s.checkInWaiveReason }}"
+            </div>
+          }
+        }
+      </div>
+
+      <div class="modal-foot">
+        <button type="button" class="btn" (click)="onClose()">Close</button>
+        @if (hasEdits()) {
+          <button type="button" class="btn" [disabled]="isSaving()" (click)="saveCheckInEdits()">
+            💾 Save check-in/out edits
+          </button>
+        }
+        @if (state(); as s) {
+          <button type="button" class="btn" [class.btn-amber]="s.checkInWaived" [disabled]="isSaving()" (click)="toggleWaiver()">
+            {{ s.checkInWaived ? '↩ Un-waive check-in requirement' : '⚠ Waive check-in requirement (AM)' }}
+          </button>
+          @if (s.hasUndo) {
+            <button type="button" class="btn btn-blue" [disabled]="isSaving()" (click)="undoReduction()">
+              ↩ Undo reduction — restore invoice to {{ formatMoney(s.undoRestoreToTotal) }}
+            </button>
+          }
+          @if (s.canApplyReduction) {
+            <button type="button" class="btn btn-amber" [disabled]="isSaving()" (click)="applyReduction()">
+              ⚖ Reduce invoice labor hours to match check-in/out ({{ s.onsiteHours.toFixed(2) }} hrs)
+            </button>
+          }
+        }
+      </div>
+    </div>
+  </div>
+}

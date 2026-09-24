@@ -1,0 +1,865 @@
+/* Ported from complete-screen-v2.html's step2HTML()/tierBar()/gpBoxesHTML() — matches the palette
+   and .panel/.sec-head/.badge/.btn conventions already established in move-to-accounting and
+   vendor-payable-card (each standalone component redeclares these on :host; no shared stylesheet). */
+:host {
+  --blue: #2563eb;
+  --blue-lt: #eff6ff;
+  --green: #16a34a;
+  --green-lt: #f0fdf4;
+  --amber: #d97706;
+  --amber-lt: #fffbeb;
+  --red: #dc2626;
+  --red-lt: #fef2f2;
+  --pink: #db2777;
+  --pink-lt: #fdf2f8;
+  --ink: #0f172a;
+  --ink2: #475569;
+  --ink3: #94a3b8;
+  --line: #e2e8f0;
+  --card: #ffffff;
+
+  display: block;
+  font-family: 'Segoe UI', system-ui, -apple-system, Arial, sans-serif;
+  font-size: 13px;
+  color: var(--ink);
+}
+
+.panel {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+
+.sec-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line);
+  background: #fafbfc;
+  flex-wrap: wrap;
+
+  .n {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--blue);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 800;
+    flex-shrink: 0;
+  }
+  h3 {
+    font-size: 13px;
+    font-weight: 800;
+    margin: 0;
+  }
+  .sub {
+    font-size: 11px;
+    color: var(--ink2);
+    font-weight: 400;
+  }
+  .right {
+    margin-left: auto;
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+}
+
+.chip {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--ink2);
+  background: #f1f5f9;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 3px 9px;
+}
+
+.loading-row,
+.error-row {
+  padding: 14px;
+  font-size: 12px;
+  color: var(--ink2);
+}
+.error-row {
+  color: var(--red);
+}
+
+/* ---------- tier bar (complete-screen-v2.html's .tierbar/.tier) ---------- */
+.tierbar {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--line);
+  background: #fff;
+}
+.tierbar-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--ink3);
+}
+.tier {
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 4px 9px;
+  border-radius: 8px;
+  background: #f1f5f9;
+  color: var(--ink3);
+  border: 1px solid var(--line);
+}
+.tier.skip {
+  text-decoration: line-through;
+  opacity: 0.55;
+}
+.tier.hit {
+  background: var(--blue);
+  color: #fff;
+  border-color: var(--blue);
+}
+
+/* ---------- source/info rows (complete-screen-v2.html's .inv-src) ---------- */
+.inv-src {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 11px 14px;
+  border-top: 1px solid var(--line);
+  font-size: 11.5px;
+
+  .ico {
+    flex-shrink: 0;
+    font-size: 15px;
+    line-height: 1;
+  }
+}
+.inv-src.banner {
+  background: var(--blue-lt);
+}
+.inv-src.callout {
+  background: var(--amber-lt);
+  border-top-color: #fde68a;
+}
+.callout-body {
+  flex: 1;
+}
+.callout-actions {
+  margin-top: 6px;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.inv-src.profile,
+.inv-src.gp {
+  background: #fafbfc;
+}
+/* Staged-attachments + pinned-notes row, right below the Customer Invoicing Profile box --
+   complete-screen-v2.html's combined two-column row (gap:0, each column self-padded). */
+.inv-src.staged-row {
+  background: #fff;
+  border-top: 1px solid var(--line);
+  gap: 0;
+  padding: 0;
+  align-items: stretch;
+}
+.staged-col {
+  flex: 1;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 11px 14px;
+}
+.staged-col.bordered {
+  border-right: 1px solid var(--line);
+}
+.staged-body {
+  flex: 1;
+  font-size: 11.5px;
+}
+.staged-col.pinned-row {
+  background: var(--pink-lt);
+}
+.pinned-body {
+  flex: 1;
+}
+.pinned-label {
+  color: var(--pink);
+}
+.profile-body,
+.gp-body {
+  flex: 1;
+}
+.section-label {
+  font-size: 10.5px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--ink2);
+}
+.row {
+  margin-top: 4px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.link {
+  color: var(--blue);
+}
+
+/* ---------- customer's-own-portal upload verification (complete-screen-v2.html's
+   togglePortalUploaded checkboxes) ---------- */
+.portal-verify {
+  margin-top: 6px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.portal-verify-note {
+  flex-basis: 100%;
+  font-size: 10px;
+}
+.portal-verify-required {
+  font-size: 10px;
+}
+.portal-check {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  cursor: pointer;
+  font-size: 11.5px;
+  background: var(--amber-lt);
+  border: 1px solid #fde68a;
+  border-radius: 7px;
+  padding: 5px 9px;
+}
+.portal-check.done {
+  background: var(--green-lt);
+  border-color: #bbf7d0;
+}
+.portal-check input[type='checkbox'] {
+  cursor: pointer;
+}
+.muted {
+  color: var(--ink3);
+  font-size: 10.5px;
+}
+
+/* ---------- badges/buttons (same convention as move-to-accounting/vendor-payable-card) ---------- */
+.badge {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  padding: 2.5px 8px;
+  border-radius: 10px;
+  display: inline-block;
+}
+.b-complete {
+  background: var(--green-lt);
+  color: var(--green);
+}
+.b-blue {
+  background: var(--blue-lt);
+  color: var(--blue);
+}
+.b-gray {
+  background: #f1f5f9;
+  color: var(--ink2);
+}
+.b-amber {
+  background: var(--amber-lt);
+  color: var(--amber);
+}
+.b-red {
+  background: var(--red-lt);
+  color: var(--red);
+}
+.b-pink {
+  background: var(--pink-lt);
+  color: var(--pink);
+}
+
+.btn {
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink);
+  border-radius: 7px;
+  padding: 6px 11px;
+  font-size: 11.5px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-block;
+}
+.btn:hover:not(:disabled) {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.btn.sm {
+  padding: 4.5px 9px;
+  font-size: 11px;
+  border-radius: 6px;
+}
+.btn.ghost-blue {
+  color: var(--blue);
+  border-color: #bfdbfe;
+  background: var(--blue-lt);
+}
+.btn.green {
+  background: var(--green);
+  color: #fff;
+  border-color: var(--green);
+}
+.btn.green:hover:not(:disabled) {
+  background: #15803d;
+  border-color: #15803d;
+}
+.btn.ghost-amber {
+  color: var(--amber);
+  border-color: #fde68a;
+  background: var(--amber-lt);
+}
+
+.qc-override-row {
+  margin-top: 8px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* ---------- running gross profit boxes (complete-screen-v2.html's gpBoxesHTML) ---------- */
+.chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 7px;
+}
+.boxes {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.box {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 7px 12px;
+  background: #fff;
+  min-width: 118px;
+}
+.box-label {
+  font-size: 9px;
+  letter-spacing: 0.6px;
+  color: var(--ink3);
+  text-transform: uppercase;
+  font-weight: 700;
+}
+.box-value {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--ink);
+}
+.box-value.good {
+  color: var(--green);
+}
+.box-value.bad {
+  color: var(--red);
+}
+.rule-note {
+  margin-top: 6px;
+  font-size: 10.5px;
+  color: var(--ink2);
+}
+.below-warning {
+  margin-top: 7px;
+  padding: 8px 11px;
+  background: var(--red-lt);
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  font-size: 11.5px;
+  color: var(--red);
+}
+.no-invoice-note {
+  margin-top: 7px;
+  padding: 8px 11px;
+  background: var(--amber-lt);
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+  font-size: 11.5px;
+  color: #92400e;
+}
+.no-invoice-banner {
+  padding: 14px;
+  text-align: center;
+  color: var(--ink2);
+  font-size: 12px;
+  border-top: 1px solid var(--line);
+}
+
+/* ---------- manual "+ Add charge line" fallback (complete-screen-v2.html's addLine(),
+   extended with a mandatory Charge Type per Nahid 2026-09-15) ---------- */
+.scratch-section {
+  padding: 0 14px 12px;
+}
+.scratch-grid {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  margin-top: 8px;
+
+  th {
+    text-align: left;
+    font-size: 10px;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    color: var(--ink3);
+    padding: 6px 6px;
+    border-bottom: 1px solid var(--line);
+  }
+  td {
+    padding: 5px 6px;
+    border-bottom: 1px solid #f1f5f9;
+  }
+  .num {
+    text-align: right;
+  }
+  tr.total td {
+    font-weight: 800;
+    border-top: 1px solid var(--line);
+    border-bottom: none;
+  }
+  .empty-row {
+    text-align: center;
+    padding: 14px;
+    color: var(--ink3);
+  }
+}
+.scratch-input {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 4px 6px;
+  font-size: 12px;
+  font-family: inherit;
+  box-sizing: border-box;
+
+  &.num {
+    text-align: right;
+    max-width: 90px;
+  }
+}
+
+/* ---------- invoice document table (complete-screen-v2.html's .inv-doc/.grid) ---------- */
+.inv-doc {
+  padding: 12px 14px;
+  border-top: 1px solid var(--line);
+  overflow-x: auto;
+}
+.inv-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.co .lg {
+  font-size: 17px;
+  font-weight: 400;
+  color: #64748b;
+  letter-spacing: -0.5px;
+}
+.co .lg b {
+  color: var(--blue);
+  font-weight: 800;
+}
+.co p {
+  margin: 4px 0 0;
+  font-size: 10px;
+  color: var(--ink3);
+  max-width: 340px;
+}
+.inv-meta {
+  font-size: 11.5px;
+  text-align: right;
+}
+.inv-meta div {
+  margin-bottom: 2px;
+}
+.grid {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.grid th {
+  text-align: left;
+  font-size: 10px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--ink3);
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--line);
+}
+.grid .num-col {
+  text-align: right;
+}
+.grid td {
+  padding: 7px 8px;
+  border-bottom: 1px solid #f1f5f9;
+}
+.grid td.num {
+  text-align: right;
+}
+.grid .empty-row {
+  text-align: center;
+  padding: 16px;
+}
+.grid tr.total td {
+  font-weight: 800;
+  border-top: 1px solid var(--line);
+  border-bottom: none;
+}
+.grid tr.deposit td {
+  color: var(--amber);
+  font-weight: 700;
+}
+
+.line-struck td {
+  text-decoration: line-through;
+  color: var(--ink3);
+}
+.amount-negative {
+  color: var(--green);
+  font-weight: 700;
+}
+
+/* ---------- "💲 Apply customer discount / adjustment" modal ---------- */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+}
+.modal-panel {
+  background: var(--card);
+  border-radius: 12px;
+  width: 100%;
+  max-width: 640px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+}
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+
+  h3 {
+    margin: 0;
+    font-size: 14px;
+  }
+}
+.modal-body {
+  padding: 16px;
+  overflow-y: auto;
+}
+.modal-footer {
+  padding: 12px 16px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  justify-content: flex-end;
+}
+.section-label {
+  font-size: 10.5px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--ink2);
+}
+.discount-option-b {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+
+/* ---------- "✓ Approve Customer Invoice" / "📧 Send Invoice" popups ---------- */
+.approve-steps-banner {
+  background: var(--blue-lt);
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  padding: 9px 12px;
+  font-size: 11.5px;
+}
+.step-row {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+.step-circle {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+.step-label {
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--ink2);
+}
+/* ---------- "no after photos" reminder banner (complete-screen-v2.html's showSendPicReminder) ---------- */
+.reminder-banner {
+  background: var(--amber-lt);
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+  padding: 11px 13px;
+  font-size: 12px;
+  color: #92400e;
+  margin-bottom: 8px;
+}
+
+/* ---------- attachment card grid (complete-screen-v2.html's selGridHTML) ---------- */
+.attach-grid {
+  margin-top: 6px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(215px, 1fr));
+  gap: 12px;
+}
+.attach-card {
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  overflow: hidden;
+  background: #fff;
+}
+.attach-card.sel {
+  outline: 2.5px solid var(--blue);
+}
+.attach-check-bar {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  padding: 7px 9px;
+  border-bottom: 1px solid var(--line);
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  background: #fafbfc;
+  color: var(--ink2);
+}
+.attach-check-bar.sel {
+  background: var(--blue-lt);
+  color: var(--blue);
+}
+.attach-check-bar input[type='checkbox'] {
+  cursor: pointer;
+}
+.attach-thumb {
+  height: 160px;
+  font-size: 52px;
+  cursor: zoom-in;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f8fafc;
+}
+.attach-thumb-badge {
+  position: absolute;
+  bottom: 6px;
+  right: 8px;
+  font-size: 9.5px;
+  font-weight: 700;
+  background: rgba(15, 23, 42, 0.65);
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 8px;
+}
+.attach-name {
+  font-size: 11.5px;
+  padding: 6px 9px 0;
+}
+.attach-tag {
+  display: block;
+  font-size: 10px;
+  color: var(--ink3);
+  padding: 2px 9px 8px;
+}
+
+/* ---------- lightbox (complete-screen-v2.html's openLightbox) ---------- */
+.lightbox-preview {
+  height: 54vh;
+  min-height: 320px;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 120px;
+  background: linear-gradient(135deg, #e0e7ff, #f0f9ff);
+  border: 1px solid var(--line);
+}
+.lightbox-preview-caption {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink2);
+  margin-top: 12px;
+}
+.lightbox-meta-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  margin-top: 14px;
+  flex-wrap: wrap;
+  font-size: 12px;
+}
+.lightbox-include {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  font-weight: 800;
+  font-size: 12px;
+  color: var(--ink2);
+  border: 1.5px solid var(--line);
+  border-radius: 9px;
+  padding: 8px 14px;
+  cursor: pointer;
+  background: #fff;
+}
+.lightbox-include.sel {
+  color: var(--blue);
+  border-color: var(--blue);
+  background: var(--blue-lt);
+}
+/* Matches complete-screen-v2.html's textarea.notebox exactly -- was missing entirely here, so the
+   note textarea fell back to the browser's tiny default size instead of filling its container. */
+.notebox {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 9px 11px;
+  font-family: inherit;
+  font-size: 12px;
+  min-height: 64px;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.approve-note-box {
+  margin-top: 14px;
+  background: var(--pink-lt);
+  border: 1.5px solid #f9a8d4;
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+.pinned-notes {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.pinned-note {
+  background: #fff;
+  border: 1px solid #f9a8d4;
+  border-radius: 7px;
+  padding: 7px 9px;
+  font-size: 11.5px;
+}
+.pinned-note-meta {
+  font-size: 10px;
+  color: var(--ink3);
+  margin-bottom: 3px;
+}
+
+/* Rubber-stamp look, matching complete-screen-v2.html's .approved-stamp exactly -- green outline
+   (not filled), rotated -4deg like a real ink stamp, not a plain solid badge. */
+.approved-stamp {
+  border: 2.5px solid var(--green);
+  color: var(--green);
+  background: transparent;
+  font-weight: 900;
+  letter-spacing: 2px;
+  padding: 4px 14px;
+  border-radius: 8px;
+  transform: rotate(-4deg);
+  display: inline-block;
+  font-size: 13px;
+}
+
+.btn.primary {
+  background: var(--blue);
+  color: #fff;
+  border-color: var(--blue);
+
+  &:hover:not(:disabled) {
+    background: #1d4ed8;
+    border-color: #1d4ed8;
+  }
+}
+
+.dropdown-wrap {
+  display: inline-block;
+}
+
+.qbo-manual-wrap {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.qbo-manual-label {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+  cursor: pointer;
+  font-size: 11px;
+}
+.qbo-manual-row {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.inv-service-request {
+  margin-top: 10px;
+  font-size: 11px;
+}
+
+.inv-foot {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 10px 14px;
+  border-top: 1px solid var(--line);
+  flex-wrap: wrap;
+}

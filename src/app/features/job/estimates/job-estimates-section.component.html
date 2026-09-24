@@ -1,0 +1,655 @@
+<!-- ============================================================
+     Estimating / On-Site Approval — extracted from Customer & Vendor Invoicing (RBR-463)
+     Phase 1 Estimates V2 mockup alignment: flat chrome (no accordion wrapper),
+     compact collapsible cards, mockup action bar + Manage Status modal.
+     ============================================================ -->
+
+@if (jobKey()) {
+  <div class="est-content">
+    <!-- action bar -->
+    <div class="est-actionbar">
+      <button type="button" class="est-abtn est-abtn--green" (click)="onCreateEstimateOnBehalf()">
+        Create Estimate on Behalf of Vendor
+      </button>
+      @if (estDistinctVendorCount() > 1) {
+        <button type="button" class="est-abtn est-abtn--orange" (click)="onCreateCustomerEstimateFromMultiple()">
+          Create Customer Estimate from Multiple Vendor Estimates
+        </button>
+        <button type="button" class="est-abtn est-abtn--orange" (click)="onCreateCustomerInvoiceFromMultiple()">
+          Create Customer Invoice from Multiple Vendor Estimates
+        </button>
+      }
+      <!-- Path 1 — create a customer invoice from scratch (job-level). -->
+      <button type="button" class="est-abtn est-abtn--blue" (click)="onAddNewInvoice()">
+        Add New Invoice
+      </button>
+      @if (hasAnyDeposit()) {
+        <button
+          type="button"
+          class="est-abtn"
+          [class.est-abtn--notify]="hasUnseenDepositDecision()"
+          (click)="onOpenDepositSummary()"
+        >
+          Deposits on Job
+          @if (hasUnseenDepositDecision()) {
+            <span class="est-abtn__notify-dot" aria-hidden="true"></span>
+          }
+        </button>
+      }
+      <div class="est-actionbar__spacer"></div>
+      <a class="est-btn" [href]="notesActivityUrl()">View Notes</a>
+    </div>
+
+    @if (estErrorMessage()) {
+      <div class="est-alert est-alert--error" role="alert">
+        <span>{{ estErrorMessage() }}</span>
+        <button type="button" class="est-alert__close" (click)="estErrorMessage.set('')" aria-label="Dismiss">&times;</button>
+      </div>
+    }
+    @if (estStubMessage()) {
+      <div class="est-alert est-alert--info" role="status">
+        <span>{{ estStubMessage() }}</span>
+        <button type="button" class="est-alert__close" (click)="estStubMessage.set('')" aria-label="Dismiss">&times;</button>
+      </div>
+    }
+    @if (estSuccessMessage()) {
+      <div class="est-alert est-alert--success" role="status">
+        <span>{{ estSuccessMessage() }}</span>
+        <button type="button" class="est-alert__close" (click)="estSuccessMessage.set('')" aria-label="Dismiss">&times;</button>
+      </div>
+    }
+
+    @if (estIsLoading()) {
+      <div class="est-loading">Loading estimates…</div>
+    } @else if (estCards().length === 0) {
+      <div class="est-empty">No vendor estimates found for this job.</div>
+    } @else {
+      @for (card of estCards(); track card.estimateKey) {
+        <article [class]="estCardClass(card)">
+          <header class="est-card__head" (click)="toggleEstCard(card.estimateKey)">
+            <span class="est-card__caret" aria-hidden="true">{{ isEstCardExpanded(card.estimateKey) ? '▾' : '▸' }}</span>
+            <span class="est-card__id">Est #{{ card.estimateNo }}</span>
+            <span class="est-card__vendor-name">{{ card.vendorName }}</span>
+            <span class="est-card__date">{{ card.estimateDateDisplay }}</span>
+            @if (card.statusLabel) {
+              <span class="est-badge" [class]="'est-badge--' + card.statusBadgeVariant">
+                @if (card.statusBadgeVariant === 'onsite') {
+                  <span class="est-badge__dot" aria-hidden="true"></span>
+                }
+                {{ card.statusLabel }}
+              </span>
+            }
+            @if (card.statusPill) {
+              <span class="est-pill" [class]="'est-pill--' + (card.statusPillVariant || 'default')">{{ card.statusPill }}</span>
+            }
+            @if (card.isMultipleOptionEstimate) {
+              <span class="est-card__multi-badge">Multiple Options</span>
+            } @else if (showEstimateTitleInHeader(card)) {
+              <span class="est-card__option-title">{{ card.estimateTitle }}</span>
+            }
+            <span class="est-card__head-total">
+              @if (card.isMultipleOptionEstimate) {
+                {{ 1 + card.optionSections.length }} options · Total:<b class="num"> {{ formatCurrency(card.estimateTotal) }}</b>
+              } @else {
+                Total:<b class="num"> {{ formatCurrency(card.estimateTotal) }}</b>
+              }
+            </span>
+          </header>
+
+          @if (isEstCardExpanded(card.estimateKey)) {
+            <div class="est-card__body" (click)="$event.stopPropagation()">
+              <ng-template #estActionFoot let-target="target" let-card="card">
+                <div class="est-card__actions">
+                  <div class="est-card__actions-left">
+                    @if (card.contactKey) {
+                      <button type="button" class="est-btn est-btn--blue" (click)="openVendorLogin(card.contactKey)">Vendor Login</button>
+                    }
+                    <button type="button" class="est-btn" (click)="openLegacyUrl(card.printUrl)">Print</button>
+                    <label class="est-manage-select">
+                      <select
+                        class="est-manage-select__control"
+                        [ngModel]="currentManageAction(target)"
+                        (ngModelChange)="onManageStatusSelect(target, $event)">
+                        <option value="" disabled hidden>Manage Status</option>
+                        @for (opt of estManageStatusOptions(target); track opt.action) {
+                          <option [value]="opt.action">{{ opt.label }}</option>
+                        }
+                      </select>
+                    </label>
+                  </div>
+
+                  <div class="est-card__actions-spacer"></div>
+
+                  @if (card.vendorDne != null) {
+                    <span class="est-chip est-chip--dne" title="This vendor's DNE (do-not-exceed) — per vendor, separate from the job's single Customer DNE.">
+                      Vendor DNE: <b class="num">{{ formatCurrency(card.vendorDne) }}</b>
+                    </span>
+                  }
+                  <button type="button" class="est-btn est-btn--primary" (click)="onCreateCustomerEstimate(card, target)">
+                    Create Customer Estimate
+                  </button>
+                  <button type="button" class="est-btn est-btn--primary" (click)="onCreateCustomerInvoice(card, target)">
+                    Create Customer Invoice
+                  </button>
+                  @if (hasCustomerEstimate()) {
+                    <button type="button" class="est-btn est-btn--primary" (click)="onEditCustomerEstimate(card, target)">
+                      Edit Customer Estimate
+                    </button>
+                    <button type="button" class="est-btn" (click)="onViewCustomerEstimate(card, target)">
+                      View Customer Estimate
+                    </button>
+                  }
+                  @if (hasCustomerEstimate()) {
+                    <button type="button" class="est-btn" (click)="openVendorDepositModal(card)">Agree to Pay Vendor Deposit</button>
+                  }
+                  <button
+                    type="button"
+                    class="est-btn est-btn--danger-outline"
+                    (click)="openEstDeclineModal(target)">
+                    Decline Estimate
+                  </button>
+                </div>
+              </ng-template>
+
+              <ng-template #estRevisionFooter let-estimateKey="estimateKey">
+                @if (estNegotiationFor(estimateKey)) {
+                  <div class="est-rev-footer" (click)="$event.stopPropagation()">
+                    <div class="est-general-msg">
+                      <div class="est-general-msg__main">
+                        <div class="est-general-msg__label">
+                          <h3>General Message to Vendor</h3>
+                          <div class="est-general-msg__sub">Text and/or line counters — untouched lines return unchanged.</div>
+                        </div>
+                        <textarea
+                          rows="3"
+                          class="est-rev-footer__textarea"
+                          placeholder="Describe changes needed by vendor here…"
+                          [ngModel]="estGeneralMessage(estimateKey)"
+                          (ngModelChange)="setEstGeneralMessage(estimateKey, $event)"
+                        ></textarea>
+                      </div>
+                    </div>
+                    <div class="est-foot">
+                      <div class="est-rev-rollup">
+                        <span class="est-tot">
+                          Vendor Proposed:<b class="num">{{ formatCurrency(estRollup(estimateKey).vendorProposed) }}</b>
+                        </span>
+                        <span class="est-tot">
+                          Negotiated Total:<b class="num">{{ formatCurrency(estRollup(estimateKey).requestedTotal) }}</b>
+                        </span>
+                        <span class="est-tot est-tot--savings">
+                          Requested Savings:<b class="num">{{ formatCurrency(estRollup(estimateKey).savings) }}</b>
+                        </span>
+                      </div>
+                      <div class="est-send-wrap">
+                        <button
+                          type="button"
+                          class="est-send-btn"
+                          [disabled]="!canSendRevision(estimateKey) || estSendBusy()[estimateKey]"
+                          (click)="onSendRevisionRequest(estimateKey)">
+                          {{ estSendBusy()[estimateKey] ? 'Sending…' : 'Send Revision Request Now' }}
+                        </button>
+                        <div class="est-send-hint">
+                          @if (canSendRevision(estimateKey)) {
+                            Sends the general message and any line counters; untouched lines go back unchanged.
+                          } @else {
+                            Add a general message and/or use an agent counter to send.
+                          }
+                        </div>
+                      </div>
+                    </div>
+                    @if (estSendError()[estimateKey]) {
+                      <div class="est-rev-footer__error" role="alert">{{ estSendError()[estimateKey] }}</div>
+                    }
+                  </div>
+                }
+              </ng-template>
+
+              <ng-template #estNegotiationInfo let-estimateKey="estimateKey">
+                @if (estNegotiationFor(estimateKey); as neg) {
+                  @if (neg.summary; as summary) {
+                    <div class="est-neg-summary">
+                      <span class="est-neg-summary__item">
+                        <span class="est-neg-summary__label">Vendor Proposed</span>
+                        <span class="est-neg-summary__value">{{ formatCurrency(estRollup(estimateKey).vendorProposed) }}</span>
+                      </span>
+                      <span class="est-neg-summary__sep" aria-hidden="true">→</span>
+                      <span class="est-neg-summary__item">
+                        <span class="est-neg-summary__label">Agent Suggested Counter</span>
+                        <span class="est-neg-summary__value est-neg-summary__value--suggested">{{ formatCurrency(summary.suggestedCounterTotal) }}</span>
+                      </span>
+                      @if (summary.overallConfidence != null) {
+                        <span class="est-neg-summary__item">
+                          <span class="est-neg-summary__label">Confidence</span>
+                          <span class="est-neg-summary__value">{{ summary.overallConfidence | percent: '1.0-0' }}</span>
+                        </span>
+                      }
+                      @if (summary.dneStatus) {
+                        <span class="est-neg-summary__item">
+                          <span class="est-neg-summary__label">DNE Status</span>
+                          <span class="est-neg-summary__value">{{ summary.dneStatus }}</span>
+                        </span>
+                      }
+                    </div>
+                  }
+                  @if (neg.infoMessage; as infoMessage) {
+                    <div class="est-neg-info" role="status">{{ infoMessage }}</div>
+                  }
+                  @if (neg.vendorEditedSinceSubmission) {
+                    <div class="est-neg-warning" role="alert">
+                      The vendor has updated this estimate since it was submitted — the recommendations
+                      above may not reflect their latest numbers. Check the estimate's current line items
+                      before countering.
+                    </div>
+                  }
+                }
+              </ng-template>
+
+              <ng-template #estLineAgentStrip let-estimateKey="estimateKey" let-lineItemKey="lineItemKey" let-index="index">
+                @if (estNegotiationLineFor(estimateKey, lineItemKey, index); as negLine) {
+                  <app-estimate-negotiation-line
+                    [line]="negLine"
+                    [decision]="estLineDecisionFor(estimateKey, negLine.lineItemId)?.decision ?? null"
+                    [editedValue]="estLineDecisionFor(estimateKey, negLine.lineItemId)?.editedValue ?? null"
+                    [editedQty]="estLineDecisionFor(estimateKey, negLine.lineItemId)?.editedQty ?? null"
+                    [message]="estLineMessage(estimateKey, negLine.lineItemId)"
+                    [messageEdited]="isEstLineMessageEdited(estimateKey, negLine.lineItemId)"
+                    [expandMode]="isEstLineExpandOpen(estimateKey, negLine.lineItemId, 'edit') ? 'edit' : isEstLineExpandOpen(estimateKey, negLine.lineItemId, 'info') ? 'info' : isEstLineExpandOpen(estimateKey, negLine.lineItemId, 'msg') ? 'msg' : null"
+                    (decisionChange)="setEstLineDecision(estimateKey, negLine, $event)"
+                    (changeDecision)="reopenEstLineDecision(estimateKey, negLine)"
+                    (editConfirm)="onEstLineEditConfirm(estimateKey, negLine, $event)"
+                    (expandModeChange)="onEstLineExpandModeChange(estimateKey, negLine, $event)"
+                    (messageChange)="setEstLineMessage(estimateKey, negLine.lineItemId, $event)"
+                    (messageReset)="resetEstLineMessage(estimateKey, negLine)"
+                  />
+                }
+              </ng-template>
+
+              <ng-template #estStatusContext let-display="display">
+                @if (estHasStatusContext(display)) {
+                  <div class="est-status-context">
+                    @if (display.showCustomerApprovedEquivalent && display.customerApprovalMessage) {
+                      <div class="est-status-banner est-status-banner--customer-approved" role="status">
+                        <div class="est-status-banner__title">{{ display.customerApprovalTitle || 'Approved by customer' }}</div>
+                        <div class="est-status-banner__body">{{ display.customerApprovalMessage }}</div>
+                      </div>
+                    }
+                    @if (display.showNotApprovedByCustomer) {
+                      <div class="est-status-banner est-status-banner--customer-pending" role="status">
+                        <div class="est-status-banner__title">Not approved by customer</div>
+                        <div class="est-status-banner__body">The customer hasn't approved an estimate built from this vendor estimate yet.</div>
+                      </div>
+                    }
+                  </div>
+                }
+              </ng-template>
+
+              <ng-template #estLinesGrid let-estimateKey="estimateKey" let-lines="lines" let-total="total"> 
+                <div class="est-lines">
+                  <div class="est-lhead">
+                    <div>Item</div>
+                    <div>Description</div>
+                    <div class="r">Rate</div>
+                    <div class="r">Qty</div>
+                    <div class="r">Row Total</div>
+                    <div>Vendor Status</div>
+                  </div>
+                  @for (line of lines; track $index) {
+                    @let negLine = estNegotiationLineFor(estimateKey, line.lineItemKey, $index);
+                    <div class="est-line" [class.est-line--negotiated]="negLine?.counterThisLine">
+                      <div class="est-line-main">
+                        <div class="est-line-main__item" [title]="line.itemName">{{ line.itemName }}</div>
+                        <div class="est-line-main__desc" [innerHTML]="sanitizeHtml(line.description)"></div>
+                        <div class="est-line-main__num r num">{{ formatCurrency(estLineDisplayRate(estimateKey, line, negLine)) }}</div>
+                        <div class="est-line-main__num r num">{{ estLineDisplayQty(estimateKey, line, negLine) }}</div>
+                        <div class="r num">{{ formatCurrency(estLineDisplayRowTotal(estimateKey, line, negLine)) }}</div>
+                        <div>
+                          <span class="est-status-chip" [ngClass]="vendorStatusChipClass(line)">{{ line.costIncurredLabel }}</span>
+                        </div>
+                      </div>
+                      <ng-container *ngTemplateOutlet="estLineAgentStrip; context: { estimateKey: estimateKey, lineItemKey: line.lineItemKey, index: $index }" />
+                    </div>
+                  }
+                </div>
+              </ng-template>
+
+              @if (card.showOnsiteBanner) {
+                <div class="est-onsite-banner">
+                  <span class="est-onsite-banner__icon" aria-hidden="true">⏱</span>
+                  <p class="est-onsite-banner__text">
+                    <strong>On-Site Approval Requested</strong>
+                    · vendor is waiting on a decision before completing the visit.
+                    <button type="button" class="est-btn est-btn--link est-btn--inline" (click)="openLegacyUrl(card.updateEstimateUrl)">
+                      View on-site approval details ↗
+                    </button>
+                  </p>
+                  <button type="button" class="est-btn est-btn--success" (click)="onEstApproveOnSite(card)">
+                    ✓ Approve On-Site Request
+                  </button>
+                </div>
+              }
+
+              @if (card.isMultipleOptionEstimate) {
+                @let activeOptKey = activeOptionKey(card);
+                @let primaryOption = parseOptionSectionTitle(card.estimateTitle, 1);
+                <ng-container *ngTemplateOutlet="estActionFoot; context: { target: estActiveOptionActionTarget(card), card: card }" />
+                <div class="est-optgroup">
+                  <div class="est-opt-tabs">
+                    <button
+                      type="button"
+                      class="est-opt-tab"
+                      [class.est-opt-tab--active]="activeOptKey === card.estimateKey"
+                      (click)="setActiveOption(card.estimateKey, card.estimateKey)">
+                      {{ primaryOption.optionLabel }}: {{ primaryOption.displayTitle }}
+                      <span class="est-opt-tab__badge" [class]="'est-opt-tab__badge--' + estNegotiationBadge(card.estimateKey).variant">{{ estNegotiationBadge(card.estimateKey).label }}</span>
+                    </button>
+                    @for (section of card.optionSections; track section.estimateKey) {
+                      @let optionMeta = parseOptionSectionTitle(section.title, $index + 2);
+                      <button
+                        type="button"
+                        class="est-opt-tab"
+                        [class.est-opt-tab--active]="activeOptKey === section.estimateKey"
+                        (click)="setActiveOption(card.estimateKey, section.estimateKey)">
+                        {{ optionMeta.optionLabel }}: {{ optionMeta.displayTitle }}
+                        <span class="est-opt-tab__badge" [class]="'est-opt-tab__badge--' + estNegotiationBadge(section.estimateKey).variant">{{ estNegotiationBadge(section.estimateKey).label }}</span>
+                      </button>
+                    }
+                  </div>
+
+                  @if (activeOptKey === card.estimateKey) {
+                    <div class="est-opt-pane">
+                      <h4 class="est-opt-title">{{ primaryOption.optionLabel }}: {{ primaryOption.displayTitle }}</h4>
+                      <ng-container *ngTemplateOutlet="estStatusContext; context: { display: card.statusDisplay }" />
+                      <ng-container *ngTemplateOutlet="estNegotiationInfo; context: { estimateKey: card.estimateKey }" />
+                      <ng-container *ngTemplateOutlet="estLinesGrid; context: { estimateKey: card.estimateKey, lines: card.lineItems, total: card.estimateTotal }" />
+                      <ng-container *ngTemplateOutlet="estRevisionFooter; context: { estimateKey: card.estimateKey }" />
+                    </div>
+                  } @else {
+                    @for (section of card.optionSections; track section.estimateKey) {
+                      @if (activeOptKey === section.estimateKey) {
+                        @let optionMeta = parseOptionSectionTitle(section.title, $index + 2);
+                        <div class="est-opt-pane">
+                          <h4 class="est-opt-title">{{ optionMeta.optionLabel }}: {{ optionMeta.displayTitle }}</h4>
+                          <ng-container *ngTemplateOutlet="estStatusContext; context: { display: section.statusDisplay }" />
+                          <ng-container *ngTemplateOutlet="estNegotiationInfo; context: { estimateKey: section.estimateKey }" />
+                          <ng-container *ngTemplateOutlet="estLinesGrid; context: { estimateKey: section.estimateKey, lines: section.lineItems, total: section.sectionTotal }" />
+                          <ng-container *ngTemplateOutlet="estRevisionFooter; context: { estimateKey: section.estimateKey }" />
+                        </div>
+                      }
+                    }
+                  }
+                </div>
+                @if (estRejectPanelOpenForCard(card)) {
+                  <app-estimate-reject-panel
+                    [estimateKey]="estRejectPanelOpenFor()!"
+                    [submitting]="estRejectSubmitting()"
+                    [errorMessage]="estRejectError()"
+                    (close)="closeEstRejectPanel()"
+                    (submit)="onSubmitVendorReject(card, $event)"
+                  />
+                }
+              } @else {
+                <ng-container *ngTemplateOutlet="estActionFoot; context: { target: estCardActionTarget(card), card: card }" />
+                <ng-container *ngTemplateOutlet="estStatusContext; context: { display: card.statusDisplay }" />
+                <ng-container *ngTemplateOutlet="estNegotiationInfo; context: { estimateKey: card.estimateKey }" />
+                <ng-container *ngTemplateOutlet="estLinesGrid; context: { estimateKey: card.estimateKey, lines: card.lineItems, total: card.estimateTotal }" />
+                <ng-container *ngTemplateOutlet="estRevisionFooter; context: { estimateKey: card.estimateKey }" />
+                @if (estRejectPanelOpenForCard(card)) {
+                  <app-estimate-reject-panel
+                    [estimateKey]="estRejectPanelOpenFor()!"
+                    [submitting]="estRejectSubmitting()"
+                    [errorMessage]="estRejectError()"
+                    (close)="closeEstRejectPanel()"
+                    (submit)="onSubmitVendorReject(card, $event)"
+                  />
+                }
+              }
+            </div>
+          }
+        </article>
+      }
+    }
+
+    @if (estTotalRecords() > estPageSize()) {
+      <div class="est-pagination">
+        <span class="est-pagination__info">
+          Showing {{ estShowingFrom() }} to {{ estShowingTo() }} of {{ estTotalRecords() }} entries
+        </span>
+        <div class="est-pagination__controls">
+          <button type="button" class="est-btn est-btn--outline est-btn--sm" [disabled]="estCurrentPage() <= 1" (click)="estGoToPage(estCurrentPage() - 1)">Previous</button>
+          <span class="est-pagination__page">Page {{ estCurrentPage() }} of {{ estTotalPages() }}</span>
+          <button type="button" class="est-btn est-btn--outline est-btn--sm" [disabled]="estCurrentPage() >= estTotalPages()" (click)="estGoToPage(estCurrentPage() + 1)">Next</button>
+        </div>
+      </div>
+    } @else if (estTotalRecords() > 0) {
+      <p class="est-count-note">{{ estTotalRecords() }} estimate{{ estTotalRecords() === 1 ? '' : 's' }} on this job</p>
+    }
+  </div>
+}
+
+@if (estCreateModalOpen()) {
+  <div class="cio-modal-overlay" (click)="closeCreateEstimateModal()">
+    <div class="cio-modal est-create-modal" role="dialog" aria-labelledby="est-create-title" (click)="$event.stopPropagation()">
+      <header class="cio-modal__header">
+        <h3 id="est-create-title">Vendor Estimates</h3>
+        <button type="button" class="cio-modal__close" (click)="closeCreateEstimateModal()" aria-label="Close">&times;</button>
+      </header>
+      <div class="cio-modal__body">
+        <div class="est-create-modal__note">
+          <p><strong>NOTE:</strong></p>
+          <p>You can Select the GREEN button to Create estimate on behalf of the vendor</p>
+          <p>OR</p>
+          <p>You can Select the ORANGE button to email the Link to vendor to upload estimate in the portal</p>
+        </div>
+
+        @if (estCreateModalMessage()) {
+          <p class="est-create-modal__message" role="status">{{ estCreateModalMessage() }}</p>
+        }
+
+        @if (estCreateModalLoading()) {
+          <p class="est-create-modal__loading">Loading vendor contacts…</p>
+        } @else if (estCreateModalData(); as modal) {
+          @if (modal.hasVendors) {
+            <div class="est-create-modal__vendors">
+              @for (vendor of modal.vendors; track vendor.jobVendorKey) {
+                <div class="est-create-modal__vendor">
+                  @if (estCreateMultipleVendors()) {
+                    <label class="est-create-modal__vendor-name">
+                      <input
+                        type="radio"
+                        name="estCreateJobVendor"
+                        [value]="vendor.jobVendorKey"
+                        [checked]="estCreateSelectedJobVendorKey() === vendor.jobVendorKey"
+                        (change)="estCreateSelectedJobVendorKey.set(vendor.jobVendorKey)"
+                      />
+                      <strong>{{ vendor.vendorName }}</strong>
+                    </label>
+                  } @else {
+                    <p class="est-create-modal__vendor-name"><strong>{{ vendor.vendorName }}</strong></p>
+                  }
+
+                  @if (vendor.contacts.length > 0) {
+                    <div class="est-create-modal__contacts">
+                      @for (contact of vendor.contacts; track contact.contactKey) {
+                        <label class="est-create-modal__contact">
+                          <input
+                            type="checkbox"
+                            [checked]="isCreateContactSelected(contact.contactKey)"
+                            (change)="toggleCreateContact(contact.contactKey, vendor.jobVendorKey, $any($event.target).checked)"
+                          />
+                          <span>{{ contact.name }} ({{ contact.email }})</span>
+                          @if (contact.isDefault) {
+                            <span class="est-create-modal__default-tag">DEFAULT</span>
+                          }
+                        </label>
+                      }
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+
+            <label class="est-create-modal__field">
+              <span class="est-create-modal__field-label">Note</span>
+              <textarea
+                rows="8"
+                class="est-create-modal__textarea"
+                [ngModel]="estCreateEmailNote()"
+                (ngModelChange)="estCreateEmailNote.set($event)"
+                placeholder="Note:"
+              ></textarea>
+            </label>
+
+            <label class="est-create-modal__field">
+              <span class="est-create-modal__field-label">Custom Email (Option and only applicable When Send estimate)</span>
+              <input
+                type="email"
+                class="est-create-modal__input"
+                [ngModel]="estCreateCustomEmail()"
+                (ngModelChange)="estCreateCustomEmail.set($event)"
+              />
+            </label>
+
+            @if (estCreateShowActions()) {
+              <div class="est-create-modal__actions">
+                <button type="button" class="est-btn est-btn--success" [disabled]="estCreateSending()" (click)="submitCreateEstimateOnBehalf()">
+                  Create estimate on behalf of the vendors
+                </button>
+                <button type="button" class="est-btn est-btn--warning" [disabled]="estCreateSending()" (click)="submitSendEstimateEmail()">
+                  {{ estCreateSending() ? 'Sending…' : 'Send email to vendor' }}
+                </button>
+              </div>
+            }
+          }
+        }
+      </div>
+      <footer class="cio-modal__footer">
+        <button type="button" class="cio-btn cio-btn--outline" (click)="closeCreateEstimateModal()">Close</button>
+      </footer>
+    </div>
+  </div>
+}
+
+<app-estimate-vendor-deposit-modal
+  (close)="closeVendorDepositModal()"
+  (complete)="onVendorDepositComplete($event)"
+/>
+
+@if (estDeclinePanelOpenFor(); as declineEstimateKey) {
+  <app-estimate-decline-panel
+    [estimateKey]="declineEstimateKey"
+    [submitting]="estDeclineSubmitting()"
+    [errorMessage]="estDeclineError()"
+    (close)="closeEstDeclinePanel()"
+    (submit)="onSubmitVendorDecline($event)"
+  />
+}
+
+@if (estApprovalPanelOpenFor(); as approvalEstimateKey) {
+  <app-estimate-approval-panel
+    [estimateKey]="approvalEstimateKey"
+    [vendorContacts]="estApprovalVendorContacts(approvalEstimateKey)"
+    [submitting]="estApprovalSubmitting()"
+    [errorMessage]="estApprovalError()"
+    [infoMessage]="estApprovalInfo()"
+    (close)="closeEstApprovalPanel()"
+    (submit)="onSubmitVendorApproval($event)"
+  />
+}
+
+@if (estInfoPopoverPosition(); as pos) {
+  @if (estInfoPopoverLine(); as infoLine) {
+    <div
+      class="est-row-neg__popover est-row-neg__popover--fixed"
+      [class.est-row-neg__popover--below]="pos.placement === 'below'"
+      [style.top.px]="pos.top"
+      [style.left.px]="pos.left"
+      (click)="$event.stopPropagation()">
+      <div class="est-row-neg__popover-stats">
+        <span class="est-row-neg__popover-stat">
+          <span class="est-row-neg__popover-stat-label">Counter</span>
+          <span class="est-row-neg__popover-stat-value">{{ formatCurrency(infoLine.suggestedValue) }}</span>
+        </span>
+        @if (infoLine.deltaPct != null) {
+          <span class="est-row-neg__popover-stat">
+            <span class="est-row-neg__popover-stat-label">Change</span>
+            <span class="est-row-neg__popover-stat-value">{{ infoLine.deltaPct > 0 ? '+' : '' }}{{ infoLine.deltaPct | number: '1.0-1' }}%</span>
+          </span>
+        }
+        @if (infoLine.confidence != null) {
+          <span class="est-row-neg__popover-stat">
+            <span class="est-row-neg__popover-stat-label">Confidence</span>
+            <span class="est-row-neg__popover-stat-value">{{ infoLine.confidence | percent: '1.0-0' }}</span>
+          </span>
+        }
+        @if (infoLine.floor != null && infoLine.ceiling != null) {
+          <span class="est-row-neg__popover-stat">
+            <span class="est-row-neg__popover-stat-label">Fair Band</span>
+            <span class="est-row-neg__popover-stat-value">{{ formatCurrency(infoLine.floor) }}–{{ formatCurrency(infoLine.ceiling) }}</span>
+          </span>
+        }
+      </div>
+      @if (agentSuggestionTooltip(infoLine); as reasoning) {
+        <p class="est-row-neg__popover-reasoning">{{ reasoning }}</p>
+      }
+    </div>
+  }
+}
+
+@if (estViewOtherError(); as viewOtherMsg) {
+  <div class="cio-modal-overlay" (click)="closeEstViewOtherError()">
+    <div class="cio-modal est-view-other-modal" role="alertdialog" aria-labelledby="est-view-other-title" (click)="$event.stopPropagation()">
+      <header class="cio-modal__header">
+        <h3 id="est-view-other-title">Review required</h3>
+        <button type="button" class="cio-modal__close" (click)="closeEstViewOtherError()" aria-label="Close">&times;</button>
+      </header>
+      <div class="cio-modal__body">
+        <p class="est-view-other-modal__message" role="alert">{{ viewOtherMsg }}</p>
+        <p class="est-view-other-modal__hint">Open every estimate on this job before sending a revision request.</p>
+      </div>
+      <footer class="cio-modal__footer">
+        <button type="button" class="cio-btn cio-btn--outline" (click)="closeEstViewOtherError()">OK</button>
+      </footer>
+    </div>
+  </div>
+}
+
+@if (estSvcApprovalNoticeOpen()) {
+  <div class="cio-modal-overlay est-svc-approval-overlay">
+    <div class="cio-modal est-svc-approval-modal" role="alertdialog" aria-labelledby="est-svc-approval-title" aria-modal="true">
+      <header class="cio-modal__header">
+        <h3 id="est-svc-approval-title">SVC Manager approval required</h3>
+      </header>
+      <div class="cio-modal__body">
+        <p role="alert">Please get approval from SVC Manager before sending Customer Email.</p>
+      </div>
+      <footer class="cio-modal__footer">
+        <button type="button" class="est-btn est-btn--primary" (click)="acknowledgeSvcApprovalNotice()">OK, got it</button>
+      </footer>
+    </div>
+  </div>
+}
+
+<app-on-site-estimate-modal />
+<app-create-customer-estimate-modal
+  (customerEstimateCreated)="onCustomerEstimateCreated($event)"
+  (sendRequested)="onSendRequested($event)"
+  (saveAsInvoiceRequested)="onSaveEstimateAsInvoice($event)" />
+
+<app-send-customer-estimate-modal
+  (sent)="onCustomerEstimateSent()"
+  (cancelled)="onSendCancelled()" />
+<app-multi-vendor-select-modal (next)="onMultiVendorSelectionNext($event)" />
+<app-multi-vendor-select-modal
+  #invoiceMultiVendorSelectModal
+  title="Create Customer Invoice from Multiple Vendor Estimates"
+  (next)="onInvoiceMultiVendorSelectionNext($event)" />
+
+<!-- Path 1 (from scratch) + Path 2 (save estimate as invoice) — native customer-invoice creation -->
+<app-create-customer-invoice-modal (customerInvoiceCreated)="onCustomerInvoiceCreated($event)" />
+
+<!-- Gated (markup-gate + multi-vendor-merge parity) create-customer-invoice-from-vendor-estimate flow -->
+<app-create-customer-invoice-from-vendor-modal
+  (customerInvoiceCreated)="onCustomerInvoiceFromVendorCreated($event)" />
+
+<app-deposit-approval-summary-modal />

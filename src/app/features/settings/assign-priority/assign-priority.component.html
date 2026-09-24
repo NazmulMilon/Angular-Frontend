@@ -1,0 +1,67 @@
+<div class="page">
+  <nav class="breadcrumb">
+    <a routerLink="/settings" class="breadcrumb__link">Settings</a>
+    <span class="breadcrumb__sep">/</span>
+    <span class="breadcrumb__current">Assign Priority to User</span>
+  </nav>
+
+  <div class="page__header">
+    <h1 class="page__title">Assign Priority to User</h1>
+    <p class="page__subtitle">Assign a job priority to each user. Each priority can be managed by only one user at a time — reassigning moves it.</p>
+  </div>
+
+  @if (error()) {
+    <div class="error-banner">{{ error() }}</div>
+  }
+
+  @if (flash()) {
+    <div class="flash">{{ flash() }}</div>
+  }
+
+  <div class="list-toolbar">
+    <input type="search" class="list-search" [ngModel]="search()" (ngModelChange)="search.set($event)" name="search" placeholder="Search by name, email, ID, designation…" />
+    <span class="list-count">{{ filteredUsers().length }} users</span>
+  </div>
+
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th class="th--id">ID</th>
+          <th>Name</th>
+          <th>Designation</th>
+          <th>Phone</th>
+          <th>Email</th>
+          <th class="th--priority">Priority Assigned</th>
+        </tr>
+      </thead>
+      <tbody>
+        @if (loading()) {
+          <tr><td colspan="6" class="td--empty">Loading users…</td></tr>
+        } @else {
+        @for (u of filteredUsers(); track u.id) {
+          <tr [class.tr--assigned]="u.priorityKey">
+            <td class="td--id">{{ u.pid }}</td>
+            <td class="td--name">{{ u.name }}</td>
+            <td class="td--desig">{{ u.designation }}</td>
+            <td class="td--phone">{{ u.phone }}</td>
+            <td class="td--email">{{ u.email }}</td>
+            <td class="td--priority">
+              <select class="priority-select" [class.priority-select--set]="u.priorityKey" (change)="onPriorityChange(u, $any($event.target))">
+                <option value="" [selected]="!u.priorityKey">— Please Select —</option>
+                @for (p of priorities(); track p.key) {
+                  <option [value]="p.key" [selected]="p.key === u.priorityKey">{{ p.name }}</option>
+                }
+              </select>
+            </td>
+          </tr>
+        } @empty {
+          <tr><td colspan="6" class="td--empty">{{ search().trim() ? 'No users match your search.' : 'No users found.' }}</td></tr>
+        }
+        }
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<app-confirm-dialog />

@@ -1,0 +1,57 @@
+<div class="page">
+  <nav class="breadcrumb">
+    <a routerLink="/settings" class="breadcrumb__link">Settings</a>
+    <span class="breadcrumb__sep">/</span>
+    <span class="breadcrumb__current">Common Broadcast Radius</span>
+  </nav>
+
+  <div class="page__header">
+    <h1 class="page__title">Broadcast Radius of the Vendor</h1>
+    <p class="page__subtitle">Set the default broadcast radius used when sourcing vendors for a job.</p>
+  </div>
+
+  <div class="card">
+    @if (loading()) {
+      <p class="state-msg">Loading…</p>
+    } @else {
+      @if (error()) {
+        <div class="error-banner">{{ error() }}</div>
+      }
+      <form (ngSubmit)="save()" #form="ngForm">
+        <div class="field">
+          <label class="field__label" for="radius">Radius (Miles)</label>
+          <div class="field__input-group">
+            <input
+              id="radius"
+              type="number"
+              class="field__input"
+              [ngModel]="radius()"
+              (ngModelChange)="radius.set($event)"
+              name="radius"
+              required
+              min="0"
+              step="0.01"
+              placeholder="Enter radius in miles"
+            />
+            <span class="field__suffix">mi</span>
+          </div>
+          <p class="field__hint">This value determines how far (in miles) the system searches for available vendors.</p>
+        </div>
+
+        <div class="card__actions">
+          <button
+            type="submit"
+            class="btn btn--primary"
+            [disabled]="form.invalid || saving()"
+          >
+            {{ saving() ? 'Saving...' : 'Save' }}
+          </button>
+          <a routerLink="/settings" class="btn btn--secondary">Cancel</a>
+          @if (saved()) {
+            <span class="save-confirmation">Saved successfully</span>
+          }
+        </div>
+      </form>
+    }
+  </div>
+</div>

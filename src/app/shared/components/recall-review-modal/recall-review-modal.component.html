@@ -1,0 +1,157 @@
+@if (isVisible()) {
+  <div
+    class="modal-overlay"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="recall-modal-title"
+  >
+    <div class="modal-container">
+      <div class="modal-header">
+        <h2 id="recall-modal-title" class="modal-title">{{ title() }}</h2>
+        <button
+          type="button"
+          class="modal-close"
+          [disabled]="isSubmitting()"
+          aria-label="Close modal"
+          (click)="onCancel()"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      @if (stage() === 'choice') {
+        <div class="modal-body">
+          <p class="modal-intro">
+            You are moving this job back from accounting to service. Is this a recall
+            (Change priority to <strong>&ldquo;recall&rdquo;</strong>) or is this an additional approval?
+          </p>
+        </div>
+
+        <div class="modal-footer modal-footer--choice">
+          <button
+            type="button"
+            class="btn btn-secondary"
+            (click)="onCancel()"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            class="btn btn-primary"
+            (click)="onChooseRecall()"
+          >
+            This is a Recall
+          </button>
+          <button
+            type="button"
+            class="btn btn-primary"
+            (click)="onChooseAdditionalApproval()"
+          >
+            Additional Approval
+          </button>
+        </div>
+      } @else {
+        <div class="modal-body">
+          <p class="modal-intro">
+            @if (skipChoice()) {
+              Recalling this job sets the Priority to <strong>RECALL</strong>. Is this recall the vendor's fault?
+            } @else {
+              Moving a job out of Accounting sets the Priority to <strong>RECALL</strong>. Is this recall the
+              vendor's fault?
+            }
+          </p>
+
+          <fieldset class="fault-group">
+            <legend class="fault-group__legend">Vendor's Fault</legend>
+            <label class="fault-option">
+              <input
+                type="radio"
+                name="recall-fault"
+                [checked]="isVendorFault() === true"
+                [disabled]="isSubmitting()"
+                (change)="onFaultChange(true)"
+              />
+              <span>Yes — vendor is responsible</span>
+            </label>
+            <label class="fault-option">
+              <input
+                type="radio"
+                name="recall-fault"
+                [checked]="isVendorFault() === false"
+                [disabled]="isSubmitting()"
+                (change)="onFaultChange(false)"
+              />
+              <span>No — not the vendor's fault</span>
+            </label>
+          </fieldset>
+
+          @if (isVendorFault() === true) {
+            <div class="vendor-list">
+              <label class="vendor-list__label">Select the vendor at fault</label>
+              @if (vendorOptions().length === 0) {
+                <p class="vendor-list__empty">No assigned vendors available for this job.</p>
+              } @else {
+                @for (v of vendorOptions(); track v.jobVendorKey) {
+                  <label class="vendor-option">
+                    <input
+                      type="radio"
+                      name="recall-vendor"
+                      [value]="v.vendorKey"
+                      [checked]="selectedVendorKey() === v.vendorKey"
+                      [disabled]="isSubmitting()"
+                      (change)="onVendorSelect(v.vendorKey)"
+                    />
+                    <span>{{ v.vendorName }}{{ v.isDefault ? ' (default)' : '' }}</span>
+                  </label>
+                }
+              }
+            </div>
+
+            <div class="remarks">
+              <label for="recall-remarks" class="remarks__label">Remarks</label>
+              <textarea
+                id="recall-remarks"
+                class="remarks__input"
+                rows="3"
+                maxlength="500"
+                placeholder="Explain why the vendor is being held responsible…"
+                [disabled]="isSubmitting()"
+                [value]="remarks()"
+                (input)="onRemarksChange($any($event.target).value)"
+              ></textarea>
+              <span class="remarks__hint">{{ remarks().length }}/500</span>
+            </div>
+          }
+
+          @if (errorMessage()) {
+            <p class="error-message" role="alert">{{ errorMessage() }}</p>
+          }
+        </div>
+
+        <div class="modal-footer">
+          @if (!skipChoice()) {
+            <button
+              type="button"
+              class="btn btn-secondary"
+              [disabled]="isSubmitting()"
+              (click)="onBackToChoice()"
+            >
+              Back
+            </button>
+          }
+          <button
+            type="button"
+            class="btn btn-primary"
+            [disabled]="isSubmitting()"
+            (click)="onSubmit()"
+          >
+            {{ isSubmitting() ? 'Submitting…' : 'Submit Recall Review' }}
+          </button>
+        </div>
+      }
+    </div>
+  </div>
+}

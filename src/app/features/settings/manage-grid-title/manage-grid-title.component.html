@@ -1,0 +1,46 @@
+<div class="page">
+  <nav class="breadcrumb">
+    <a routerLink="/settings" class="breadcrumb__link">Settings</a>
+    <span class="breadcrumb__sep">/</span>
+    <span class="breadcrumb__current">Manage Grid Title</span>
+  </nav>
+
+  <div class="page__header">
+    <h1 class="page__title">Manage Grid Title</h1>
+    <p class="page__subtitle">Rename the display labels shown on dashboard grid tiles. Edit any title and save all at once.</p>
+  </div>
+
+  @if (error()) {
+    <div class="error-banner">{{ error() }}</div>
+  }
+
+  <div class="panel">
+    <div class="panel__head">Dashboard Grid Titles</div>
+    <div class="panel__body">
+      <form (ngSubmit)="save()">
+        @for (g of grids(); track g.gridKey; let i = $index) {
+          <div class="title-row">
+            <span class="title-row__key">Grid #{{ i + 1 }}</span>
+            <input
+              type="text"
+              class="field__input"
+              [ngModel]="g.gridName"
+              (ngModelChange)="updateName(g.gridKey, $event)"
+              [name]="'grid_' + g.gridKey"
+              placeholder="Grid title..."
+            />
+          </div>
+        } @empty {
+          <div class="empty">No dashboard grids to rename.</div>
+        }
+      </form>
+    </div>
+    <div class="panel__footer">
+      <button type="button" class="btn btn--primary" [disabled]="saving()" (click)="save()">Save</button>
+      <a routerLink="/settings" class="btn btn--secondary">Back to List</a>
+      @if (saved()) {
+        <span class="save-flash">Saved successfully</span>
+      }
+    </div>
+  </div>
+</div>

@@ -1,0 +1,30 @@
+<div class="dec-overlay" (click)="onClose()">
+  <div class="dec-modal" role="dialog" aria-modal="true" aria-labelledby="dec-title" (click)="$event.stopPropagation()">
+    <header class="dec-panel__head">
+      <span class="dec-panel__title" id="dec-title">✕ Decline Estimate</span>
+      <button type="button" class="dec-panel__close" (click)="onClose()" aria-label="Close">✕</button>
+    </header>
+
+    @if (errorMessage()) {
+      <div class="dec-panel__error" role="alert">{{ errorMessage() }}</div>
+    }
+
+    <div class="dec-panel__text">
+      <label class="dec-panel__text-label" for="declineRemark-{{ estimateKey() }}">Reason for decline (required)</label>
+      <textarea
+        id="declineRemark-{{ estimateKey() }}"
+        class="dec-panel__textarea"
+        rows="3"
+        [ngModel]="adminRemark()"
+        (ngModelChange)="adminRemark.set($event)"
+        placeholder="Internal note explaining why this estimate is being declined…"
+      ></textarea>
+    </div>
+
+    <div class="dec-panel__actions">
+      <button type="button" class="dec-panel__submit" [disabled]="submitting() || !canSubmit()" (click)="onSubmit()">
+        {{ submitting() ? 'Declining…' : 'Decline & Notify Vendor' }}
+      </button>
+    </div>
+  </div>
+</div>

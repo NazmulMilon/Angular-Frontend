@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Create Quick Job — V2 Replication Reference</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --surface: #1a2332;
+      --surface2: #243044;
+      --border: #2d3a4f;
+      --text: #e6edf3;
+      --muted: #8b9cb3;
+      --accent: #58a6ff;
+      --accent2: #3fb950;
+      --warn: #d29922;
+      --danger: #f85149;
+      --code-bg: #161b22;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      line-height: 1.6;
+      color: var(--text);
+      background: var(--bg);
+      margin: 0;
+      padding: 2rem;
+      max-width: 1200px;
+      margin-inline: auto;
+    }
+    h1 { color: var(--accent); border-bottom: 2px solid var(--border); padding-bottom: .5rem; }
+    h2 { color: var(--accent2); margin-top: 2.5rem; border-left: 4px solid var(--accent2); padding-left: .75rem; }
+    h3 { color: var(--warn); margin-top: 1.5rem; }
+    h4 { color: var(--muted); margin-top: 1rem; }
+    p, li { color: var(--text); }
+    a { color: var(--accent); }
+    code, pre {
+      font-family: "SF Mono", Consolas, monospace;
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+    }
+    code { padding: .1em .35em; font-size: .9em; }
+    pre { padding: 1rem; overflow-x: auto; font-size: .85em; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1rem 0;
+      font-size: .9em;
+    }
+    th, td {
+      border: 1px solid var(--border);
+      padding: .6rem .8rem;
+      text-align: left;
+      vertical-align: top;
+    }
+    th { background: var(--surface2); color: var(--accent); }
+    tr:nth-child(even) { background: var(--surface); }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.25rem;
+      margin: 1rem 0;
+    }
+    .note {
+      border-left: 4px solid var(--warn);
+      background: rgba(210, 153, 34, .08);
+      padding: .75rem 1rem;
+      margin: 1rem 0;
+      border-radius: 0 6px 6px 0;
+    }
+    .danger {
+      border-left: 4px solid var(--danger);
+      background: rgba(248, 81, 73, .08);
+    }
+    .flow-box {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      padding: 1rem;
+      font-family: monospace;
+      white-space: pre;
+      overflow-x: auto;
+      font-size: .8em;
+      line-height: 1.4;
+    }
+    .toc a { text-decoration: none; }
+    .toc li { margin: .35rem 0; }
+    .tag {
+      display: inline-block;
+      padding: .15em .5em;
+      border-radius: 4px;
+      font-size: .75em;
+      font-weight: 600;
+      margin-right: .25rem;
+    }
+    .tag-get { background: #1f6feb33; color: #58a6ff; }
+    .tag-post { background: #23863633; color: #3fb950; }
+    .tag-db { background: #8957e533; color: #bc8cff; }
+    .tag-guid { background: #9e6a0333; color: #d29922; font-family: monospace; }
+  </style>
+</head>
+<body>
+
+<h1>Create Quick Job — V2 Replication Reference</h1>
+<p><strong>Source:</strong> <code>ProjectRCS/Controllers/MgtJobController.cs</code> + <code>Views/MgtJob/CreateQuickJob.cshtml</code></p>
+<p><strong>Purpose:</strong> Document the full Quick Job creation flow — UI fields, API endpoints, data models, database writes, and post-save branching — so Admin Portal V2 can replicate behavior without guessing.</p>
+
+<nav class="card toc">
+  <h3>Table of Contents</h3>
+  <ol>
+    <li><a href="#overview">Overview</a></li>
+    <li><a href="#architecture">Architecture</a></li>
+    <li><a href="#get-flow">GET — Load Form</a></li>
+    <li><a href="#form-fields">Form Fields &amp; Validation</a></li>
+    <li><a href="#ajax-endpoints">Supporting AJAX Endpoints</a></li>
+    <li><a href="#post-payload">POST Payload (JobClass + extras)</a></li>
+    <li><a href="#save-main">Core Save: SaveMainData</a></li>
+    <li><a href="#db-tables">Database Tables Written</a></li>
+    <li><a href="#files">File Upload Flow</a></li>
+    <li><a href="#vendor-paths">Vendor Assignment Paths (withoutVendor)</a></li>
+    <li><a href="#post-save">Post-Save Branching Logic</a></li>
+    <li><a href="#constants">Hardcoded GUIDs &amp; Constants</a></li>
+    <li><a href="#v2-checklist">V2 Implementation Checklist</a></li>
+  </ol>
+</nav>
+
+<!-- ============================================================ -->
+<h2 id="overview">1. Overview</h2>
+<div class="card">
+  <p><strong>Quick Job</strong> is a streamlined job creation screen that lets an admin:</p>
+  <ul>
+    <li>Create a job with customer, location, trade, priority, description, and DNE values</li>
+    <li>Optionally attach files before save (staged in <code>TempFileStock</code>)</li>
+    <li>Optionally assign a vendor immediately and send a work order</li>
+    <li>Optionally broadcast to multiple vendors</li>
+    <li>Optionally duplicate the job to additional locations (up to 15)</li>
+    <li>Handle upline approval, primary vendor rules, and customer acknowledgment emails</li>
+  </ul>
+  <p><strong>Entry point:</strong> <code>GET /MgtJob/CreateQuickJob</code></p>
+  <p><strong>Submit:</strong> <code>POST /MgtJob/CreateQuickJob</code> with <code>JobClass</code> model + extra form parameters</p>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="architecture">2. Architecture</h2>
+<div class="flow-box">
+┌─────────────────────────────────────────────────────────────────────────┐
+│  CreateQuickJob.cshtml (View)                                           │
+│  Model: JobClass | Form id: createjob                                   │
+└───────────────────────────────┬─────────────────────────────────────────┘
+                                │ POST
+                                ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│  MgtJobController.CreateQuickJob [HttpPost]                             │
+│  1. manage.SaveMainData(model)         → Job row + notes + trades      │
+│  2. JobFileSetup.SaveAttachmentInJobFile → TempFileStock → JobFile       │
+│  3. SaveJobDataForMultipleLocation     → duplicate jobs (optional)       │
+│  4. Upline / email / vendor branching  → redirects                     │
+└───────────────────────────────┬─────────────────────────────────────────┘
+                                │
+        ┌───────────────────────┼───────────────────────┐
+        ▼                       ▼                       ▼
+ ManageJobSetup          JobVendorConfiguration    JobWorkOrderConfigSetup
+ SaveMainData            SaveVendorForQuickJob     SaveWorkOrderAndReturnWorOrderObject
+        │                       │                       │
+        ▼                       ▼                       ▼
+     Job table              JobVendor +            JobWorkOrder +
+     JobAdditionalTrade     JobVendorDetail        email to vendor
+     RCSmesseging (note)
+     JobOpsSourcingApiClient
+</div>
+
+<p><strong>Key service classes:</strong></p>
+<table>
+  <tr><th>Class</th><th>File</th><th>Role</th></tr>
+  <tr><td><code>ManageJobSetup</code></td><td><code>DatabaseInteraction/ManageJobSetup.cs</code></td><td>Core job INSERT via <code>SaveMainData</code></td></tr>
+  <tr><td><code>JobVendorConfiguration</code></td><td><code>DatabaseInteraction/JobVendorConfiguration.cs</code></td><td>Assign default vendor on quick job</td></tr>
+  <tr><td><code>JobTabHelper</code></td><td><code>Helper/JobTabHelper.cs</code></td><td><code>CreateDefaultVendorWorkOrder</code> — vendor + WO + email</td></tr>
+  <tr><td><code>JobWorkOrderConfigSetup</code></td><td><code>DatabaseInteraction/JobWorkOrderConfigSetup.cs</code></td><td>Build and persist work order</td></tr>
+  <tr><td><code>JobFileSetup</code></td><td><code>DatabaseInteraction/JobFileSetup.cs</code></td><td>Move temp uploads to <code>JobFile</code></td></tr>
+  <tr><td><code>ManageJobMessegingSetup</code></td><td><code>DatabaseInteraction/ManageJobMessegingSetup.cs</code></td><td>Activity notes / general notes</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2 id="get-flow">3. GET — Load Form</h2>
+<p><span class="tag tag-get">GET</span> <code>MgtJob/CreateQuickJob</code></p>
+
+<h3>Pre-load cleanup</h3>
+<p>Deletes all <code>TempFileStock</code> rows where <code>JobKey = LoginUser.PersonnelKey</code> (temp key reused as staging bucket).</p>
+
+<h3>ViewModel defaults</h3>
+<table>
+  <tr><th>Property</th><th>Default</th><th>Notes</th></tr>
+  <tr><td><code>JobStatusKey</code></td><td><code>GlobalClass.GetJobStatus(1)</code></td><td>Status where <code>JobStatus.TriggerBit = 1</code> (new/pending)</td></tr>
+  <tr><td><code>ToTeamKey</code></td><td><span class="tag-guid">0653D717-A7EE-4C50-961A-6F3ECFCD1AAA</span></td><td>Default team; form field is hidden but validated</td></tr>
+  <tr><td><code>JobVendorDetailsList</code></td><td>empty list</td><td></td></tr>
+  <tr><td><code>GlobalClass.AdditionalTradeToJob</code></td><td>cleared</td><td>Session-scoped list for broadcast additional trades</td></tr>
+</table>
+
+<h3>Dropdown data sources (ViewBag)</h3>
+<table>
+  <tr><th>ViewBag Key</th><th>Source Query</th></tr>
+  <tr><td><code>CustomerName</code></td><td><code>Customer</code> where <code>IsDelete = false</code>, order by <code>Cname</code></td></tr>
+  <tr><td><code>LocationName</code></td><td>Placeholder empty list (<code>Lname = "-99"</code>) until customer selected</td></tr>
+  <tr><td><code>CustomerContactName</code></td><td>Placeholder until customer selected</td></tr>
+  <tr><td><code>CustomerRequestorName</code></td><td>Placeholder until customer selected</td></tr>
+  <tr><td><code>TradeName</code></td><td><code>Trade</code> where <code>IsDelete = false</code>, excludes AllTrade &amp; Others GUIDs</td></tr>
+  <tr><td><code>JobTypeKey</code></td><td><code>JobType</code> where <code>IsDelete = false</code>, order by <code>TypeLevel</code></td></tr>
+  <tr><td><code>VendorName</code></td><td><code>Vendor</code> where <code>IsDelete = false</code> and not DNU</td></tr>
+  <tr><td><code>AccountManagerList</code></td><td><code>StaffList</code> where <code>IsDelete = false</code>, excludes AutoSys personnel</td></tr>
+  <tr><td><code>DocumentTypeName</code></td><td><code>DocumentType</code> where <code>DocumentForID = 1</code>, company-scoped</td></tr>
+  <tr><td><code>ToTeamKey</code></td><td><code>Team</code> where <code>IsDelete = false</code></td></tr>
+</table>
+
+<p>On page load, JS calls <code>GET /Utility/CreateJobPO</code> to pre-fill hidden <code>PO</code> field.</p>
+
+<!-- ============================================================ -->
+<h2 id="form-fields">4. Form Fields &amp; Client-Side Validation</h2>
+
+<h3>Required fields (client validation on Save click)</h3>
+<table>
+  <tr><th>Field</th><th>Model Property</th><th>Type</th><th>Server [Required]</th></tr>
+  <tr><td>Customer</td><td><code>CustomerKey</code></td><td>Guid</td><td>Yes</td></tr>
+  <tr><td>Location</td><td><code>LocationKey</code></td><td>Guid</td><td>Yes</td></tr>
+  <tr><td>Customer Contact</td><td><code>CContactKey</code></td><td>Guid</td><td>Yes</td></tr>
+  <tr><td>Customer Job Number</td><td><code>JobName</code></td><td>string</td><td>Yes (auto-generated if blank via <code>fillJobname()</code>)</td></tr>
+  <tr><td>Trade</td><td><code>TradeKey</code></td><td>Guid</td><td>Yes</td></tr>
+  <tr><td>Priority (Job Type)</td><td><code>JobTypeKey</code></td><td>Guid</td><td>Yes</td></tr>
+  <tr><td>Account Manager</td><td><code>AccountManagerKey</code></td><td>Guid</td><td>No (client-required)</td></tr>
+  <tr><td>Assign Team</td><td><code>ToTeamKey</code></td><td>Guid</td><td>Yes (hidden, defaulted)</td></tr>
+  <tr><td>Service Description</td><td><code>Description</code></td><td>string (CKEditor HTML)</td><td>No (client: min ~26 chars)</td></tr>
+  <tr><td>PO</td><td><code>PO</code></td><td>string (hidden)</td><td>Yes — auto-generated if empty on server</td></tr>
+  <tr><td>Job Status</td><td><code>JobStatusKey</code></td><td>Guid (hidden)</td><td>Yes</td></tr>
+</table>
+
+<h3>Optional fields</h3>
+<table>
+  <tr><th>Field</th><th>Model Property</th><th>Type</th><th>Notes</th></tr>
+  <tr><td>Customer Requestor</td><td><code>CustomerRequestorKey</code></td><td>Guid?</td><td>Customer or location contacts</td></tr>
+  <tr><td>Vendor</td><td><code>VendorKey</code></td><td>Guid?</td><td>Triggers vendor flow when set</td></tr>
+  <tr><td>Vendor Contact</td><td><code>VendorContactKey</code></td><td>Guid?</td><td>Required if vendor selected</td></tr>
+  <tr><td>Customer DNE</td><td><code>CustomerDNE</code></td><td>string (decimal)</td><td>Defaults to "0" on customer change</td></tr>
+  <tr><td>Vendor DNE</td><td><code>VendorDNE</code></td><td>string (decimal)</td><td>Set to "0" for bid/special project types</td></tr>
+  <tr><td>Talked To Vendor</td><td><code>TalkedToVendor</code></td><td>int? (form param)</td><td>1 = spoken to, 2 = not yet</td></tr>
+  <tr><td>ETA Limit</td><td><code>txtNoOfDays1</code></td><td>int? (form param)</td><td>Days or hours depending on job type</td></tr>
+  <tr><td>Primary Vendor flag</td><td><code>PrimaryVendor</code></td><td>int?</td><td>Set by JS when primary vendor detected</td></tr>
+  <tr><td>IVR Pin</td><td><code>IVRPin</code></td><td>string (hidden)</td><td>Defaults "n/a" on server if empty</td></tr>
+</table>
+
+<h3>Hidden / control fields (not on JobClass)</h3>
+<table>
+  <tr><th>Field</th><th>Purpose</th></tr>
+  <tr><td><code>withoutVendor</code></td><td>Controls post-save vendor path — see section 10</td></tr>
+  <tr><td><code>SendToallVendor</code></td><td>0/1/2 — broadcast eligibility flag</td></tr>
+  <tr><td><code>SomePrimarySomeBroadcast</code></td><td>0/1/2 — primary vendor coverage across locations</td></tr>
+  <tr><td><code>Upline</code></td><td>0 = no upline block; non-zero = upline approval required</td></tr>
+  <tr><td><code>UplineBearer</code></td><td>From customer <code>EmergencyUplineOverride</code></td></tr>
+  <tr><td><code>ShowPrimaryVendor</code></td><td>User dismissed primary vendor warning</td></tr>
+  <tr><td><code>tempJobKey</code></td><td><code>LoginUser.PersonnelKey</code> — temp file staging key</td></tr>
+  <tr><td><code>MultipleLocationKey[]</code></td><td>Guids of additional locations for job duplication</td></tr>
+  <tr><td><code>MaxNoOfVendorAccept</code></td><td>Broadcast: max vendors to accept</td></tr>
+  <tr><td><code>txtNoOfDays</code></td><td>Broadcast: response time limit</td></tr>
+  <tr><td><code>txtExpandedMilage</code></td><td>Broadcast: expanded vendor search radius</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2 id="ajax-endpoints">5. Supporting AJAX Endpoints</h2>
+
+<table>
+  <tr><th>Method</th><th>Endpoint</th><th>Params</th><th>Returns</th><th>When Called</th></tr>
+
+  <tr>
+    <td><span class="tag tag-get">GET</span></td>
+    <td><code>DropdownUtility/FillLocationList</code></td>
+    <td><code>CustomerKey</code></td>
+    <td>SelectList items</td>
+    <td>Customer change</td>
+  </tr>
+  <tr>
+    <td><span class="tag tag-get">GET</span></td>
+    <td><code>DropdownUtility/FillCustomerContactName</code></td>
+    <td><code>CustomerKey</code></td>
+    <td>SelectList items</td>
+    <td>Customer change</td>
+  </tr>
+  <tr>
+    <td><span class="tag tag-get">GET</span></td>
+    <td><code>DropdownUtility/FillCustomerRequestorContactName</code></td>
+    <td><code>CustomerKey</code></td>
+    <td>SelectList items</td>
+    <td>Customer change</td>
+  </tr>
+  <tr>
+    <td><span class="tag tag-get">GET</span></td>
+    <td><code>DropdownUtility/FillAccountManagerForName</code></td>
+    <td><code>CustomerKey</code></td>
+    <td>PersonnelKey Guid</td>
+    <td>Customer change — auto-select AM</td>
+  </tr>
+  <tr>
+    <td><span class="tag tag-get">GET</span></td>
+    <td><code>Utility/GetCustomerDetail</code></td>
+    <td><code>CustomerKey</code></td>
+    <td>Address, UplineBearer, DNE defaults</td>
+    <td>Customer change</td>
+  </tr>
+  <tr>
+    <td><span class="tag tag-get">GET</span></td>
+    <td><code>Utility/CreateJobPO</code></td>
+    <td><code>PO</code></td>
+    <td>Next PO sequence number string</td>
+    <td>Page load</td>
+  </tr>
+  <tr>
+    <td><span class="tag tag-get">GET</span></td>
+    <td><code>DropdownUtility/GetJobname</code></td>
+    <td><code>name</code> (location name)</td>
+    <td>Auto job name string</td>
+    <td>When JobName empty on save</td>
+  </tr>
+  <tr>
+    <td><span class="tag tag-get">GET</span></td>
+    <td><code>Utility/CheckJobNameForEdit1</code></td>
+    <td><code>JobName</code></td>
+    <td>"0" = duplicate, else OK</td>
+    <td>Before submit</td>
+  </tr>
+  <tr>
+    <td><span class="tag tag-get">GET</span></td>
+    <td><code>DropdownUtility/GetJobPopup</code></td>
+    <td><code>CustomerKey</code></td>
+    <td>"1" = skip popup, else HTML content</td>
+    <td>Before submit — customer-specific disclaimer</td>
+  </tr>
+  <tr>
+    <td><span class="tag tag-get">GET</span></td>
+    <td><code>MgtJob/GetVendorListForQuickJob</code></td>
+    <td><code>id</code>=TradeKey, <code>id2</code>=LocationKey</td>
+    <td><code>List&lt;JobVendorDetails&gt;</code></td>
+    <td>"Load Vendor within 50 miles" button</td>
+  </tr>
+  <tr>
+    <td><span class="tag tag-get">GET</span></td>
+    <td><code>MgtJob/CheckForPrimaryVendorQuickJob</code></td>
+    <td><code>TradeKey</code>, <code>LocationKey</code>, <code>VendorKey</code></td>
+    <td><code>DataReturn</code> { flag, key, mess }</td>
+    <td>Vendor selection — warns if different primary exists</td>
+  </tr>
+  <tr>
+    <td><span class="tag tag-post">POST</span></td>
+    <td><code>MgtJob/CheckForPrimaryVendor</code></td>
+    <td>JSON: { TradeKey, LocationList[] }</td>
+    <td>Primary vendor coverage across selected locations</td>
+    <td>Save without vendor — multi-location primary check</td>
+  </tr>
+  <tr>
+    <td><span class="tag tag-get">GET</span></td>
+    <td><code>MgtJob/CheckIFCustomerisEligible</code></td>
+    <td><code>CustomerKey</code></td>
+    <td>"1" if <code>PriviledgedForVendorBlast</code></td>
+    <td>Determines if broadcast button shown</td>
+  </tr>
+  <tr>
+    <td><span class="tag tag-get">GET</span></td>
+    <td><code>MgtJob/GetTheUplinepopUpContent</code></td>
+    <td><code>LocationKey</code>, <code>TradeKey</code></td>
+    <td>Warning message or "0"</td>
+    <td>Upline approval check</td>
+  </tr>
+  <tr>
+    <td><span class="tag tag-get">GET</span></td>
+    <td><code>MgtJob/GetTheVendoeETAsetLimitDefaultforSystem</code></td>
+    <td><code>JobTypeKey</code></td>
+    <td>Default ETA limit (decimal)</td>
+    <td>Work order option modal</td>
+  </tr>
+  <tr>
+    <td><span class="tag tag-get">GET</span></td>
+    <td><code>DropdownUtility/FillVendorDefaultContactList</code></td>
+    <td><code>VendorKey</code></td>
+    <td>Vendor contacts</td>
+    <td>Vendor selection</td>
+  </tr>
+  <tr>
+    <td><span class="tag tag-post">POST</span></td>
+    <td><code>MgtJob/UploadFiles</code></td>
+    <td><code>file[]</code>, <code>id</code>=PersonnelKey, <code>DocumentTypeKey</code>, <code>FileName</code></td>
+    <td>Success count message</td>
+    <td>Dropzone upload</td>
+  </tr>
+  <tr>
+    <td><span class="tag tag-get">GET</span></td>
+    <td><code>MgtJob/GetTempAttachedFilesForQuickJob</code></td>
+    <td>DataTables params</td>
+    <td>Temp file list</td>
+    <td>File table refresh</td>
+  </tr>
+  <tr>
+    <td><span class="tag tag-get">GET</span></td>
+    <td><code>MgtJob/DeleteTempFile</code></td>
+    <td><code>id</code>=FileKey</td>
+    <td>Success message</td>
+    <td>Delete staged file</td>
+  </tr>
+  <tr>
+    <td><span class="tag tag-post">POST</span></td>
+    <td><code>MgtJob/RemoveFile</code></td>
+    <td><code>JobKey</code>, <code>FileName</code></td>
+    <td>JSON message</td>
+    <td>Dropzone remove</td>
+  </tr>
+  <tr>
+    <td><span class="tag tag-get">GET</span></td>
+    <td><code>MgtCustomerUser/GetLocationForthisCustomer</code></td>
+    <td><code>CustomerKey</code></td>
+    <td>HTML checkboxes for duplicate modal</td>
+    <td>Duplicate button</td>
+  </tr>
+  <tr>
+    <td><span class="tag tag-get">GET</span></td>
+    <td><code>MgtJob/FillJobWithBroadcastOption</code></td>
+    <td><code>Tname</code>, <code>TKey</code></td>
+    <td>1</td>
+    <td>Add additional trade to session list</td>
+  </tr>
+  <tr>
+    <td><span class="tag tag-get">GET</span></td>
+    <td><code>MgtJob/RemoveAdditionalTrade</code></td>
+    <td><code>TKey</code></td>
+    <td>1</td>
+    <td>Remove from session list</td>
+  </tr>
+</table>
+
+<h3>JobVendorDetails response shape</h3>
+<pre>{
+  "VendorKey": "guid",
+  "Vname": "string (may include '(Primary Vendor)')",
+  "ContactName": "string",
+  "Address": "string",
+  "Phone": "tel: link",
+  "AltPhone": "tel: link",
+  "Email": "string",
+  "RadiusInMiles": 50.0,
+  "DistanceFromLocation": 12.34,
+  "TName": "comma-separated trade names",
+  "NoOfTrade": 3,
+  "JobCount": 42,
+  "RegisterLink": "HTML button or empty"
+}</pre>
+
+<!-- ============================================================ -->
+<h2 id="post-payload">6. POST Payload</h2>
+
+<h3>JobClass body fields (model-bound)</h3>
+<pre>CustomerKey          : Guid       [Required]
+LocationKey          : Guid       [Required]
+CContactKey          : Guid       [Required]
+CustomerRequestorKey : Guid?
+JobName              : string     [Required] — customer job number
+JobTypeKey           : Guid       [Required] — "Priority"
+TradeKey             : Guid       [Required]
+JobStatusKey         : Guid       [Required] — pre-set to GetJobStatus(1)
+PO                   : string     [Required] — auto-generated if blank
+Description          : string     — HTML from CKEditor
+CustomerDNE          : string     — decimal as string
+VendorDNE            : string     — decimal as string
+VendorKey              : Guid?
+VendorContactKey       : Guid?
+AccountManagerKey      : Guid?
+ToTeamKey              : Guid?    [Required]
+PrimaryVendor          : int?
+LocationSpecialInstruction : string — populated server-side from Location
+CreatedByAdminKey      : Guid     — set server-side = LoginUser.PersonnelKey
+CreatedByCustomerKey   : Guid     — set server-side = Guid.Empty
+NoOfVendorBroadcast    : int?     — mapped from MaxNoOfVendorAccept
+txtNoOfDays            : int?     — broadcast response limit
+txtExpandedMilage      : int?     — broadcast radius expansion
+IVRPin                 : string
+EntryDate              : DateTime?
+JobKey                 : Guid     — empty on create
+Message, mess          : string</pre>
+
+<h3>Additional form parameters (not on JobClass)</h3>
+<pre>withoutVendor          : string   — "0"|"1"|"2"|"3"|"4"|"33"
+SendToallVendor        : int?     — 0=no broadcast, 1=all vendors, 2=bid vendors
+MaxNoOfVendorAccept    : int?
+txtNoOfDays            : int?     — broadcast hours/days limit
+txtExpandedMilage      : int?
+TalkedToVendor         : int?     — 1=spoken, 2=not spoken
+txtNoOfDays1           : int?     — vendor ETA limit (days or hours)
+MultipleLocationKey    : Guid?[]  — duplicate job targets
+SomePrimarySomeBroadcast : int?   — 0=none, 1=some, 2=all primary</pre>
+
+<h3>DataReturn response (internal, not returned to client on success)</h3>
+<pre>{
+  "flag": 1,           // 1=success, 0=failure
+  "key": "JobKey guid",
+  "PO": "generated PO string",
+  "mess": "status message",
+  "ContactKey": "guid?",
+  "ServiceCM": "decimal?"
+}</pre>
+
+<!-- ============================================================ -->
+<h2 id="save-main">7. Core Save: ManageJobSetup.SaveMainData</h2>
+<p>Called first in POST handler. Creates the primary <code>Job</code> record.</p>
+
+<h3>Pre-processing (controller, before SaveMainData)</h3>
+<ul>
+  <li><code>CreatedByCustomerKey = Guid.Empty</code></li>
+  <li><code>CreatedByAdminKey = GlobalClass.LoginUser.PersonnelKey</code></li>
+  <li><code>LocationSpecialInstruction = db.Location.Find(LocationKey).SpecialInstruction</code></li>
+  <li>Extract VendorKey, TradeKey, VendorContactKey for later vendor steps</li>
+</ul>
+
+<h3>Job row field mapping</h3>
+<table>
+  <tr><th>Job Column</th><th>Source / Logic</th></tr>
+  <tr><td><code>JobKey</code></td><td><code>Guid.NewGuid()</code></td></tr>
+  <tr><td><code>JobName</code></td><td><code>obj.JobName</code> — replaces <code>&amp;</code> → " and ", <code>#</code> → " - "</td></tr>
+  <tr><td><code>CustomerKey</code></td><td><code>obj.CustomerKey</code></td></tr>
+  <tr><td><code>LocationKey</code></td><td><code>obj.LocationKey</code></td></tr>
+  <tr><td><code>LocationSpecialInstruction</code></td><td><code>obj.LocationSpecialInstruction</code></td></tr>
+  <tr><td><code>CContactKey</code></td><td><code>obj.CContactKey</code></td></tr>
+  <tr><td><code>CustomerRequestorKey</code></td><td><code>obj.CustomerRequestorKey</code></td></tr>
+  <tr><td><code>AccountManagerKey</code></td><td><code>obj.AccountManagerKey</code></td></tr>
+  <tr><td><code>CreatedByAdminKey</code></td><td><code>obj.CreatedByAdminKey</code></td></tr>
+  <tr><td><code>CreatedByCustomerKey</code></td><td><code>obj.CreatedByCustomerKey</code></td></tr>
+  <tr><td><code>CustomerDNE</code></td><td><code>obj.CustomerDNE ?? "0"</code></td></tr>
+  <tr><td><code>RevCustomerDNE</code></td><td>Same as CustomerDNE</td></tr>
+  <tr><td><code>VendorDNE</code></td><td>"0" if Bid or Special Project job type; else <code>obj.VendorDNE ?? "0"</code></td></tr>
+  <tr><td><code>RevVendorDNE</code></td><td>Same as VendorDNE</td></tr>
+  <tr><td><code>JobTypeKey</code></td><td><code>obj.JobTypeKey</code></td></tr>
+  <tr><td><code>PriorityManagedBy</code></td><td>JobType.TName + optional staff name from StaffList.JobTypeKey match</td></tr>
+  <tr><td><code>TradeKey</code></td><td><code>obj.TradeKey</code></td></tr>
+  <tr><td><code>JobStatusKey</code></td><td><code>obj.JobStatusKey</code> (TriggerBit=1 on load)</td></tr>
+  <tr><td><code>EntryDate</code></td><td><code>DateTime.UtcNow</code></td></tr>
+  <tr><td><code>PO</code></td><td><code>obj.PO</code> if non-empty, else <code>UtilityTasks.GetPO()</code> (SQL sequence <code>dbo.POSequence</code>)</td></tr>
+  <tr><td><code>Description</code></td><td><code>obj.Description</code> or "n/a"</td></tr>
+  <tr><td><code>IVRTrackingNo</code></td><td><code>obj.IVRTrackingNo</code> or "--"</td></tr>
+  <tr><td><code>IVRPin</code></td><td><code>obj.IVRPin</code> or "n/a"</td></tr>
+  <tr><td><code>LocationContactKey</code></td><td><code>obj.LocationContactKey</code></td></tr>
+  <tr><td><code>MaxHourToRespond</code></td><td><code>obj.txtNoOfDays</code> (broadcast setting)</td></tr>
+  <tr><td><code>MaxDayToRespond</code></td><td>0</td></tr>
+  <tr><td><code>MaxNoOfVendorAccept</code></td><td><code>obj.NoOfVendorBroadcast</code></td></tr>
+  <tr><td><code>ExpandMilageForVendor</code></td><td><code>obj.txtExpandedMilage</code></td></tr>
+  <tr><td><code>CheckInExpiryTimeInMinutes</code></td><td>From <code>CustomerDetailFactor</code> (IdentifierID=1) or default 15</td></tr>
+  <tr><td><code>AccountingStatusKey</code></td><td><span class="tag-guid">7907c0f2-e99e-43e6-bef1-1c01bf44e66a</span></td></tr>
+  <tr><td><code>IsDelete</code></td><td>false</td></tr>
+  <tr><td><code>Invoiced, Estimates, WorkOrder, VBill</code></td><td>false</td></tr>
+  <tr><td><code>PayableStatus</code></td><td>"Need VPW"</td></tr>
+  <tr><td><code>ReceivableStatus, VendorStatus</code></td><td>""</td></tr>
+  <tr><td><code>JobCreatedByCustomer</code></td><td>Login user name if not provided</td></tr>
+  <tr><td><code>VendorSetETADate</code></td><td>UtcNow if ScheduleDate set, else null</td></tr>
+</table>
+
+<h3>Side effects inside SaveMainData</h3>
+<ol>
+  <li><code>db.Job.Add(_job)</code> + <code>db.SaveChanges()</code></li>
+  <li><code>ManageJobMessegingSetup.SaveGeneralNotewithDB</code> — note: "New Job" / "{user} entered New Job."</li>
+  <li><code>SetAdditionalTradeToJob</code> — persists <code>GlobalClass.AdditionalTradeToJob</code> session list → <code>JobAdditionalTrade</code> rows</li>
+  <li><code>JobOpsSourcingApiClient.RequestVendorSourcingForNewJob(JobKey)</code> — external vendor sourcing trigger</li>
+</ol>
+
+<div class="note danger">
+  <strong>⚠️ Note:</strong> <code>ToTeamKey</code> is validated on the form but <strong>not written</strong> to <code>JobTeam</code> in <code>SaveMainData</code>. No <code>JobTeam.Add</code> calls exist anywhere in the codebase. V2 should confirm whether team assignment is handled elsewhere or is a legacy gap.
+</div>
+
+<!-- ============================================================ -->
+<h2 id="db-tables">8. Database Tables Written</h2>
+
+<h3>Always on successful save</h3>
+<table>
+  <tr><th>Table</th><th>When</th><th>Key Fields</th></tr>
+  <tr>
+    <td><span class="tag tag-db">Job</span></td>
+    <td>SaveMainData</td>
+    <td>All fields in section 7</td>
+  </tr>
+  <tr>
+    <td><span class="tag tag-db">RCSmesseging</span> (via SaveGeneralNote)</td>
+    <td>SaveMainData</td>
+    <td>JobKey, Title="New Job", Comment</td>
+  </tr>
+  <tr>
+    <td><span class="tag tag-db">JobAdditionalTrade</span></td>
+    <td>If broadcast additional trades added in session</td>
+    <td>Pkey, JobKey, TradeKey</td>
+  </tr>
+</table>
+
+<h3>File attachments (if TempFileStock rows exist)</h3>
+<table>
+  <tr><th>Table</th><th>When</th><th>Key Fields</th></tr>
+  <tr>
+    <td><span class="tag tag-db">JobFile</span></td>
+    <td>After SaveMainData, foreach TempFileStock where JobKey=PersonnelKey</td>
+    <td>FileKey, JobKey, DocumentTypeKey, Title, Comment, FileContent (byte[]), FileType, AddedBy, AddedOn</td>
+  </tr>
+</table>
+<p>Attachment document type constant: <span class="tag-guid">7538941a-016f-40fd-beac-016a23eba4e4</span></p>
+
+<h3>Job duplication (if MultipleLocationKey provided)</h3>
+<table>
+  <tr><th>Table</th><th>When</th><th>Notes</th></tr>
+  <tr>
+    <td><span class="tag tag-db">Job</span></td>
+    <td>SaveJobDataForMultipleLocation per location</td>
+    <td>Copies most fields; new JobKey, new PO, JobName from <code>UtilityTasks.CreateJobID(location.Lname)</code>, DuplicateFromJobKey set</td>
+  </tr>
+  <tr>
+    <td><span class="tag tag-db">JobFile</span></td>
+    <td>SaveAttachmentForDuplicateJobs</td>
+    <td>Copies files from parent job</td>
+  </tr>
+  <tr>
+    <td><span class="tag tag-db">RCSmesseging</span></td>
+    <td>Notes on both parent and child jobs</td>
+    <td>"Job Duplicated" / "New Job" messages</td>
+  </tr>
+</table>
+
+<h3>Vendor assignment path (withoutVendor = "1")</h3>
+<table>
+  <tr><th>Table</th><th>Fields Set</th></tr>
+  <tr>
+    <td><span class="tag tag-db">JobVendor</span></td>
+    <td>
+      PKey (new Guid), JobKey, VendorKey, TradeKey, ContactKey, IsDefault=true, IsDelete=false,
+      VendorDNE, RevVendorDNE (0 for bid/project types),
+      HourlyRate/TripCharge/ServiceCharge via VendorHelper.SetVendorRates,
+      Distance=Vendor.RadiusInMiles, ETAMustBeWithin=txtNoOfDays1,
+      JobStatusKey=job.JobStatusKey, ScheduleDate, ReturnScheduleDate from job,
+      WorkOrder=false, VBill=false, EnteredOn=UtcNow
+    </td>
+  </tr>
+  <tr>
+    <td><span class="tag tag-db">Job</span> (update)</td>
+    <td>VendorDNE, RevVendorDNE, ActionNeeded=false, CurrentBroadcast=false, JobNoActivityAfterCreate=false</td>
+  </tr>
+  <tr>
+    <td><span class="tag tag-db">JobVendorDetail</span></td>
+    <td>Denormalized: VendorName, ContactName, ContactPhone, ETAXpiryMsg from customer dashboard alert</td>
+  </tr>
+  <tr>
+    <td><span class="tag tag-db">JobWorkOrder</span></td>
+    <td>Created via SaveWorkOrder — WorkOrderKey, JobKey, VendorKey, service request content</td>
+  </tr>
+  <tr>
+    <td><span class="tag tag-db">RCSmesseging</span></td>
+    <td>"New Vendor Added", "New Work order sent to {vendor}"</td>
+  </tr>
+  <tr>
+    <td><span class="tag tag-db">JobActionNeeded</span></td>
+    <td>ActionID=91 on work order send</td>
+  </tr>
+</table>
+
+<h3>Temp staging table (pre-save only)</h3>
+<table>
+  <tr><th>Table</th><th>Purpose</th></tr>
+  <tr>
+    <td><span class="tag tag-db">TempFileStock</span></td>
+    <td>
+      JobKey = <strong>PersonnelKey</strong> (not real JobKey until save).
+      Columns: FileKey, JobKey, AddedOn, Title, FileContent, FileType, FileName,
+      DocumentTypeKey, DocumentTypeName, Comment
+    </td>
+  </tr>
+</table>
+
+<!-- ============================================================ -->
+<h2 id="files">9. File Upload Flow</h2>
+<div class="card">
+  <ol>
+    <li>User selects DocumentType + optional FileName label</li>
+    <li>Dropzone POSTs to <code>MgtJob/UploadFiles?id={PersonnelKey}</code></li>
+    <li>Each file → <code>TempFileStock</code> row keyed by PersonnelKey</li>
+    <li>DataTable loads via <code>GetTempAttachedFilesForQuickJob</code></li>
+    <li>On job save: TempFileStock rows moved to <code>JobFile</code> via <code>JobFileSetup.SaveAttachmentInJobFile</code></li>
+    <li>Images are resized (max ~600x800) before storage</li>
+    <li>Duplicate titles get numeric prefix via <code>ResolveDuplicateFileName</code></li>
+  </ol>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="vendor-paths">10. Vendor Assignment Paths — withoutVendor Values</h2>
+
+<table>
+  <tr><th>Value</th><th>User Action</th><th>Post-Save Behavior</th></tr>
+  <tr>
+    <td><code>"0"</code></td>
+    <td>No vendor / upline bypass submit</td>
+    <td>Job only → redirect EditJob</td>
+  </tr>
+  <tr>
+    <td><code>"1"</code></td>
+    <td>"Add vendor and send work order now" OR Save with vendor selected</td>
+    <td><code>CreateDefaultVendorWorkOrder</code> → vendor + work order + email → EditJob</td>
+  </tr>
+  <tr>
+    <td><code>"2"</code></td>
+    <td>"Search vendor now"</td>
+    <td>Redirect <code>MgtJobVendor/CreateVendor/{JobKey}</code></td>
+  </tr>
+  <tr>
+    <td><code>"3"</code></td>
+    <td>"Save job and add vendor later"</td>
+    <td>Job only → redirect EditJob</td>
+  </tr>
+  <tr>
+    <td><code>"4"</code></td>
+    <td>"Save job and broadcast work order"</td>
+    <td>Redirect <code>MgtJobBroadcast/Index/{JobKey}?id1={SendToallVendor}&amp;id2=2</code></td>
+  </tr>
+  <tr>
+    <td><code>"33"</code></td>
+    <td>"Dispatch" on primary vendor modal (all locations have primary)</td>
+    <td>Auto-dispatch to primary vendor</td>
+  </tr>
+</table>
+
+<h3>CreateDefaultVendorWorkOrder sequence</h3>
+<ol>
+  <li><code>JobVendorConfiguration.SaveVendorForQuickJob</code></li>
+  <li><code>JobWorkOrderConfigSetup.SaveWorkOrderAndReturnWorOrderObject</code></li>
+  <li><code>MailToVendor.SendWorkOrderToVendors</code> — email template ID 3</li>
+  <li>Update JobWorkOrder.SentDate, EmailSent=true</li>
+  <li>Set JobVendor.JobStatusKey = GetJobStatus(2) — "sent to vendor" status</li>
+  <li>If IsDefault: sync Job.JobStatusKey to vendor status</li>
+  <li>Save action needed (ActionID 91)</li>
+</ol>
+
+<!-- ============================================================ -->
+<h2 id="post-save">11. Post-Save Branching Logic</h2>
+
+<div class="flow-box">
+POST CreateQuickJob
+│
+├─ ModelState invalid → re-render form with ViewBag dropdowns
+│
+└─ SaveMainData success (flag=1)
+   │
+   ├─ Move TempFileStock → JobFile
+   │
+   ├─ Duplicate to MultipleLocationKey[] (if any)
+   │   └─ per location: new Job + copy files + notes + upline emails
+   │
+   └─ Check LocationTradeServiceRequestUpline
+      (LocationKey + TradeKey OR AllTrade GUID)
+      │
+      ├─ UPLINE EXISTS + not Emergency + UplineBearer=0
+      │   ├─ Expirydate IS NULL → SendApprovalEmailToCustomerLandLord → EditJob (STOP)
+      │   ├─ Expirydate &lt; today → acknowledgment email + vendor path
+      │   └─ Expirydate valid → SendApprovalEmailToCustomerLandLord → EditJob (STOP)
+      │
+      └─ NO UPLINE (or emergency override)
+          ├─ SendJobCreateAcknowledgmentToCustomer
+          └─ Branch on PrimaryVendor + withoutVendor (see section 10)
+             ├─ PrimaryVendor=1 + multiple primary vendors → MgtAssignPrimaryVendor/Index
+             ├─ withoutVendor=1 → vendor + work order
+             ├─ withoutVendor=2 → MgtJobVendor/CreateVendor
+             ├─ withoutVendor=4 → MgtJobBroadcast/Index
+             └─ else → EditJob
+</div>
+
+<h3>Upline check details</h3>
+<ul>
+  <li>Table: <code>LocationTradeServiceRequestUpline</code></li>
+  <li>Match: <code>LocationKey</code> AND (<code>TradeKey</code> OR AllTrade <span class="tag-guid">287EEC8C-84CB-42AF-B8A1-00A676E64D0B</span>)</li>
+  <li><code>UplineBearer</code> = <code>Customer.EmergencyUplineOverride</code> (true → 1, bypasses upline for emergencies)</li>
+  <li>Emergency job type bypasses upline: <span class="tag-guid">fc078fd5-5ddc-4088-8a9f-d982436e20fd</span></li>
+</ul>
+
+<h3>Primary vendor check (CheckForPrimaryVendorQuickJob)</h3>
+<p>Lookup order: <code>PrimaryVendorTradeState</code> → <code>PrimaryVendorTradeCity</code> → <code>PrimaryVendorTradeZipcode</code></p>
+<p>Returns flag=1 if a different primary vendor exists for trade+location.</p>
+
+<!-- ============================================================ -->
+<h2 id="constants">12. Hardcoded GUIDs &amp; Constants</h2>
+
+<table>
+  <tr><th>Name</th><th>GUID / Value</th><th>Usage</th></tr>
+  <tr><td>Default Team</td><td><span class="tag-guid">0653D717-A7EE-4C50-961A-6F3ECFCD1AAA</span></td><td>ToTeamKey default</td></tr>
+  <tr><td>All Trade</td><td><span class="tag-guid">287EEC8C-84CB-42AF-B8A1-00A676E64D0B</span></td><td>Vendor trade filter, upline check</td></tr>
+  <tr><td>Bid Request Job Type</td><td><span class="tag-guid">b2652bbb-fa8a-4382-9e2b-77ba60fbeae5</span></td><td>VendorDNE forced to 0</td></tr>
+  <tr><td>Special Project Job Type</td><td><span class="tag-guid">bebc6067-145c-4dc7-9882-b2efa84053c8</span></td><td>VendorDNE forced to 0</td></tr>
+  <tr><td>Emergency Job Type</td><td><span class="tag-guid">fc078fd5-5ddc-4088-8a9f-d982436e20fd</span></td><td>ETA in hours; upline bypass if UplineBearer</td></tr>
+  <tr><td>Service Request Job Type</td><td><span class="tag-guid">98611896-68b9-42ae-b429-644069ae8587</span></td><td>Broadcast eligible</td></tr>
+  <tr><td>Accounting Status</td><td><span class="tag-guid">7907c0f2-e99e-43e6-bef1-1c01bf44e66a</span></td><td>Initial accounting status</td></tr>
+  <tr><td>Attachment Doc Type</td><td><span class="tag-guid">7538941a-016f-40fd-beac-016a23eba4e4</span></td><td>Job file attachment category</td></tr>
+  <tr><td>Initial Job Status</td><td><code>GetJobStatus(1)</code></td><td>TriggerBit=1 in JobStatus table</td></tr>
+  <tr><td>Vendor Sent Status</td><td><code>GetJobStatus(2)</code></td><td>After work order emailed</td></tr>
+  <tr><td>Vendor Search Radius</td><td>50 miles</td><td>GetAllVendorIn50RadiusOfGivenTradeV1</td></tr>
+  <tr><td>Max Duplicate Locations</td><td>15</td><td>Client-side limit on MultipleLocationKey</td></tr>
+  <tr><td>PO Generation</td><td><code>SELECT NEXT VALUE FOR dbo.POSequence</code></td><td>SQL Server sequence</td></tr>
+  <tr><td>Auto JobName Format</td><td><code>{LocationName}-{MMddyyyy}[-{n}]</code></td><td>When customer has no PO</td></tr>
+  <tr><td>ETA Default (non-emergency)</td><td><code>ReminderEmailTimeDef</code> ID=1 → TimeLimit</td><td>Default days for vendor ETA</td></tr>
+  <tr><td>ETA Default (emergency)</td><td><code>ReminderEmailTimeDef</code> ID=8 → TimeLimit</td><td>Default hours for vendor ETA</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2 id="v2-checklist">13. V2 Implementation Checklist</h2>
+
+<div class="card">
+  <h3>API Endpoints to Build (RFIJobOps)</h3>
+  <ol>
+    <li><strong>GET /quick-job/form-data</strong> — All dropdown options + defaults (status, team, PO preview)</li>
+    <li><strong>GET /quick-job/vendors</strong> — TradeKey + LocationKey → vendor list within 50mi</li>
+    <li><strong>GET /quick-job/primary-vendor-check</strong> — TradeKey + LocationKey + VendorKey</li>
+    <li><strong>GET /quick-job/upline-check</strong> — LocationKey + TradeKey</li>
+    <li><strong>GET /quick-job/broadcast-eligibility</strong> — CustomerKey → PriviledgedForVendorBlast</li>
+    <li><strong>GET /quick-job/eta-default</strong> — JobTypeKey → default ETA limit</li>
+    <li><strong>POST /quick-job/temp-files</strong> — Stage uploads (keyed by user PersonnelKey)</li>
+    <li><strong>GET /quick-job/temp-files</strong> — List staged files</li>
+    <li><strong>DELETE /quick-job/temp-files/{fileKey}</strong></li>
+    <li><strong>POST /quick-job</strong> — Main create endpoint (JobClass + withoutVendor + all extras)</li>
+    <li><strong>GET /customers/{id}/locations</strong> — Cascading location dropdown</li>
+    <li><strong>GET /customers/{id}/contacts</strong> — Customer contacts</li>
+    <li><strong>GET /customers/{id}/requestors</strong> — Customer + location requestors</li>
+    <li><strong>GET /customers/{id}/account-manager</strong> — Auto-select AM</li>
+    <li><strong>GET /vendors/{id}/contacts</strong> — Vendor contact list</li>
+    <li><strong>POST /quick-job/validate-job-name</strong> — Duplicate check</li>
+  </ol>
+
+  <h3>POST /quick-job Request Body (proposed V2 DTO)</h3>
+  <pre>{
+  "customerKey": "guid",
+  "locationKey": "guid",
+  "customerContactKey": "guid",
+  "customerRequestorKey": "guid | null",
+  "jobName": "string",
+  "jobTypeKey": "guid",
+  "tradeKey": "guid",
+  "accountManagerKey": "guid",
+  "toTeamKey": "guid",
+  "description": "string (HTML)",
+  "customerDne": "decimal string",
+  "vendorDne": "decimal string",
+  "po": "string | null",
+  "vendorKey": "guid | null",
+  "vendorContactKey": "guid | null",
+  "talkedToVendor": 1 | 2 | null,
+  "vendorEtaLimit": "int | null",
+  "vendorAction": "none | assign_and_send | search_later | save_only | broadcast | dispatch_primary",
+  "broadcastOptions": {
+    "sendToAllVendor": 0 | 1 | 2,
+    "maxNoOfVendorAccept": "int",
+    "responseTimeLimit": "int",
+    "expandedMilage": "int",
+    "additionalTradeKeys": ["guid"]
+  },
+  "duplicateLocationKeys": ["guid"],
+  "primaryVendorOption": 0 | 1 | 2,
+  "dismissedPrimaryVendorWarning": false
+}</pre>
+
+  <h3>POST /quick-job Response (proposed)</h3>
+  <pre>{
+  "success": true,
+  "jobKey": "guid",
+  "po": "string",
+  "message": "string",
+  "redirect": {
+    "type": "edit_job | assign_vendor | broadcast | email_work_order",
+    "url": "/jobs/{jobKey}",
+    "workOrderKey": "guid | null"
+  },
+  "duplicatedJobs": [
+    { "jobKey": "guid", "po": "string", "locationKey": "guid" }
+  ]
+}</pre>
+
+  <h3>Database writes V2 must replicate (in order)</h3>
+  <ol>
+    <li>INSERT Job (SaveMainData mapping)</li>
+    <li>INSERT activity note ("New Job")</li>
+    <li>INSERT JobAdditionalTrade (if additional trades)</li>
+    <li>Call vendor sourcing API</li>
+    <li>INSERT JobFile from staged temp files</li>
+    <li>INSERT duplicate Jobs + files + notes (if applicable)</li>
+    <li>Send upline/acknowledgment emails (if applicable)</li>
+    <li>INSERT JobVendor + JobVendorDetail + JobWorkOrder (if vendor path)</li>
+    <li>Send work order email (if assign_and_send)</li>
+    <li>Update job/vendor statuses after work order send</li>
+  </ol>
+
+  <h3>Business rules to preserve exactly</h3>
+  <ul>
+    <li>VendorDNE = 0 for Bid Request and Special Project job types</li>
+    <li>PO auto-generated from SQL sequence when empty</li>
+    <li>JobName auto-generated from location name + date when empty</li>
+    <li>JobName uniqueness check before submit</li>
+    <li>Description minimum content length (~26 chars of HTML)</li>
+    <li>Primary vendor warning when selected vendor ≠ configured primary</li>
+    <li>Upline approval blocks dispatch (redirect to EditJob after approval email)</li>
+    <li>Emergency + UplineBearer bypasses upline modal</li>
+    <li>Broadcast only for PriviledgedForVendorBlast customers</li>
+    <li>Max 15 duplicate locations per save</li>
+    <li>Temp files keyed by user PersonnelKey until job created</li>
+    <li>CheckInExpiryTimeInMinutes from CustomerDetailFactor or default 15</li>
+    <li>Vendor rates set via VendorHelper.SetVendorRates with AllTrade fallback</li>
+  </ul>
+</div>
+
+<hr />
+<p style="color: var(--muted); font-size: .85em;">
+  Generated from ProjectRCS codebase analysis — MgtJobController.cs (lines 2602–3014),
+  ManageJobSetup.cs (SaveMainData, SaveJobDataForMultipleLocation),
+  JobVendorConfiguration.cs (SaveVendorForQuickJob), JobTabHelper.cs (CreateDefaultVendorWorkOrder),
+  CreateQuickJob.cshtml, JobClass.cs, Job.cs entity.
+</p>
+
+</body>
+</html>

@@ -1,0 +1,412 @@
+/* ============================================================
+   Modal chrome for the "👤 Vendor Profile" popup.
+   Content layout mirrors complete-screen-v2.html's showVendorProfile() literally --
+   the .kv dense key/value row is the same pattern the mockup uses (line 74-78 of the source),
+   not a re-invented one -- so this popup reads like the rest of the design system instead of
+   a bespoke, box-per-field layout that wastes vertical space.
+   ============================================================ */
+
+@keyframes vpFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes vpScaleIn {
+  from { transform: scale(0.97); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(3px);
+  padding: 40px 20px;
+  overflow-y: auto;
+  animation: vpFadeIn 0.2s ease;
+}
+
+.modal {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  animation: vpScaleIn 0.25s ease;
+  font-family: 'Segoe UI', system-ui, -apple-system, Arial, sans-serif;
+}
+
+.modal--vendor-profile {
+  width: 100%;
+  max-width: 860px;
+}
+
+.modal__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 13px 16px;
+  border-bottom: 1px solid var(--border-color, #e2e8f0);
+}
+
+.modal__title {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text-primary, #0f172a);
+  margin: 0;
+}
+
+.modal__close {
+  margin-left: auto;
+  background: none;
+  border: none;
+  font-size: 18px;
+  color: var(--text-secondary, #94a3b8);
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  line-height: 1;
+
+  &:hover {
+    background: var(--surface-alt, #f1f5f9);
+    color: var(--text-primary, #0f172a);
+  }
+}
+
+.modal__body {
+  padding: 16px;
+  max-height: 75vh;
+  overflow-y: auto;
+  font-family: 'Segoe UI', system-ui, -apple-system, Arial, sans-serif;
+  font-size: 13px;
+}
+
+.modal__footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border-color, #e2e8f0);
+}
+
+.vp-error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  border-radius: 8px;
+  padding: 8px 11px;
+  font-size: 12px;
+}
+
+.vp-loading {
+  color: var(--text-secondary, #64748b);
+  font-size: 12.5px;
+  padding: 8px 0;
+}
+
+/* ---- Header card ---- */
+.vp-header {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 12px;
+  padding: 14px 16px;
+  background: linear-gradient(135deg, #eff6ff, #fff);
+  margin-bottom: 10px;
+}
+
+.vp-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: #2563eb;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.vp-header-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.vp-name {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text-primary, #0f172a);
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.vp-sub {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  font-size: 11.5px;
+  color: var(--text-secondary, #64748b);
+  margin-top: 4px;
+}
+
+.vp-dnu-banner {
+  margin-top: 6px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 11.5px;
+}
+
+.vp-header-contact {
+  flex-shrink: 0;
+  text-align: right;
+  font-size: 11.5px;
+  line-height: 1.5;
+
+  a {
+    color: #2563eb;
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+}
+
+/* ---- Company / Rates panels ---- */
+.vp-panels {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.vp-panel {
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 10px;
+  padding: 11px 13px;
+}
+
+.vp-panel--full {
+  margin-top: 10px;
+}
+
+.vp-panel-title {
+  font-size: 10px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--text-secondary, #64748b);
+  font-weight: 700;
+  display: block;
+  margin-bottom: 2px;
+}
+
+.vp-panel-subtitle {
+  font-size: 10px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--text-secondary, #94a3b8);
+  font-weight: 700;
+  margin: 8px 0 2px;
+}
+
+/* Dense key/value row -- same shape as the mockup's .kv (line ~74). */
+.kv {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 3.5px 0;
+  font-size: 12px;
+  border-bottom: 1px dotted #eef2f7;
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.kv .k {
+  color: var(--text-secondary, #94a3b8);
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.kv .v {
+  font-weight: 600;
+  text-align: right;
+}
+
+.vp-text-gray { color: var(--text-secondary, #64748b); }
+.vp-text-green { color: #16a34a; }
+.vp-text-amber { color: #d97706; }
+.vp-text-red { color: #dc2626; }
+
+.vp-note-inline {
+  margin-top: 8px;
+  font-size: 11px;
+  color: #92400e;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+  padding: 6px 10px;
+}
+
+.vp-pending {
+  margin-top: 8px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 11px;
+}
+
+.vp-pending-row {
+  padding: 3px 0;
+}
+
+.vp-details {
+  margin-top: 10px;
+  font-size: 11.5px;
+
+  summary {
+    cursor: pointer;
+    font-weight: 700;
+    color: var(--text-secondary, #64748b);
+  }
+}
+
+.vp-details--panel {
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 10px;
+  padding: 8px 13px;
+}
+
+.vp-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11.5px;
+  margin-top: 6px;
+
+  th,
+  td {
+    text-align: left;
+    padding: 5px 8px;
+    border-bottom: 1px solid var(--border-color, #e2e8f0);
+    vertical-align: top;
+  }
+
+  th {
+    font-size: 9.5px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: var(--text-secondary, #64748b);
+  }
+}
+
+.vp-row-inactive {
+  opacity: 0.5;
+}
+
+.vp-note {
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 11.5px;
+  margin-top: 6px;
+}
+
+.vp-note-head {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 11px;
+}
+
+.vp-note-title {
+  font-weight: 700;
+  margin-top: 4px;
+}
+
+.vp-note-body {
+  margin-top: 2px;
+}
+
+.muted {
+  color: var(--text-secondary, #94a3b8);
+}
+
+.vp-badge {
+  display: inline-block;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  padding: 2px 7px;
+  border-radius: 10px;
+  background: #f1f5f9;
+  color: var(--text-secondary, #64748b);
+}
+
+.vp-gray { background: #f1f5f9; color: #64748b; }
+.vp-blue { background: #dbeafe; color: #2563eb; }
+.vp-green { background: #dcfce7; color: #16a34a; }
+.vp-amber { background: #fef3c7; color: #b45309; }
+.vp-red { background: #fee2e2; color: #dc2626; }
+
+.btn {
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 7px 13px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color, #e2e8f0);
+  background: #fff;
+  color: var(--text-primary, #0f172a);
+  cursor: pointer;
+
+  &:hover {
+    background: var(--surface-alt, #f1f5f9);
+  }
+}
+
+@media (max-width: 768px) {
+  .modal--vendor-profile {
+    width: 100vw;
+    max-width: 100vw;
+    height: 100vh;
+    max-height: 100vh;
+    border-radius: 0;
+  }
+
+  .modal__body {
+    max-height: none;
+    flex: 1;
+  }
+
+  .vp-panels {
+    grid-template-columns: 1fr;
+  }
+
+  .vp-header {
+    flex-wrap: wrap;
+  }
+
+  .vp-header-contact {
+    text-align: left;
+    width: 100%;
+  }
+}

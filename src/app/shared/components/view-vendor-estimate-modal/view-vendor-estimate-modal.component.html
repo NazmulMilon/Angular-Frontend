@@ -1,0 +1,62 @@
+@if (isOpen()) {
+  <div class="modal-overlay" (click)="onOverlayClick($event)">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="veModalTitle">
+      <div class="modal-head">
+        <h3 id="veModalTitle">
+          📄 {{ data() ? (docLabel(data()!) + ' (approved to proceed) — ' + data()!.vendorName) : 'View Estimate (approved to proceed)' }}
+        </h3>
+        <button type="button" class="x" (click)="onClose()" aria-label="Close">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        @if (errorMessage()) {
+          <div class="ve-error">{{ errorMessage() }}</div>
+        } @else if (loading()) {
+          <div class="ve-loading">Loading estimate…</div>
+        } @else if (data(); as d) {
+          <div class="ve-approved-banner">
+            <b class="ve-approved-label">APPROVED TO PROCEED</b>
+            <span class="badge b-gray" style="margin-left:6px">work authorization only</span>
+            <div style="font-size:11.5px;margin-top:2px">
+              {{ docLabel(d) }} approved — this is the approval the vendor received to <b>proceed with the job</b>
+              at these amounts. It is recorded in job estimates and sets the Revised Vendor DNE to {{ fmt(d.total) }}.
+            </div>
+            <div class="ve-approved-warning">
+              <b>⚠ This is NOT vendor bill approval.</b> The vendor's bill still has to be verified and approved
+              on this screen (step ⑧) before it is payable.
+            </div>
+          </div>
+
+          <table class="grid">
+            <thead>
+              <tr>
+                <th>Item / Description</th>
+                <th style="text-align:right">Rate</th>
+                <th style="text-align:right">Qty</th>
+                <th style="text-align:right">Row Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (l of d.lines; track $index) {
+                <tr>
+                  <td>{{ l.description }}</td>
+                  <td class="num">{{ fmt(l.rate) }}</td>
+                  <td class="num">{{ l.qty.toFixed(2) }}</td>
+                  <td class="num">{{ fmt(l.rowTotal) }}</td>
+                </tr>
+              }
+              <tr class="total">
+                <td colspan="3" style="text-align:right">Grand Total</td>
+                <td class="num">{{ fmt(d.total) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        }
+      </div>
+
+      <div class="modal-foot">
+        <button type="button" class="btn" (click)="onClose()">Close</button>
+      </div>
+    </div>
+  </div>
+}

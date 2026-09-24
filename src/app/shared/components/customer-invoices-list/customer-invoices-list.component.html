@@ -1,0 +1,133 @@
+<div class="inv-content">
+  @if (errorMessage()) {
+    <div class="inv-alert inv-alert--error" role="alert">
+      <span>{{ errorMessage() }}</span>
+      <button type="button" class="inv-alert__close" (click)="errorMessage.set('')" aria-label="Dismiss">&times;</button>
+    </div>
+  }
+
+  @if (successMessage()) {
+    <div class="inv-alert inv-alert--info" role="status">
+      <span>{{ successMessage() }}</span>
+      <button type="button" class="inv-alert__close" (click)="successMessage.set('')" aria-label="Dismiss">&times;</button>
+    </div>
+  }
+
+  @if (isLoading()) {
+    <div class="inv-empty">Loading customer invoices…</div>
+  } @else {
+    <div class="inv-table-wrap">
+      <div class="inv-toolbar">
+        <div class="inv-toolbar__left">
+          <span>Show</span>
+          <select class="inv-select" [ngModel]="pageSize()" (ngModelChange)="onPageSizeChange($event)">
+            @for (opt of pageSizeOptions; track opt) {
+              <option [value]="opt">{{ opt }}</option>
+            }
+          </select>
+          <span>entries</span>
+        </div>
+        <label class="inv-toolbar__search">
+          <span>Search:</span>
+          <input type="search" class="inv-search-input" [ngModel]="searchText()" (ngModelChange)="onSearchInput($event)" />
+        </label>
+      </div>
+
+      <div class="inv-table-scroll">
+        <table class="inv-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Invoice No</th>
+              <th>Check No</th>
+              <th>Total</th>
+              <th>Status</th>
+              <th>Prep</th>
+              <th>Email to Customer</th>
+              <th>Control</th>
+            </tr>
+          </thead>
+          <tbody>
+            @if (filteredInvoices().length === 0) {
+              <tr>
+                <td colspan="8" class="inv-empty">
+                  @if (invoices().length === 0) {
+                    No customer invoices found for this job.
+                  } @else {
+                    No customer invoices match your search.
+                  }
+                </td>
+              </tr>
+            } @else {
+              @for (row of paginatedInvoices(); track row.customerInvoiceKey) {
+                <tr [class.inv-row--highlight]="row.customerInvoiceKey === highlightInvoiceKey()">
+                  <td>{{ formatDate(row.createdDate) }}</td>
+                  <td>{{ row.invoiceNo || '—' }}</td>
+                  <td>{{ row.checkNo || '—' }}</td>
+                  <td>{{ formatCurrency(row.invoiceTotal) }}</td>
+                  <td>
+                    <span class="inv-status-pill" [class]="'inv-status-pill--' + statusVariant(row)">
+                      <span class="inv-status-pill__dot" aria-hidden="true"></span>
+                      {{ row.invoicePaid ? 'Paid' : row.estimateStatus }}
+                    </span>
+                  </td>
+                  <td>
+                    @if (row.prepReviewDecision === true) {
+                      <span class="inv-text-muted">Approved</span>
+                    } @else if (row.prepReviewDecision === false) {
+                      <span class="inv-text-muted" [title]="row.prepReviewDeclineNote || ''">Change Requested</span>
+                    } @else if (row.isPrepped) {
+                      <div class="inv-control-btns__row">
+                        <button type="button" class="inv-ctrl-btn inv-ctrl-btn--edit" (click)="approvePrepReview(row)">Approve to Send</button>
+                        <button type="button" class="inv-outline-btn" (click)="declinePrepReview(row)">Request Change</button>
+                      </div>
+                    } @else {
+                      <span class="inv-text-muted">—</span>
+                    }
+                  </td>
+                  <td>
+                    @if (row.sentToCustomer || row.manuallySentToCustomer) {
+                      <span class="inv-text-muted">Sent</span>
+                      <button type="button" class="inv-outline-btn" (click)="openEmail(row)">Send Again</button>
+                    } @else {
+                      <button type="button" class="inv-primary-btn" (click)="openEmail(row)">Email to Customer</button>
+                    }
+                  </td>
+                  <td class="inv-td--control">
+                    <div class="inv-control-btns">
+                      <div class="inv-control-btns__row">
+                        <button type="button" class="inv-ctrl-btn inv-ctrl-btn--edit" (click)="openEdit(row)">Edit</button>
+                        <button type="button" class="inv-ctrl-btn inv-ctrl-btn--accounting" (click)="openReceivables(row)">Accounting</button>
+                      </div>
+                      <div class="inv-control-btns__row">
+                        <button type="button" class="inv-outline-btn" (click)="openVoid(row)">Remove</button>
+                        <button type="button" class="inv-outline-btn" (click)="openResubmit(row)">Resubmit</button>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              }
+            }
+          </tbody>
+        </table>
+      </div>
+
+      @if (filteredInvoices().length > 0) {
+        <div class="inv-footer">
+          <span>Showing {{ showingFrom() }} to {{ showingTo() }} of {{ filteredInvoices().length }} entries</span>
+          <div class="inv-pagination">
+            <button type="button" class="inv-page-btn" [disabled]="currentPage() <= 1" (click)="goToPage(currentPage() - 1)">Previous</button>
+            <button type="button" class="inv-page-btn inv-page-btn--active" disabled>{{ currentPage() }}</button>
+            <button type="button" class="inv-page-btn" [disabled]="currentPage() >= totalPages()" (click)="goToPage(currentPage() + 1)">Next</button>
+          </div>
+        </div>
+      }
+    </div>
+  }
+</div>
+
+<app-invoice-receivables-modal (completed)="onActionCompleted($event)" />
+<app-send-invoice-email-modal (completed)="onActionCompleted($event)" />
+<app-create-customer-invoice-from-vendor-modal (customerInvoiceCreated)="onActionCompleted('Customer invoice updated successfully.')" />
+<app-void-invoice-modal (completed)="onActionCompleted($event)" />
+<app-resubmit-invoice-modal (completed)="onActionCompleted($event)" />

@@ -1,0 +1,270 @@
+<!-- ============================================================
+     Notes & Activity Tab — Job Communication Management
+     Modern, responsive Angular implementation.
+     ============================================================ -->
+
+<!-- App header (global chrome is hidden on this route; re-render it here when standalone) -->
+@if (!embedJobKey) {
+  <header class="app-header">
+    <div class="app-header__left">
+      <a class="app-header__brand" [href]="legacyAdminHomeUrl">
+        <img class="app-header__logo" src="/RFILogo3.png" alt="retailfixit" />
+      </a>
+      @if (legacyAssignVendorV1Url(); as v1Url) {
+        <a
+          class="app-header__legacy-link"
+          [href]="v1Url"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          V1 Main Job Page
+        </a>
+      }
+    </div>
+    <nav class="app-header__nav">
+      <button type="button" class="nav-link" (click)="openAddJob()">Add Job</button>
+      <span class="app-header__version">v2.0.0.2</span>
+    </nav>
+  </header>
+
+  @defer (when addJobDeferred()) {
+    <app-add-job #addJobRef />
+  }
+}
+
+<!-- Loading overlay -->
+@if (isLoading()) {
+  <div class="na-loading-overlay">
+    <div class="na-spinner"></div>
+    <span>Loading notes...</span>
+  </div>
+}
+
+<!-- Save / email success — modal so message is always visible -->
+@if (successDialogOpen()) {
+  <div
+    class="na-success-modal-overlay"
+    role="presentation"
+    (click)="closeSuccessDialog()"
+  >
+    <div
+      class="na-success-modal"
+      role="alertdialog"
+      aria-modal="true"
+      aria-labelledby="na-success-modal-title"
+      (click)="$event.stopPropagation()"
+    >
+      <div class="na-success-modal__icon" aria-hidden="true">
+        <svg viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+        </svg>
+      </div>
+      <h2 id="na-success-modal-title" class="na-success-modal__title">Success</h2>
+      <p class="na-success-modal__message">{{ successDialogMessage() }}</p>
+      <button type="button" class="na-success-modal__btn" (click)="closeSuccessDialog()">OK</button>
+    </div>
+  </div>
+}
+
+<!-- Global success / error messages -->
+@if (successMessage()) {
+  <div class="na-alert na-alert--success" role="alert">
+    <svg class="na-alert__icon" viewBox="0 0 20 20" fill="currentColor">
+      <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+    </svg>
+    <span>{{ successMessage() }}</span>
+    <button class="na-alert__close" (click)="dismissSuccess()">&times;</button>
+  </div>
+}
+@if (errorMessage()) {
+  <div class="na-alert na-alert--danger" role="alert">
+    <svg class="na-alert__icon" viewBox="0 0 20 20" fill="currentColor">
+      <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+    </svg>
+    <span>{{ errorMessage() }}</span>
+    <button class="na-alert__close" (click)="dismissError()">&times;</button>
+  </div>
+}
+
+<div class="na-container" [class.na--accounting-variant]="designVariant === 'accounting'">
+  @if (!embedJobKey) {
+    <!-- ================================================================
+         APP-LEVEL TABS — job-scoped destinations
+         ================================================================ -->
+    <div class="app-tabs">
+      <span class="app-tab" [routerLink]="['/job', jobKey(), 'assign-vendor']">Assign Vendor</span>
+      <span class="app-tab" (click)="onEstimatesTabClick()">Estimates</span>
+      <span class="app-tab" [routerLink]="['/job', jobKey(), 'vendor-bills']">Customer & Vendor Invoicing</span>
+      <span class="app-tab app-tab--active">Notes &amp; Activity</span>
+    </div>
+  }
+
+  <app-estimate-chat-interstitial-modal />
+
+    @if (jobKey() && !hideJobDetails) {
+    <app-job-details-accordion
+      #jobDetailsAccordion
+      [jobKey]="jobKey()"
+      [defaultOpen]="false"
+      [showNav]="false"
+    />
+  }
+
+  <!-- ================================================================
+       Notes & Activity Tabs
+       ================================================================ -->
+  <div class="na-tabs-container">
+    <!-- Tab Navigation -->
+    <nav class="na-tabs" role="tablist">
+      @for (tab of tabs; track tab.id) {
+        <button
+          class="na-tab"
+          [class.na-tab--active]="activeTab() === tab.id"
+          [class.na-tab--unread]="getTabUnreadCount(tab.id) > 0"
+          (click)="selectTab(tab.id)"
+          role="tab"
+          [attr.aria-selected]="activeTab() === tab.id"
+          [attr.aria-controls]="'panel-' + tab.id"
+        >
+          <span class="na-tab__label">{{ tab.label }}</span>
+          @if (getTabUnreadCount(tab.id) > 0) {
+            <span class="na-tab__badge">{{ getTabUnreadCount(tab.id) }}</span>
+          }
+        </button>
+      }
+    </nav>
+
+    <!-- Vendor Selector (only visible on vendor tab) -->
+    @if (isVendorTab() && jobVendors().length > 0) {
+      <div class="na-vendor-selector">
+        <label for="vendorSelect">Select Vendor:</label>
+        <select
+          id="vendorSelect"
+          [value]="selectedVendorKey()"
+          (change)="onVendorChange($any($event.target).value)"
+        >
+          @for (vendor of jobVendors(); track vendor.vendorKey) {
+            <option [value]="vendor.vendorKey">
+              {{ vendor.vendorName }}
+              @if (vendor.isDefault) { (Default) }
+            </option>
+          }
+        </select>
+      </div>
+    }
+
+    <!-- Tab Content - Note Editor Only -->
+    <div class="na-tab-content na-tab-content--compose" role="tabpanel" [attr.id]="'panel-' + activeTab()">
+      <!-- Note Editor Section -->
+      <app-accordion
+        class="na-compose-accordion"
+        heading="Compose Note"
+        [badge]="null"
+        [defaultOpen]="designVariant !== 'accounting'"
+      >
+        <app-note-editor
+          [jobKey]="jobKey()"
+          [noteType]="currentNoteType()"
+          [vendorKey]="isVendorTab() ? selectedVendorKey() : null"
+          [templates]="templates()"
+          [adminKey]="adminKey()"
+          [quotedContent]="editorContent()"
+          [activeTab]="activeTab()"
+          [preselectEmails]="prefillRecipientEmails()"
+          (noteSaved)="onNoteSaved($event)"
+          (noteEmailed)="onNoteEmailed($event)"
+        />
+      </app-accordion>
+    </div>
+  </div>
+
+  <!-- ================================================================
+       SECTION 2: Notes To Accounting Grid (Hidden on Internal and Vendor tabs, collapsed by default)
+       ================================================================ -->
+  @if (activeTab() !== 'internal' && activeTab() !== 'vendor' && activeTab() !== 'customer') {
+    <app-accordion
+      heading="Notes To Accounting"
+      [badge]="accountingNotes().length + ' notes'"
+      [defaultOpen]="false"
+    >
+      @if (accountingNotes().length > 0) {
+        <app-notes-grid
+          [notes]="accountingNotes()"
+          [showPinAction]="false"
+          [showReplyForAllNotes]="true"
+          [isPinnedSection]="false"
+          [adminName]="adminName()"
+          (pinNote)="onNotePinned($event)"
+          (viewNote)="onNoteViewed($event)"
+          (deleteNote)="onNoteDeleted($event)"
+          (replyNote)="onNoteReply($event)"
+          (forwardNote)="onNoteForward($event)"
+        />
+      } @else {
+        <div class="na-empty-state na-empty-state--compact">
+          <p>No accounting notes</p>
+        </div>
+      }
+    </app-accordion>
+  }
+
+  <!-- ================================================================
+       SECTION 3: Pinned Notes Grid (hidden on Vendor, Customer, Internal tabs)
+       ================================================================ -->
+  @if (activeTab() !== 'vendor' && activeTab() !== 'customer' && activeTab() !== 'internal') {
+    <app-accordion
+      heading="Pinned Notes"
+      [badge]="filteredPinnedNotes().length + ' notes'"
+      [defaultOpen]="false"
+    >
+      @if (filteredPinnedNotes().length > 0) {
+        <app-notes-grid
+          [notes]="filteredPinnedNotes()"
+          [showPinAction]="true"
+          [isPinnedSection]="true"
+          [adminName]="adminName()"
+          (pinNote)="onNotePinned($event)"
+          (viewNote)="onNoteViewed($event)"
+          (deleteNote)="onNoteDeleted($event)"
+          (replyNote)="onNoteReply($event)"
+          (forwardNote)="onNoteForward($event)"
+        />
+      } @else {
+        <div class="na-empty-state na-empty-state--compact">
+          <p>No pinned notes</p>
+        </div>
+      }
+    </app-accordion>
+  }
+
+  <!-- ================================================================
+       SECTION 4: Job Notes and Activity Grid (open by default)
+       ================================================================ -->
+  <app-accordion
+    heading="Job Notes and Activity"
+    [badge]="currentNotes().length + ' notes'"
+    [defaultOpen]="true"
+  >
+    @if (currentNotes().length > 0) {
+      <app-notes-grid
+        [notes]="currentNotes()"
+        [showPinAction]="activeTab() !== 'vendor' && activeTab() !== 'customer' && activeTab() !== 'internal'"
+        [isPinnedSection]="false"
+        [adminName]="adminName()"
+        (pinNote)="onNotePinned($event)"
+        (viewNote)="onNoteViewed($event)"
+        (deleteNote)="onNoteDeleted($event)"
+        (replyNote)="onNoteReply($event)"
+        (forwardNote)="onNoteForward($event)"
+      />
+    } @else {
+      <div class="na-empty-state">
+        <svg class="na-empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+        </svg>
+        <p>No notes yet</p>
+        <span>Create the first note using the form above</span>
+      </div>
+    }
+  </app-accordion>
+</div>

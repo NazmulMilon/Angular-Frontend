@@ -1,0 +1,71 @@
+<div class="sbts-page">
+  <header class="sbts-header">
+    <h1>↩ Sent Back to Service</h1>
+    <p class="muted">Jobs Accounting has sent back to you for review.</p>
+  </header>
+
+  <div class="sbts-layout">
+    <!-- Detail view (left) -->
+    <div class="sbts-detail">
+      @if (errorMessage()) {
+        <div class="sbts-error">{{ errorMessage() }}</div>
+      }
+
+      @if (!loading() && jobs().length === 0 && !errorMessage()) {
+        <div class="sbts-empty">No jobs are currently sent back to you. 🎉</div>
+      }
+
+      @if (selectedJob(); as job) {
+        <div class="sbts-reason-box">
+          <div class="sbts-reason-box__label">Reason from Accounting</div>
+          <div class="sbts-reason-box__text">{{ job.reason }}</div>
+          <div class="sbts-reason-box__meta">
+            {{ job.startedByName || 'Accounting' }} · {{ formatDateTime(job.startedOn) }}
+          </div>
+        </div>
+
+        <div class="sbts-actions">
+          <button type="button" class="btn" (click)="goToAssignVendor()">→ Go to Assign Vendor</button>
+        </div>
+
+        <app-accounting-job-details [jobKey]="job.jobKey" [defaultOpen]="true" />
+
+        <div class="sbts-resolve">
+          <b class="sbts-label">Note for Accounting</b>
+          <textarea
+            class="notebox"
+            placeholder="e.g. Renegotiated the vendor cost — updated estimate approved, ready for Accounting to proceed…"
+            [ngModel]="resolveNote()"
+            (ngModelChange)="resolveNote.set($event)"
+          ></textarea>
+          @if (resolveError()) {
+            <div class="sbts-error">{{ resolveError() }}</div>
+          }
+          <button type="button" class="btn ghost-amber" [disabled]="resolving()" (click)="sendBackToAccounting()">
+            {{ resolving() ? 'Sending…' : '↩ Send Back to Accounting' }}
+          </button>
+        </div>
+      }
+    </div>
+
+    <!-- Job list (right) -->
+    <div class="sbts-list">
+      @if (loading()) {
+        <div class="sbts-loading">Loading…</div>
+      }
+      @for (job of jobs(); track job.jobKey) {
+        <button
+          type="button"
+          class="sbts-job-card"
+          [class.sbts-job-card--active]="job.jobKey === selectedJobKey()"
+          (click)="selectJob(job.jobKey)"
+        >
+          <div class="sbts-job-card__po">PO {{ job.po }}</div>
+          <div class="sbts-job-card__name">{{ job.jobName }}</div>
+          <div class="sbts-job-card__customer">{{ job.customerName }}</div>
+          <div class="sbts-job-card__meta">{{ formatDateTime(job.startedOn) }}</div>
+        </button>
+      }
+    </div>
+  </div>
+</div>

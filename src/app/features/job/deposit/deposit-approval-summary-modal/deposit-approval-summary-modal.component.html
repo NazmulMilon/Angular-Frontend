@@ -1,0 +1,72 @@
+@if (isVisible()) {
+  <div class="das-overlay" (click)="close()">
+    <div class="das-modal" role="dialog" aria-modal="true" aria-labelledby="das-title" (click)="$event.stopPropagation()">
+      <div class="das-head">
+        <h2 id="das-title">Deposits on Job</h2>
+        <button type="button" class="das-close" (click)="close()" aria-label="Close">&times;</button>
+      </div>
+
+      <div class="das-body">
+        @if (isLoading()) {
+          <div class="das-loading">Loading…</div>
+        } @else if (errorMessage()) {
+          <div class="das-alert">{{ errorMessage() }}</div>
+        } @else if (entries().length === 0) {
+          <div class="das-empty">No deposits on this job.</div>
+        } @else {
+          @for (entry of entries(); track entry.customerEstimateKey) {
+            <div class="das-row" [class.das-row--unseen]="entry.isUnseenByRequestingAdmin">
+              <div class="das-row-head">
+                <span class="das-status" [class.das-status--approved]="entry.isApproved === true"
+                      [class.das-status--declined]="entry.isApproved === false">
+                  {{ approvalStatusLabel(entry) }}
+                </span>
+                @if (entry.approvedDeclinedOn) {
+                  <span class="das-date">{{ entry.approvedDeclinedOn | date: 'MMM d, y, h:mm a' }}</span>
+                }
+              </div>
+
+              @if (entry.customerDepositAmount > 0) {
+                <div class="das-line">
+                  <span class="das-line-label">Customer deposit</span>
+                  <span class="das-line-value">{{ entry.customerDepositAmount | currency }}</span>
+                </div>
+              }
+
+              @for (vendor of entry.vendors; track vendor.jobVendorKey) {
+                @if (vendor.existingDepositAmount > 0) {
+                  <div class="das-line">
+                    <span class="das-line-label">{{ vendor.vendorName }} deposit</span>
+                    <span class="das-line-value">{{ vendor.existingDepositAmount | currency }}</span>
+                  </div>
+                }
+              }
+
+              @if (entry.approvingDecliningRemark || entry.generalRemark) {
+                <div class="das-remark">
+                  {{ entry.approvingDecliningRemark || entry.generalRemark }}
+                </div>
+              }
+
+              @if (canResend(entry)) {
+                <div class="das-resend">
+                  <button
+                    type="button"
+                    class="das-resend-btn"
+                    [disabled]="isResendBusy(entry)"
+                    (click)="onResendApproval(entry)"
+                  >
+                    {{ isResendBusy(entry) ? 'Resending…' : 'Resend Approval Request' }}
+                  </button>
+                  @if (resendMessage(entry)) {
+                    <span class="das-resend-msg">{{ resendMessage(entry) }}</span>
+                  }
+                </div>
+              }
+            </div>
+          }
+        }
+      </div>
+    </div>
+  </div>
+}

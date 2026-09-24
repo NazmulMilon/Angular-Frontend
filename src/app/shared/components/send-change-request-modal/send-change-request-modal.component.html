@@ -1,0 +1,72 @@
+@if (isOpen()) {
+  <div class="modal-overlay" (click)="onOverlayClick($event)">
+    <div class="modal modal--send-change-request" role="dialog" aria-modal="true" aria-labelledby="scrModalTitle">
+      <div class="modal__header">
+        <h3 class="modal__title" id="scrModalTitle">
+          🔁 Send Change Request to Account Manager
+          @if (po()) {
+            <span class="modal__po">— PO {{ po() }}</span>
+          }
+        </h3>
+        <button type="button" class="modal__close" (click)="onClose()" aria-label="Close">&times;</button>
+      </div>
+
+      <div class="modal__body">
+        @if (errorMessage()) {
+          <div class="scr-error">{{ errorMessage() }}</div>
+        }
+
+        <div class="scr-info">
+          The job STAYS on this screen with status <b>"Change needed by Accounting"</b>. Sending this request
+          does two things at once:
+        </div>
+        <div class="scr-info-box">
+          <div>1. 📋 <b>A view of this job appears on the Account Manager's dashboard</b>, stamped
+            <span class="badge b-amber">CHANGE REQUEST FROM ACCOUNTING</span> with your comments attached.</div>
+          <div class="scr-info-box__row2">2. ✉ <b>The Account Manager is emailed</b> the same info — they can
+            handle it right from the email, or click the link in the email to jump straight to this job and
+            make the edits needed.</div>
+        </div>
+
+        @if (isLoadingInvoices()) {
+          <div class="scr-loading">Loading invoices…</div>
+        } @else if (invoices().length === 0) {
+          <div class="scr-error">This job has no eligible invoices to flag.</div>
+        } @else if (needsInvoicePicker) {
+          <b class="scr-label">Which invoice needs the change?</b>
+          <div class="scr-invoice-list">
+            @for (inv of invoices(); track inv.invoiceKey) {
+              <label class="scr-invoice-option">
+                <input
+                  type="radio"
+                  name="scrInvoice"
+                  [value]="inv.invoiceKey"
+                  [checked]="selectedInvoiceKey() === inv.invoiceKey"
+                  (change)="selectedInvoiceKey.set(inv.invoiceKey)"
+                />
+                Invoice #{{ inv.invoiceNo }}
+              </label>
+            }
+          </div>
+        } @else {
+          <div class="scr-single-invoice">Invoice #{{ invoices()[0].invoiceNo }} <span class="muted">(selected)</span></div>
+        }
+
+        <b class="scr-label">Reason — what needs to change?</b>
+        <textarea
+          class="notebox"
+          placeholder="e.g. Vendor amounts look wrong vs the approved estimate — please re-verify hours before we bill the customer…"
+          [ngModel]="reason()"
+          (ngModelChange)="reason.set($event)"
+        ></textarea>
+      </div>
+
+      <div class="modal__footer">
+        <button type="button" class="btn" (click)="onClose()">Cancel</button>
+        <button type="button" class="btn ghost-amber" [disabled]="!canSend" (click)="send()">
+          🔁 Send Change Request
+        </button>
+      </div>
+    </div>
+  </div>
+}

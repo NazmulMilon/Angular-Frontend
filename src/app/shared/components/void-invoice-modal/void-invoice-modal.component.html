@@ -1,0 +1,36 @@
+@if (isVisible()) {
+  <div class="cio-modal-overlay" (click)="close()">
+    <div class="cio-modal" role="dialog" aria-labelledby="void-title" (click)="$event.stopPropagation()">
+      <header class="cio-modal__header">
+        <h3 id="void-title">You must get manager approval for deleting this invoice</h3>
+        <button type="button" class="cio-modal__close" (click)="close()" aria-label="Close">&times;</button>
+      </header>
+
+      <div class="cio-modal__body">
+        <p class="cio-help">Please give approving manager name and remarks before continuing.</p>
+
+        @if (errorMessage()) {
+          <p class="cio-form-error" role="alert">{{ errorMessage() }}</p>
+        }
+
+        <div class="cio-form-row">
+          <label class="cio-form-label" for="voidManagerName">Enter the name of manager approved</label>
+          <input id="voidManagerName" type="text" class="cio-input" placeholder="Enter the name"
+            [ngModel]="approvingManagerName()" (ngModelChange)="approvingManagerName.set($event)" />
+        </div>
+
+        <div class="cio-form-row">
+          <label class="cio-form-label" for="voidRemarks">Remarks</label>
+          <textarea id="voidRemarks" class="cio-textarea" [ngModel]="remarks()" (ngModelChange)="remarks.set($event)"></textarea>
+        </div>
+      </div>
+
+      <footer class="cio-modal__footer">
+        <button type="button" class="cio-btn cio-btn--outline" (click)="close()" [disabled]="saving()">No, Cancel</button>
+        <button type="button" class="cio-btn cio-btn--danger" [disabled]="saving()" (click)="confirm()">
+          {{ saving() ? 'Processing…' : 'Yes, Proceed' }}
+        </button>
+      </footer>
+    </div>
+  </div>
+}

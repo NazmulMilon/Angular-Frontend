@@ -1,0 +1,78 @@
+@if (isOpen()) {
+  <div class="modal-overlay" (click)="onOverlayClick($event)">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="cpModalTitle">
+      <div class="modal-head">
+        <h3 id="cpModalTitle">📷 {{ vendorName() || 'Vendor' }} — Check-out Complete uploads</h3>
+        <button type="button" class="x" (click)="onClose()" aria-label="Close">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        @if (errorMessage()) {
+          <div class="cp-error">{{ errorMessage() }}</div>
+        }
+        @if (successMessage()) {
+          <div class="cp-success">{{ successMessage() }}</div>
+        }
+
+        @if (loading()) {
+          <div class="cp-loading">Loading completion photos…</div>
+        } @else if (state(); as s) {
+          @if (s.photos.length === 0) {
+            <div class="cp-empty">No completion photos on file for this vendor yet.</div>
+          } @else {
+            @if (s.pendingReviewCount > 0) {
+              <div class="cp-pending-banner">
+                <b>Review these check-out photos against the scope:</b>
+                <div class="cp-pending-banner__count">{{ s.pendingReviewCount }} photo(s) awaiting your review.</div>
+                <div class="cp-pending-banner__note">
+                  Flagging does NOT block Move-to-Accounting — Accounting will hold the vendor bill
+                  until new pics arrive. But if completion can't be verified another way, you may
+                  choose to hold the job here and delay customer invoicing.
+                </div>
+              </div>
+              <div class="cp-reject-note">
+                <label class="cp-reject-note__label" for="cpRejectNote">
+                  Optional note to the vendor — what is missing or insufficient?
+                </label>
+                <textarea
+                  id="cpRejectNote"
+                  class="cp-reject-note__textarea"
+                  [ngModel]="rejectNote()"
+                  (ngModelChange)="rejectNote.set($event)"
+                ></textarea>
+                <div class="cp-reject-note__hint">Only sent to the vendor if you click Reject below.</div>
+              </div>
+            }
+
+            <div class="cp-grid">
+              @for (p of s.photos; track p.uploadKey) {
+                <div class="cp-tile" [class.cp-tile--approved]="p.verified === true" [class.cp-tile--rejected]="p.verified === false">
+                  @if (isImage(p.fileType, p.fileName) && p.url) {
+                    <img [src]="p.url" [alt]="p.fileName || 'Completion photo'" />
+                  } @else if (p.url) {
+                    <a [href]="p.url" target="_blank" class="cp-doc-link">📄 {{ p.fileName || 'Document' }}</a>
+                  } @else {
+                    <div class="cp-no-preview">No preview available</div>
+                  }
+                  <div class="cp-tile__status">{{ statusLabel(p.verified) }}</div>
+                </div>
+              }
+            </div>
+          }
+        }
+      </div>
+
+      <div class="modal-foot">
+        <button type="button" class="btn" (click)="onClose()">Close</button>
+        @if (pendingCount > 0) {
+          <button type="button" class="btn btn-danger" [disabled]="isSaving()" (click)="reject()">
+            ⚠ Images do not match scope / insufficient — request new photos from vendor
+          </button>
+          <button type="button" class="btn btn-success" [disabled]="isSaving()" (click)="approve()">
+            ✓ Approve this Photo
+          </button>
+        }
+      </div>
+    </div>
+  </div>
+}

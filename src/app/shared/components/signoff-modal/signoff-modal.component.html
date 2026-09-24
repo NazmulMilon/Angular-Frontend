@@ -1,0 +1,86 @@
+@if (isOpen()) {
+  <div class="modal-overlay" (click)="onOverlayClick($event)">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="soModalTitle">
+      <div class="modal-head">
+        <h3 id="soModalTitle">✍ Manager Sign-off — {{ vendorName() || 'Vendor' }}</h3>
+        <button type="button" class="x" (click)="onClose()" aria-label="Close">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        @if (errorMessage()) {
+          <div class="so-error">{{ errorMessage() }}</div>
+        }
+        @if (successMessage()) {
+          <div class="so-success">{{ successMessage() }}</div>
+        }
+
+        @if (loading()) {
+          <div class="so-loading">Loading sign-off sheet…</div>
+        } @else if (state(); as s) {
+          @if (!s.hasSignOff) {
+            <div class="so-missing-banner">
+              ⚠ SIGN-OFF MISSING — you may still approve this vendor; Accounting will hold payment
+              until a sign-off is gathered.
+            </div>
+          } @else {
+            <div class="so-captured">
+              <div class="so-captured__status">{{ statusLabel(s.verified) }}</div>
+
+              @if (s.signatureUrl) {
+                <img class="so-signature" [src]="s.signatureUrl" alt="Manager signature" />
+              }
+
+              <div class="so-field">
+                <span class="so-field__label">Typed name:</span>
+                {{ s.typedName || '(not captured)' }}
+              </div>
+
+              <div class="so-field">
+                <span class="so-field__label">Comments:</span>
+                {{ s.comments || '(none)' }}
+                @if (s.hasNegativeSentiment) {
+                  <span class="so-sentiment-flag">⚠ mentions a possible issue — worth a read</span>
+                }
+              </div>
+
+              @if (s.signedOn) {
+                <div class="so-field so-field--muted">Captured {{ s.signedOn | date: 'M/d/yy, h:mm a' }}</div>
+              }
+
+              @if (s.signOffSheetUrl) {
+                <a [href]="s.signOffSheetUrl" target="_blank" class="so-doc-link">📄 {{ s.signOffSheetFileName || 'Sign-off Sheet' }}</a>
+              }
+            </div>
+
+            @if (s.pendingReviewCount > 0) {
+              <div class="so-reject-note">
+                <label class="so-reject-note__label" for="soComment">
+                  Comment (required to reject, optional to accept)
+                </label>
+                <textarea
+                  id="soComment"
+                  class="so-reject-note__textarea"
+                  placeholder="e.g. Signature doesn't match the manager's typed name -- please have the correct manager sign."
+                  [ngModel]="comment()"
+                  (ngModelChange)="comment.set($event)"
+                ></textarea>
+              </div>
+            }
+          }
+        }
+      </div>
+
+      <div class="modal-foot">
+        <button type="button" class="btn" (click)="onClose()">Close</button>
+        @if (pendingCount > 0) {
+          <button type="button" class="btn btn-danger" [disabled]="isSaving()" (click)="reject()">
+            ✕ Reject — email vendor for an accurate sign-off
+          </button>
+          <button type="button" class="btn btn-success" [disabled]="isSaving()" (click)="accept()">
+            ✓ Accept sign-off
+          </button>
+        }
+      </div>
+    </div>
+  </div>
+}

@@ -1,0 +1,59 @@
+{
+  "name": "rfi-admin-portal-v2",
+  "version": "0.0.0",
+  "scripts": {
+    "ng": "ng",
+    "start": "ng serve",
+    "start:hosted-dev": "ng serve --configuration=hosted-dev",
+    "open:job": "pwsh -NoProfile -File ../scripts/dev/Get-V2JobUrl.ps1",
+    "start:uat": "ng serve --configuration=uat",
+    "build": "ng build",
+    "watch": "ng build --watch --configuration development",
+    "test": "ng test",
+    "e2e": "playwright test",
+    "e2e:full": "playwright test e2e/full-flow.spec.ts --workers=1",
+    "e2e:negotiation:dev": "playwright test e2e/live-chat-negotiating-agent.spec.ts --workers=1",
+    "e2e:ui": "playwright test --ui",
+    "e2e:headed": "playwright test --headed"
+  },
+  "prettier": {
+    "printWidth": 100,
+    "singleQuote": true,
+    "overrides": [
+      {
+        "files": "*.html",
+        "options": {
+          "parser": "angular"
+        }
+      }
+    ]
+  },
+  "private": true,
+  "engines": {
+    "node": "^20.19.0 || ^22.12.0 || >=24.0.0",
+    "npm": ">=8.0.0"
+  },
+  "packageManager": "npm@11.8.0",
+  "dependencies": {
+    "@angular/common": "^21.1.0",
+    "@angular/compiler": "^21.1.0",
+    "@angular/core": "^21.1.0",
+    "@angular/forms": "^21.1.0",
+    "@angular/platform-browser": "^21.1.0",
+    "@angular/router": "^21.1.0",
+    "@microsoft/signalr": "^8.0.17",
+    "ngx-editor": "^19.0.0-beta.1",
+    "rxjs": "~7.8.0",
+    "tslib": "^2.3.0",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@angular/build": "^21.2.0",
+    "@angular/cli": "^21.1.4",
+    "@angular/compiler-cli": "^21.1.0",
+    "@playwright/test": "^1.59.1",
+    "jsdom": "^27.1.0",
+    "typescript": "~5.9.2",
+    "vitest": "^4.0.8"
+  }
+}

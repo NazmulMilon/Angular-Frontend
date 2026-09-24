@@ -1,0 +1,410 @@
+@switch (view()) {
+
+  <!-- ══════════════════ CONFIGURE EMAIL ══════════════════ -->
+  @case ('configure') {
+    @if (selectedStaff(); as staff) {
+      <div class="page">
+        <nav class="breadcrumb">
+          <a routerLink="/settings" class="breadcrumb__link">Settings</a>
+          <span class="breadcrumb__sep">/</span>
+          <button type="button" class="breadcrumb__link breadcrumb__link--btn" (click)="backToRoster()">Admin Email Configuration</button>
+          <span class="breadcrumb__sep">/</span>
+          <span class="breadcrumb__current">{{ staff.name }}</span>
+        </nav>
+
+        <div class="editor-head">
+          <span class="avatar avatar--lg" [style.background]="'hsl(' + avatarHue(staff.name) + ', 55%, 92%)'" [style.color]="'hsl(' + avatarHue(staff.name) + ', 45%, 38%)'">{{ initials(staff.name) }}</span>
+          <div class="editor-head__meta">
+            <h1 class="editor-head__name">{{ staff.name }}</h1>
+            <span class="editor-head__sub">{{ staff.designation }} · {{ staff.email }}</span>
+          </div>
+          <button type="button" class="btn btn--ghost" (click)="backToRoster()">← Back to list</button>
+        </div>
+
+        @if (error()) {
+          <div class="error-banner">{{ error() }}</div>
+        }
+
+        <div class="editor-grid">
+          <!-- ── SMTP Configuration ── -->
+          <div class="card">
+            <div class="card__title">SMTP Configuration</div>
+            <form (ngSubmit)="saveConfig()">
+              <div class="field">
+                <label class="field__label" for="cfgSender">Sender Name <span class="field__hint-inline">(if different from user name)</span></label>
+                <input id="cfgSender" type="text" class="field__input" [ngModel]="cfgSenderName()" (ngModelChange)="cfgSenderName.set($event)" name="cfgSender" placeholder="Display name for outgoing mail" />
+              </div>
+
+              <div class="field-row">
+                <div class="field field--grow">
+                  <label class="field__label" for="cfgServer">SMTP Server (Outgoing)</label>
+                  <input id="cfgServer" type="text" class="field__input" [ngModel]="cfgSmtpServer()" (ngModelChange)="cfgSmtpServer.set($event)" name="cfgServer" required placeholder="smtp.example.com" />
+                </div>
+                <div class="field field--port">
+                  <label class="field__label" for="cfgPort">SMTP Port</label>
+                  <input id="cfgPort" type="text" class="field__input" [ngModel]="cfgSmtpPort()" (ngModelChange)="cfgSmtpPort.set($event)" name="cfgPort" required placeholder="587" />
+                </div>
+              </div>
+
+              <div class="field">
+                <label class="field__label" for="cfgUser">Username</label>
+                <input id="cfgUser" type="text" class="field__input" [ngModel]="cfgUsername()" (ngModelChange)="cfgUsername.set($event)" name="cfgUser" required placeholder="username" />
+              </div>
+
+              <div class="field">
+                <label class="field__label" for="cfgPass">SMTP Password</label>
+                <div class="field__password-group">
+                  <input id="cfgPass" [type]="showCfgPassword() ? 'text' : 'password'" class="field__input field__input--password" [ngModel]="cfgPassword()" (ngModelChange)="cfgPassword.set($event)" name="cfgPass" placeholder="••••••••" />
+                  <button type="button" class="field__toggle-pw" (click)="toggleCfgPassword()" [title]="showCfgPassword() ? 'Hide password' : 'Show password'">
+                    {{ showCfgPassword() ? 'Hide' : 'Show' }}
+                  </button>
+                </div>
+              </div>
+
+              <div class="field">
+                <label class="field__label">Email Footer <span class="field__hint-inline">(signature)</span></label>
+                <app-rich-text-editor [ngModel]="cfgFooter()" (ngModelChange)="cfgFooter.set($event)" name="cfgFooter" placeholder="Signature appended to outgoing emails..." />
+              </div>
+
+              <div class="card__actions">
+                <button type="submit" class="btn btn--primary" [disabled]="!canSaveConfig || cfgSaving()">{{ cfgSaving() ? 'Saving…' : 'Save Configuration' }}</button>
+                @if (cfgSaved()) {
+                  <span class="save-flash">Configuration saved</span>
+                }
+              </div>
+            </form>
+          </div>
+
+          <!-- ── Notification Receivers ── -->
+          <div class="card">
+            <div class="card__title">
+              Notification Receivers
+              @if (checkedReceiverCount() > 0) {
+                <span class="title-badge">{{ checkedReceiverCount() }}</span>
+              }
+            </div>
+            <p class="card__hint">Select which system notifications this staff member receives by email.</p>
+
+            <div class="receiver-list">
+              @for (r of receiverOptions; track r.value) {
+                <label class="receiver" [class.receiver--checked]="isReceiverChecked(r.value)">
+                  <input type="checkbox" [checked]="isReceiverChecked(r.value)" (change)="toggleReceiver(r.value)" />
+                  <span class="receiver__label">{{ r.label }}</span>
+                </label>
+              }
+            </div>
+
+            <div class="card__actions">
+              <button type="button" class="btn btn--primary" [disabled]="receiversSaving()" (click)="saveReceivers()">{{ receiversSaving() ? 'Saving…' : 'Save Receivers' }}</button>
+              @if (receiversSaved()) {
+                <span class="save-flash">Receivers saved</span>
+              }
+            </div>
+          </div>
+        </div>
+      </div>
+    }
+  }
+
+  <!-- ══════════════════ CREATE / EDIT STAFF ══════════════════ -->
+  @case ('create') {
+    <ng-container [ngTemplateOutlet]="staffForm" [ngTemplateOutletContext]="{ mode: 'create' }"></ng-container>
+  }
+  @case ('edit') {
+    <ng-container [ngTemplateOutlet]="staffForm" [ngTemplateOutletContext]="{ mode: 'edit' }"></ng-container>
+  }
+
+  <!-- ══════════════════ STAFF DETAILS ══════════════════ -->
+  @case ('details') {
+    <div class="page">
+      <nav class="breadcrumb">
+        <a routerLink="/settings" class="breadcrumb__link">Settings</a>
+        <span class="breadcrumb__sep">/</span>
+        <button type="button" class="breadcrumb__link breadcrumb__link--btn" (click)="backToRoster()">Admin Email Configuration</button>
+        <span class="breadcrumb__sep">/</span>
+        <span class="breadcrumb__current">Details</span>
+      </nav>
+
+      @if (error()) {
+        <div class="error-banner">{{ error() }}</div>
+      }
+
+      @if (detailLoading()) {
+        <div class="loading-note">Loading details…</div>
+      } @else if (detail(); as d) {
+        <div class="editor-head">
+          @if (d.photoUrl) {
+            <img class="avatar avatar--lg avatar--photo" [src]="d.photoUrl" [alt]="d.name" />
+          } @else {
+            <span class="avatar avatar--lg" [style.background]="'hsl(' + avatarHue(d.name) + ', 55%, 92%)'" [style.color]="'hsl(' + avatarHue(d.name) + ', 45%, 38%)'">{{ initials(d.name) }}</span>
+          }
+          <div class="editor-head__meta">
+            <h1 class="editor-head__name">{{ d.name }}</h1>
+            <span class="editor-head__sub">{{ d.designation }} · {{ d.usergroupName }}</span>
+          </div>
+          <button type="button" class="btn btn--ghost" (click)="backToRoster()">← Back to list</button>
+        </div>
+
+        <div class="card">
+          <div class="card__title">Staff Details</div>
+          <dl class="detail-grid">
+            <div class="detail-item"><dt>Employee ID</dt><dd>{{ d.pid || '—' }}</dd></div>
+            <div class="detail-item"><dt>Name</dt><dd>{{ d.name }}</dd></div>
+            <div class="detail-item"><dt>Usergroup</dt><dd>{{ d.usergroupName || '—' }}</dd></div>
+            <div class="detail-item"><dt>Email</dt><dd>{{ d.email }}</dd></div>
+            <div class="detail-item"><dt>Phone</dt><dd>{{ d.phone || '—' }}@if (d.phoneExt) { <span> ext {{ d.phoneExt }}</span> }</dd></div>
+            <div class="detail-item"><dt>Mobile</dt><dd>{{ d.mobile || '—' }}</dd></div>
+            <div class="detail-item"><dt>Department</dt><dd>{{ d.department || '—' }}</dd></div>
+            <div class="detail-item"><dt>Designation</dt><dd>{{ d.designation || '—' }}</dd></div>
+            <div class="detail-item"><dt>Username</dt><dd>{{ d.username || '—' }}</dd></div>
+          </dl>
+          <div class="card__actions">
+            <button type="button" class="btn btn--primary" (click)="openEdit(selectedStaff()!)">Edit</button>
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- ══════════════════ STAFF ROSTER ══════════════════ -->
+  @default {
+    <div class="page">
+      <nav class="breadcrumb">
+        <a routerLink="/settings" class="breadcrumb__link">Settings</a>
+        <span class="breadcrumb__sep">/</span>
+        <span class="breadcrumb__current">Admin Email Configuration</span>
+      </nav>
+
+      <div class="page__header">
+        <div class="page__header-row">
+          <div>
+            <h1 class="page__title">Admin Email Configuration</h1>
+            <p class="page__subtitle">Staff roster for admin email setup. Select a staff member to configure their email settings and notification receivers.</p>
+          </div>
+          <button type="button" class="btn btn--primary btn--icon" (click)="openCreate()">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            Add New Staff
+          </button>
+        </div>
+      </div>
+
+      @if (error()) {
+        <div class="error-banner">{{ error() }}</div>
+      }
+
+      <div class="toolbar">
+        <div class="search">
+          <svg class="search__icon" width="15" height="15" viewBox="0 0 15 15" fill="none"><circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" stroke-width="1.4"/><path d="M10 10l3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+          <input type="text" class="search__input" [ngModel]="search()" (ngModelChange)="search.set($event)" name="search" placeholder="Search staff by name, email, department..." />
+        </div>
+        <span class="toolbar__count">{{ filteredStaff().length }} staff</span>
+      </div>
+
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Staff</th>
+              <th>Usergroup</th>
+              <th>Email</th>
+              <th>Contact</th>
+              <th>Department</th>
+              <th class="th--actions"></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (s of filteredStaff(); track s.personnelKey) {
+              <tr>
+                <td class="td--staff">
+                  <div class="staff-cell">
+                    @if (s.photoUrl) {
+                      <img class="avatar avatar--photo" [src]="s.photoUrl" [alt]="s.name" />
+                    } @else {
+                      <span class="avatar" [style.background]="'hsl(' + avatarHue(s.name) + ', 55%, 92%)'" [style.color]="'hsl(' + avatarHue(s.name) + ', 45%, 38%)'">{{ initials(s.name) }}</span>
+                    }
+                    <div class="staff-cell__meta">
+                      <span class="staff-cell__name">{{ s.name }}</span>
+                      <span class="staff-cell__id">{{ s.pid }}</span>
+                    </div>
+                  </div>
+                </td>
+                <td>
+                  <span class="group-badge">{{ s.usergroup }}</span>
+                </td>
+                <td class="td--email">{{ s.email }}</td>
+                <td class="td--contact">
+                  <span class="contact-line">{{ s.phone }}@if (s.phoneExt) {<span class="contact-ext"> ext {{ s.phoneExt }}</span>}</span>
+                  <span class="contact-mobile">{{ s.mobile }}</span>
+                </td>
+                <td class="td--dept">
+                  <span class="dept-name">{{ s.department }}</span>
+                  <span class="dept-role">{{ s.designation }}</span>
+                </td>
+                <td class="td--actions">
+                  <button type="button" class="btn-cfg" (click)="configureEmail(s)">
+                    <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M1 3.5h12M1 7h12M1 10.5h8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+                    Configure
+                  </button>
+                  <button type="button" class="icon-btn" title="Edit" (click)="openEdit(s)">
+                    <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M10.586 1.586a2 2 0 0 1 2.828 2.828L5.5 12.328l-3.6.9.9-3.6 7.786-8.042Z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </button>
+                  <button type="button" class="icon-btn" title="Details" (click)="openDetails(s)">
+                    <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><circle cx="7.5" cy="7.5" r="6" stroke="currentColor" stroke-width="1.3"/><path d="M7.5 6.8v3.2M7.5 4.8v.4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+                  </button>
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="6" class="td--empty">{{ loading() ? 'Loading staff…' : 'No staff match your search.' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+}
+
+<!-- ══════════════════ SHARED STAFF FORM (create + edit) ══════════════════ -->
+<ng-template #staffForm let-mode="mode">
+  <div class="page">
+    <nav class="breadcrumb">
+      <a routerLink="/settings" class="breadcrumb__link">Settings</a>
+      <span class="breadcrumb__sep">/</span>
+      <button type="button" class="breadcrumb__link breadcrumb__link--btn" (click)="backToRoster()">Admin Email Configuration</button>
+      <span class="breadcrumb__sep">/</span>
+      <span class="breadcrumb__current">{{ mode === 'create' ? 'Add New Staff' : 'Edit Staff' }}</span>
+    </nav>
+
+    <div class="page__header">
+      <h1 class="page__title">{{ mode === 'create' ? 'Add New Staff' : 'Edit Staff' }}</h1>
+    </div>
+
+    @if (formError()) {
+      <div class="error-banner">{{ formError() }}</div>
+    }
+
+    <div class="card">
+      <div class="card__title">Basic Information</div>
+      <form (ngSubmit)="mode === 'create' ? saveCreate() : saveEdit()">
+        <div class="field">
+          <label class="field__label">Profile Photo</label>
+          <div class="photo-row">
+            @if (fPhotoPreview()) {
+              <img class="avatar avatar--lg avatar--photo" [src]="fPhotoPreview()" alt="preview" />
+            } @else {
+              <span class="avatar avatar--lg" [style.background]="'hsl(' + avatarHue(fName() || 'New Staff') + ', 55%, 92%)'" [style.color]="'hsl(' + avatarHue(fName() || 'New Staff') + ', 45%, 38%)'">{{ initials(fName() || 'N S') }}</span>
+            }
+            <input type="file" accept="image/*" (change)="onPhotoSelected($event)" />
+          </div>
+        </div>
+
+        <div class="form-grid">
+          <div class="field">
+            <label class="field__label" for="fPid">Employee ID <span class="field__hint-inline">(auto if blank)</span></label>
+            <input id="fPid" type="text" class="field__input" [ngModel]="fPid()" (ngModelChange)="fPid.set($event)" name="fPid" placeholder="EMP-001" />
+          </div>
+          <div class="field">
+            <label class="field__label" for="fName">Name</label>
+            <input id="fName" type="text" class="field__input" [ngModel]="fName()" (ngModelChange)="fName.set($event)" name="fName" required placeholder="Full name" />
+          </div>
+          <div class="field">
+            <label class="field__label" for="fPhone">Phone</label>
+            <input id="fPhone" type="text" class="field__input" [ngModel]="fPhone()" (ngModelChange)="fPhone.set($event)" name="fPhone" placeholder="555-0100" />
+          </div>
+          <div class="field">
+            <label class="field__label" for="fPhoneExt">Phone Ext</label>
+            <input id="fPhoneExt" type="text" class="field__input" [ngModel]="fPhoneExt()" (ngModelChange)="fPhoneExt.set($event)" name="fPhoneExt" placeholder="110" />
+          </div>
+          <div class="field">
+            <label class="field__label" for="fMobile">Mobile</label>
+            <input id="fMobile" type="text" class="field__input" [ngModel]="fMobile()" (ngModelChange)="fMobile.set($event)" name="fMobile" placeholder="555-9000" />
+          </div>
+          <div class="field">
+            <label class="field__label" for="fEmail">Email</label>
+            <input id="fEmail" type="email" class="field__input" [ngModel]="fEmail()" (ngModelChange)="fEmail.set($event)" name="fEmail" placeholder="name@example.com" />
+          </div>
+          <div class="field">
+            <label class="field__label" for="fDepartment">Department</label>
+            <input id="fDepartment" type="text" class="field__input" [ngModel]="fDepartment()" (ngModelChange)="fDepartment.set($event)" name="fDepartment" placeholder="Operations" />
+          </div>
+          <div class="field">
+            <label class="field__label" for="fDesignation">Designation</label>
+            <input id="fDesignation" type="text" class="field__input" [ngModel]="fDesignation()" (ngModelChange)="fDesignation.set($event)" name="fDesignation" placeholder="Manager" />
+          </div>
+          @if (mode === 'create') {
+            <div class="field">
+              <label class="field__label" for="fUsergr">Usergroup</label>
+              <select id="fUsergr" class="field__input" [ngModel]="fUsergr()" (ngModelChange)="fUsergr.set($event)" name="fUsergr">
+                <option value="">— Select —</option>
+                @for (g of usergroups(); track g.userGroupKey) {
+                  <option [value]="g.userGroupKey">{{ g.groupName }}</option>
+                }
+              </select>
+            </div>
+          }
+        </div>
+
+        @if (mode === 'create') {
+          <div class="card__subtitle">Login Credentials</div>
+          <div class="form-grid">
+            <div class="field">
+              <label class="field__label" for="fUsername">Username</label>
+              <input id="fUsername" type="text" class="field__input" autocomplete="off" [ngModel]="fUsername()" (ngModelChange)="fUsername.set($event)" name="fUsername" required placeholder="username" />
+            </div>
+            <div class="field">
+              <label class="field__label" for="fPassword">Password</label>
+              <div class="field__password-group">
+                <input id="fPassword" [type]="showFormPassword() ? 'text' : 'password'" class="field__input field__input--password" autocomplete="new-password" [ngModel]="fPassword()" (ngModelChange)="fPassword.set($event)" name="fPassword" required placeholder="••••••••" />
+                <button type="button" class="field__toggle-pw" (click)="toggleFormPassword()">{{ showFormPassword() ? 'Hide' : 'Show' }}</button>
+              </div>
+            </div>
+            <div class="field">
+              <label class="field__label" for="fConfirm">Confirm Password</label>
+              <input id="fConfirm" [type]="showFormPassword() ? 'text' : 'password'" class="field__input" autocomplete="new-password" [ngModel]="fConfirmPassword()" (ngModelChange)="fConfirmPassword.set($event)" name="fConfirm" required placeholder="••••••••" />
+              @if (fConfirmPassword().length > 0 && fPassword() !== fConfirmPassword()) {
+                <span class="field__error">Passwords do not match.</span>
+              }
+            </div>
+          </div>
+        }
+
+        <div class="card__actions">
+          @if (mode === 'create') {
+            <button type="submit" class="btn btn--primary" [disabled]="!canSaveCreate || formSaving()">{{ formSaving() ? 'Saving…' : 'Create Staff' }}</button>
+          } @else {
+            <button type="submit" class="btn btn--primary" [disabled]="!canSaveEdit || formSaving()">{{ formSaving() ? 'Saving…' : 'Save Changes' }}</button>
+          }
+          <button type="button" class="btn btn--ghost" (click)="backToRoster()">Cancel</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- User access (edit only) -->
+    @if (mode === 'edit') {
+      <div class="card">
+        <div class="card__title">User Access</div>
+        <p class="card__hint">Update this staff member's login username and password.</p>
+        <div class="form-grid">
+          <div class="field">
+            <label class="field__label" for="aUsername">Username</label>
+            <input id="aUsername" type="text" class="field__input" autocomplete="off" [ngModel]="aUsername()" (ngModelChange)="aUsername.set($event)" name="aUsername" placeholder="username" />
+          </div>
+          <div class="field">
+            <label class="field__label" for="aPassword">Password</label>
+            <div class="field__password-group">
+              <input id="aPassword" [type]="showAccessPassword() ? 'text' : 'password'" class="field__input field__input--password" autocomplete="new-password" [ngModel]="aPassword()" (ngModelChange)="aPassword.set($event)" name="aPassword" placeholder="••••••••" />
+              <button type="button" class="field__toggle-pw" (click)="toggleAccessPassword()">{{ showAccessPassword() ? 'Hide' : 'Show' }}</button>
+            </div>
+          </div>
+        </div>
+        <div class="card__actions">
+          <button type="button" class="btn btn--primary" [disabled]="!canSaveAccess || accessSaving()" (click)="saveAccess()">{{ accessSaving() ? 'Saving…' : 'Save Access' }}</button>
+          @if (accessSaved()) {
+            <span class="save-flash">Access saved</span>
+          }
+        </div>
+      </div>
+    }
+  </div>
+</ng-template>

@@ -1,0 +1,149 @@
+<div class="page">
+  <nav class="breadcrumb">
+    <a routerLink="/settings" class="breadcrumb__link">Settings</a>
+    <span class="breadcrumb__sep">/</span>
+    <span class="breadcrumb__current">Customer Job Status</span>
+  </nav>
+
+  <div class="page__header">
+    <div class="page__header-row">
+      <div>
+        <h1 class="page__title">Customer Job Status</h1>
+        <p class="page__subtitle">Define the job status labels customers see on their jobs. The display sequence controls their order.</p>
+      </div>
+      @if (!isFormOpen) {
+        <button type="button" class="btn btn--primary btn--icon" (click)="startCreate()">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          Add Status
+        </button>
+      }
+    </div>
+  </div>
+
+  @if (error()) {
+    <div class="error-banner">{{ error() }}</div>
+  }
+
+  <!-- ── Inline Form ── -->
+  @if (isFormOpen) {
+    <div class="form-card" [class.form-card--edit]="!isNew()">
+      <div class="form-card__badge">{{ isNew() ? 'New Job Status' : 'Edit Job Status' }}</div>
+      <form (ngSubmit)="save()" #form="ngForm">
+        <div class="form-card__row">
+          <div class="field field--grow">
+            <label class="field__label" for="statusName">Job Status</label>
+            <input
+              id="statusName"
+              type="text"
+              class="field__input"
+              [ngModel]="formName()"
+              (ngModelChange)="formName.set($event)"
+              name="statusName"
+              required
+              placeholder="e.g. Scheduled, In Progress, Completed"
+            />
+          </div>
+          <div class="field field--narrow">
+            <label class="field__label" for="displayLevel">Display Sequence</label>
+            <input
+              id="displayLevel"
+              type="number"
+              class="field__input field__input--center"
+              [ngModel]="formLevel()"
+              (ngModelChange)="formLevel.set($event)"
+              name="displayLevel"
+              required
+              min="1"
+              placeholder="#"
+            />
+          </div>
+        </div>
+
+        <div class="field">
+          <label class="field__label">Status</label>
+          <div class="toggle-group">
+            <label class="toggle" [class.toggle--active]="formActive()">
+              <input
+                type="radio"
+                name="isActive"
+                [value]="true"
+                [ngModel]="formActive()"
+                (ngModelChange)="formActive.set($event)"
+              />
+              <span class="toggle__label">Active</span>
+            </label>
+            <label class="toggle" [class.toggle--inactive]="!formActive()">
+              <input
+                type="radio"
+                name="isActive"
+                [value]="false"
+                [ngModel]="formActive()"
+                (ngModelChange)="formActive.set($event)"
+              />
+              <span class="toggle__label">Inactive</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="form-card__actions">
+          <button type="submit" class="btn btn--primary" [disabled]="form.invalid || saving()">
+            {{ saving() ? 'Saving…' : (isNew() ? 'Add' : 'Update') }}
+          </button>
+          <button type="button" class="btn btn--ghost" (click)="cancelEdit()">Cancel</button>
+        </div>
+      </form>
+    </div>
+  }
+
+  <!-- ── Table ── -->
+  @if (loading()) {
+    <div class="loading-note">Loading job statuses…</div>
+  } @else if (items().length === 0) {
+    <div class="empty">
+      <p class="empty__text">No job statuses defined</p>
+      <p class="empty__hint">Click "Add Status" to create one.</p>
+    </div>
+  } @else {
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th class="th--num">#</th>
+            <th>Job Status</th>
+            <th class="th--level">Display Sequence</th>
+            <th class="th--status">Status</th>
+            <th class="th--actions"></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of items(); track item.id; let idx = $index) {
+            <tr [class.tr--active]="editingId() === item.id" [class.tr--muted]="!item.isActive">
+              <td class="td--num">{{ idx + 1 }}</td>
+              <td class="td--name">{{ item.name }}</td>
+              <td class="td--level">
+                <span class="level-badge">{{ item.level }}</span>
+              </td>
+              <td class="td--status">
+                @if (item.isActive) {
+                  <span class="status-pill status-pill--active">Active</span>
+                } @else {
+                  <span class="status-pill status-pill--inactive">Inactive</span>
+                }
+              </td>
+              <td class="td--actions">
+                <button
+                  type="button"
+                  class="icon-btn icon-btn--edit"
+                  title="Edit"
+                  (click)="startEdit(item)"
+                >
+                  <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M10.586 1.586a2 2 0 0 1 2.828 2.828L5.5 12.328l-3.6.9.9-3.6 7.786-8.042Z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>

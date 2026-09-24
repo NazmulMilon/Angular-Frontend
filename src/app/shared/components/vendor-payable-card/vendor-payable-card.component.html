@@ -1,0 +1,398 @@
+<div
+  class="vendor"
+  [class.resolved-payable]="card().decision === 'payable-performed' || card().decision === 'payable-cost-incurred'"
+  [class.resolved-removed]="card().decision === 'remove'"
+>
+  <div class="v-head">
+    <div class="avatar">{{ initials(card().vendorName) }}</div>
+    <div class="nm">
+      {{ card().vendorName || 'Vendor' }}
+      <small>{{ card().tradeName }}</small>
+    </div>
+    <div class="v-head-actions">
+      <button type="button" class="btn sm" (click)="onOpenProfile()">👤 Vendor Profile</button>
+      <button
+        type="button"
+        class="btn sm ghost-blue"
+        [disabled]="!card().hasApprovedEstimate"
+        [title]="card().hasApprovedEstimate ? 'The approval the vendor received to proceed with the job — NOT approval of their bill' : 'No approved estimate / on-site approval on file for this vendor yet'"
+        (click)="onOpenEstimate()"
+      >
+        📄 View {{ card().isOnsiteApproval ? 'On-Site Approval' : 'Estimate' }} (approved to proceed)
+      </button>
+      @if (!card().hasVendorInvoice) {
+        <button
+          type="button"
+          class="btn sm ghost-amber"
+          [disabled]="isRequestingInvoice()"
+          title="Re-send the 'complete your invoice' email to this vendor's job contact"
+          (click)="requestInvoice()"
+        >
+          {{ isRequestingInvoice() ? '⏳ Sending…' : '✉ Request Vendor Invoice' }}
+        </button>
+      }
+      <button type="button" class="btn sm ghost-pink" (click)="onOpenAddNote()">🏷 Add note about this vendor bill</button>
+      <button
+        type="button"
+        class="btn sm ghost-amber"
+        [title]="sendBackToServiceStatus() === 'awaiting' ? 'Awaiting the Account Manager — click to view' : sendBackToServiceStatus() === 'completed' ? 'The AM sent this back — click to view their remark and acknowledge' : 'Send this job back to the Account Manager'"
+        (click)="onOpenSendBackToService()"
+      >
+        @switch (sendBackToServiceStatus()) {
+          @case ('awaiting') { ↩ Sent — ⏳ AWAITING AM }
+          @case ('completed') { ↩ ✓ RETURNED BY AM — Acknowledge }
+          @default { ↩ Send Back to Service }
+        }
+      </button>
+    </div>
+    <div
+      class="v-dne"
+      [class.v-dne--clickable]="card().hasVendorInvoice"
+      [title]="card().hasVendorInvoice ? 'Edit via vendor invoice' : ''"
+      (click)="card().hasVendorInvoice && onOpenInvoiceEdit()"
+    >
+      <div class="lbl">Revised Vendor DNE{{ !card().hasApprovedEstimate ? ' · source of truth' : '' }}</div>
+      <div class="amt">
+        @if (dneDisplay.struck !== null) {
+          <span class="strike">{{ formatMoney(dneDisplay.struck) }}</span>
+        }
+        {{ formatMoney(dneDisplay.amount) }}
+      </div>
+      <div class="src">
+        {{
+          card().hasApprovedEstimate
+            ? ('per the ' + (card().isOnsiteApproval ? 'on-site approval' : 'estimate') + ' the vendor was approved to proceed on (bill not yet approved)')
+            : 'no approval on file — vendor may not exceed this amount'
+        }}
+      </div>
+      <div class="src src--blue">
+        {{ card().hasVendorInvoice ? '✎ editable via vendor invoice only' : '🔒 locked — changes only via vendor invoice once created' }}
+      </div>
+    </div>
+  </div>
+
+  @if (card().level !== 'done') {
+    <div class="steps-row">
+      <button type="button" class="step-chip" [class.step-chip--done]="card().completionCallVerified" (click)="logCompletionCall.emit()">
+        <span class="step-chip__top">
+          <span class="step-chip__n">{{ card().completionCallVerified ? '✓' : '📞' }}</span>
+          Call &amp; verify completion
+        </span>
+        <span class="step-chip__sub">{{ card().completionCallVerified ? '✓ verified' : 'job-level — see the button above the readiness cards' }}</span>
+      </button>
+
+      <span class="step-arrow">→</span>
+      <button
+        type="button"
+        class="step-chip"
+        [class.step-chip--done]="card().afterPhotoReviewStatus === 'approved'"
+        [class.step-chip--rejected]="card().afterPhotoReviewStatus === 'rejected'"
+        (click)="onViewCompletionPhotos()"
+      >
+        <span class="step-chip__top">
+          <span class="step-chip__n">{{ card().afterPhotoReviewStatus === 'approved' ? '✓' : card().afterPhotoReviewStatus === 'rejected' ? '✕' : 2 }}</span>
+          Review check-out pics
+        </span>
+        <span class="step-chip__sub" [class.step-chip__sub--warn]="card().afterPhotoCount === 0">
+          @if (card().afterPhotoCount === 0) {
+            ⚠ none uploaded
+          } @else {
+            {{ card().afterPhotoCount }} pic(s){{ card().afterPhotoPendingReviewCount > 0 ? ', ' + card().afterPhotoPendingReviewCount + ' pending review' : '' }}
+          }
+        </span>
+      </button>
+
+      <span class="step-arrow">→</span>
+      <button
+        type="button"
+        class="step-chip"
+        [class.step-chip--done]="card().signOffReviewStatus === 'approved'"
+        [class.step-chip--rejected]="card().signOffReviewStatus === 'rejected'"
+        (click)="onViewSignOff()"
+      >
+        <span class="step-chip__top">
+          <span class="step-chip__n">{{ card().signOffReviewStatus === 'approved' ? '✓' : card().signOffReviewStatus === 'rejected' ? '✕' : 3 }}</span>
+          Review sign-off
+        </span>
+        <span class="step-chip__sub" [class.step-chip__sub--warn]="!card().hasSignOffUpload">
+          {{ card().hasSignOffUpload ? (card().signOffFileName || 'on file') : '⚠ missing' }}
+        </span>
+      </button>
+
+      <span class="step-arrow">→</span>
+      <button
+        type="button"
+        class="step-chip"
+        [class.step-chip--done]="card().hoursReviewed && !card().checkInWaived"
+        [class.step-chip--waived]="card().checkInWaived"
+        (click)="onViewHoursRecon()"
+      >
+        <span class="step-chip__top">
+          <span class="step-chip__n">{{ card().checkInWaived ? '⚠' : card().hoursReviewed ? '✓' : 4 }}</span>
+          Check-in/out vs billed
+        </span>
+        <span class="step-chip__sub" [class.step-chip__sub--warn]="hoursSubWarn">{{ hoursSubLabel }}</span>
+      </button>
+
+      <span class="step-arrow">→</span>
+      <button type="button" class="step-chip" [class.step-chip--done]="card().costReviewed" (click)="onAcknowledgeCost()">
+        <span class="step-chip__top">
+          <span class="step-chip__n">{{ card().costReviewed ? '✓' : 5 }}</span>
+          Acknowledge cost
+        </span>
+        <span class="step-chip__sub">
+          {{ card().hasVendorInvoice ? ('Vendor Invoice ' + (card().invoiceNo || '') + ' · ' + formatMoney(card().invoiceTotal)) : ('DNE ' + formatMoney(card().revVendorDne) + ' · ⚠ no invoice') }}
+        </span>
+      </button>
+
+      <span class="step-arrow">→</span>
+      <button type="button" class="step-chip" [class.step-chip--done]="card().scopeReviewed" (click)="markReviewed('scope'); toggleScope()">
+        <span class="step-chip__top">
+          <span class="step-chip__n">{{ card().scopeReviewed ? '✓' : 6 }}</span>
+          Verify scope completion
+        </span>
+        <span class="step-chip__sub">{{ card().scope.flags.length ? '⚠ ' + card().scope.flags.length + ' item(s) to review' : 'requested vs quoted vs completed' }}</span>
+      </button>
+
+      <span class="step-arrow">→</span>
+      <button type="button" class="step-chip" [class.step-chip--done]="card().insuranceOk" (click)="onViewInsurance()">
+        <span class="step-chip__top">
+          <span class="step-chip__n">{{ card().insuranceOk ? '✓' : 7 }}</span>
+          Vendor Insurance Validation
+        </span>
+        <span class="step-chip__sub" [class.step-chip__sub--warn]="!card().insuranceOk">
+          {{ insuranceSubLabel }}
+        </span>
+      </button>
+    </div>
+
+    @if (card().pinnedNotes?.length) {
+      <div class="vp-pinned">
+        <b class="vp-pinned-title">📌 Pinned — notes to Accounting about this vendor bill</b>
+        @for (n of card().pinnedNotes; track n.noteKey) {
+          <div class="note pink">
+            <div class="meta">
+              {{ n.addedByName || 'Unknown' }} · {{ formatDateTime(n.addedOn) }}
+              @if (n.relatedLabel) {
+                <span class="badge b-pink">{{ n.relatedLabel }}</span>
+              }
+            </div>
+            {{ n.comment }}
+          </div>
+        }
+      </div>
+    }
+
+    @if (scopeOpen()) {
+      <div class="vp-scope">
+        <div class="vp-scope-grid">
+          <div class="vp-scope-panel vp-scope-panel--blue">
+            <b>1 · Original Service Requested (customer portal / admin entry)</b>
+            <div [innerHTML]="card().scope.requested"></div>
+          </div>
+
+          <div class="vp-scope-panel vp-scope-panel--green">
+            <b>2 · Quoted — vendor approved {{ card().scope.estimateTypeLabel }} descriptions (labor &amp; materials)</b>
+            @if (card().scope.hasApprovedEstimate) {
+              @if (card().scope.quotedLabor.length) {
+                <b class="vp-scope-sublabel">LABOR / TRIP LINE ITEMS</b>
+                @for (l of card().scope.quotedLabor; track $index) {
+                  <div class="vp-scope-line"><span [innerHTML]="l.description"></span> <span class="muted">({{ l.qty }} × {{ formatMoney(l.cost) }})</span></div>
+                }
+              }
+              @if (card().scope.quotedMaterials.length) {
+                <b class="vp-scope-sublabel">MATERIAL LINE ITEMS</b>
+                @for (l of card().scope.quotedMaterials; track $index) {
+                  <div class="vp-scope-line"><span [innerHTML]="l.description"></span> <span class="muted">({{ l.qty }} × {{ formatMoney(l.cost) }})</span></div>
+                }
+              }
+              @if (card().scope.quotedOther.length) {
+                <b class="vp-scope-sublabel">OTHER LINE ITEMS</b>
+                @for (l of card().scope.quotedOther; track $index) {
+                  <div class="vp-scope-line"><span [innerHTML]="l.description"></span> <span class="muted">({{ l.qty }} × {{ formatMoney(l.cost) }})</span></div>
+                }
+              }
+            } @else {
+              <span class="muted">No approved estimate / on-site approval for this vendor — nothing was quoted. Revised DNE {{ formatMoney(card().revVendorDne) }} is the source of truth.</span>
+            }
+          </div>
+
+          <div class="vp-scope-panel vp-scope-panel--ink">
+            <b>3 · Our estimate / invoice to customer — lines attributed per vendor</b>
+            @if (card().scope.customerLines.length) {
+              @for (l of card().scope.customerLines; track $index) {
+                <div class="vp-scope-line" [class.vp-scope-line--dim]="l.attribution !== 'this-vendor'">
+                  @if (l.attribution === 'this-vendor') {
+                    <span class="badge b-blue vp-badge-this">THIS VENDOR</span>
+                  } @else if (l.attribution === 'other-vendor') {
+                    <span class="badge b-gray">OTHER VENDOR: {{ l.otherVendorName }}</span>
+                  } @else {
+                    <span class="badge b-amber">UNMATCHED</span>
+                  }
+                  <span [innerHTML]="l.description"></span> <span class="muted">({{ l.qty }} × {{ formatMoney(l.cost) }})</span>
+                </div>
+              }
+            } @else {
+              <span class="muted">No customer invoice lines yet.</span>
+            }
+          </div>
+
+          <div class="vp-scope-panel vp-scope-panel--pink">
+            <b>4 · Said to have been completed — tech's description at each check-out + sign-off</b>
+            @if (card().scope.visits.length) {
+              @for (v of card().scope.visits; track v.visitNumber) {
+                <div class="vp-scope-visit">
+                  <div class="vp-scope-visit__meta">
+                    <span class="badge b-gray">VISIT {{ v.visitNumber }}</span>
+                    <b>{{ v.techName }}</b> · No of Tech: <b>{{ v.techCount }}</b> ·
+                    In <b>{{ formatDateTime(v.checkInTime) }}</b> → Out <b>{{ formatDateTime(v.checkOutTime) }}</b> ·
+                    Works Performed: <b [class.vp-works-y]="v.workPerformed === true" [class.vp-works-n]="v.workPerformed === false">{{ v.workPerformed === true ? 'Y' : v.workPerformed === false ? 'N' : '--' }}</b>
+                  </div>
+                  <div class="vp-scope-visit__desc"><b>TECH DESCRIBED:</b> {{ v.workDescription || '—' }}</div>
+                </div>
+              }
+            } @else {
+              <span class="muted">No check-in/out records.</span>
+            }
+            @if (card().scope.signOff; as so) {
+              <div class="vp-scope-signoff">
+                <b>Manager sign-off ({{ so.name }}, {{ formatDateTime(so.signedOn) }}):</b> {{ so.comments }}
+              </div>
+            } @else {
+              <div class="vp-scope-signoff vp-scope-signoff--missing">No manager sign-off captured.</div>
+            }
+          </div>
+        </div>
+
+        @if (card().scope.flags.length) {
+          <div class="vp-scope-flags">
+            @for (f of card().scope.flags; track f) {
+              <div>⚠ {{ f }}</div>
+            }
+          </div>
+        } @else {
+          <div class="vp-scope-flags vp-scope-flags--ok">✓ No obvious discrepancies between requested, quoted, and completed.</div>
+        }
+      </div>
+    }
+
+    @if (!card().insuranceOk && !card().insuranceOverride) {
+      <div class="vp-override-bar">
+        ⛔ <b>Insurance expired / missing — vendor bill approval is BLOCKED.</b>
+        {{ card().insuranceProblems.join(' ') }}
+        <button type="button" class="btn sm ghost-amber" [disabled]="isSaving()" (click)="onOpenInsuranceOverrideConfirm()">
+          ⚠ Override insurance block…
+        </button>
+      </div>
+    }
+    @if (card().insuranceOverride; as ov) {
+      <div class="vp-override-active">
+        ⚠ <b>INSURANCE OVERRIDE ACTIVE</b> — by {{ ov.appliedByName }} · {{ formatDateTime(ov.appliedOn) }}
+        @if (ov.glReasonApplied) {
+          <span>· General Liability override {{ ov.glDeductionPercent }}%</span>
+        }
+        @if (ov.wcReasonApplied) {
+          <span>· Workers Comp override {{ ov.wcDeductionPercent }}%</span>
+        }
+        <span>· {{ formatMoney(ov.originalAmount) }} → {{ formatMoney(ov.reducedAmount) }} (record only — invoice not reduced)</span>
+        @if (ov.emailSent) {
+          <span>· CFO/Controller emailed &amp; flagged ({{ ov.emailSentTo }}).</span>
+        } @else {
+          <span>· ⚠ CFO/Controller email FAILED to send.</span>
+        }
+        <button type="button" class="btn sm" [disabled]="isSaving()" (click)="undoInsuranceOverride()">Undo override</button>
+      </div>
+    }
+  }
+
+  @if (errorMessage()) {
+    <div class="vp-error">{{ errorMessage() }}</div>
+  }
+
+  <!-- Decision area -->
+  @if (card().decision === 'payable-performed' || card().decision === 'payable-cost-incurred') {
+    <div class="v-status-ribbon" [class.rib-amber]="card().decision === 'payable-cost-incurred'" [class.rib-green]="card().decision === 'payable-performed'">
+      <span class="step-chip__n step-chip__n--ribbon">✓</span>
+      APPROVED — {{ card().decision === 'payable-cost-incurred' ? 'Payable (Cost Incurred)' : 'Payable (performed service)' }}, up to
+      {{ formatMoney(card().approvedAmount) }}.
+      @if (card().costIncurredReason) {
+        <span>Reason on file: "{{ card().costIncurredReason }}"</span>
+      }
+      <button type="button" class="btn sm" (click)="undo()" [disabled]="isSaving()">Undo</button>
+    </div>
+    @if (card().qboTransactionNumber) {
+      <div class="vp-qbo-line">✓ Bill in QuickBooks · {{ card().qboTransactionNumber }} (manual entry)</div>
+    } @else {
+      <div class="vp-qbo-entry">
+        <input class="vp-input" type="text" placeholder="QB transaction # (required)" [ngModel]="qboTxnInput()" (ngModelChange)="qboTxnInput.set($event)" />
+        <button type="button" class="btn sm" [disabled]="isSaving()" (click)="saveQboEntry()">⬆ Mark entered in QuickBooks</button>
+      </div>
+    }
+  } @else if (card().decision === 'remove') {
+    <div class="v-status-ribbon rib-red">
+      <span class="step-chip__n step-chip__n--ribbon">✓</span>
+      ✕ NON-PAYABLE.
+      @if (card().removeReason) {
+        <span>Reason: "{{ card().removeReason }}"</span>
+      }
+      @if (card().cancellationEmailSent) {
+        <span>Cancellation email sent.</span>
+      }
+      @if (card().unassignPerformed) {
+        <span>Vendor unassigned from the job.</span>
+      } @else if (card().defaultVendorExceptionApplied) {
+        <span class="vp-remove-exception">⚠ Vendor NOT unassigned — it's the job's default vendor and other vendors remain assigned.</span>
+      }
+      <button type="button" class="btn sm" (click)="undo()" [disabled]="isSaving()">Undo</button>
+    </div>
+  } @else {
+    <div class="v-decide">
+      <label>⑧ Approve / Remove</label>
+      <select [ngModel]="decisionChoice()" (ngModelChange)="decisionChoice.set($event); onDecisionChange()">
+        <option value="">— choose an option —</option>
+        <option value="payable-performed" [disabled]="!canPickPayable">Vendor is payable — performed the service (up to {{ formatMoney(suggestedAmount()) }})</option>
+        <option value="payable-cost-incurred" [disabled]="!canPickPayable">Vendor is payable — Cost Incurred</option>
+        <option value="remove">Remove vendor / not payable</option>
+      </select>
+
+      @if (decisionChoice() === 'payable-performed' || decisionChoice() === 'payable-cost-incurred') {
+        @if (decisionChoice() === 'payable-cost-incurred') {
+          <textarea
+            class="vp-textarea"
+            placeholder="Reason -- vendor did not perform the whole/any service…"
+            [ngModel]="costIncurredReasonInput()"
+            (ngModelChange)="costIncurredReasonInput.set($event)"
+          ></textarea>
+        }
+        <button type="button" class="btn primary sm" [disabled]="isSaving()" (click)="confirmApprove()">Confirm &amp; Approve</button>
+      } @else if (decisionChoice() === 'remove') {
+        <div class="vp-remove-form">
+          <textarea
+            class="vp-textarea"
+            placeholder="Reason (required) -- why is this vendor being set Non-Payable?"
+            [ngModel]="removeReason()"
+            (ngModelChange)="removeReason.set($event)"
+          ></textarea>
+          <label class="vp-checkbox-label"
+            ><input type="checkbox" [ngModel]="removeSendEmail()" (ngModelChange)="removeSendEmail.set($event)" /> Send cancellation email to vendor</label
+          >
+          <div class="muted" style="font-size: 11px">
+            This will also unassign the vendor from the job, unless it's the job's default vendor with other vendors still assigned.
+          </div>
+          <div class="vp-remove-actions">
+            <button type="button" class="btn sm ghost-amber" [disabled]="isSaving()" (click)="confirmRemove()">Confirm removal</button>
+            <button type="button" class="btn sm" [disabled]="isSaving()" (click)="cancelRemove()">Cancel</button>
+          </div>
+        </div>
+      } @else if (!canPickPayable) {
+        <span class="muted vp-locked">
+          🔒 Payable options unlock after: ① pics, ② sign-off, ③ check-in/out vs billed, ④ cost, ⑤ scope. (Remove is always available.)
+        </span>
+      }
+    </div>
+  }
+
+  @if (toastMessage()) {
+    <div class="vp-toast">{{ toastMessage() }}</div>
+  }
+</div>

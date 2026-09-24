@@ -1,0 +1,156 @@
+:host {
+  display: contents;
+}
+
+.appr-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10001;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 18px;
+  background: rgba(15, 23, 42, 0.55);
+}
+
+.appr-modal {
+  position: relative;
+  width: 100%;
+  max-width: 440px;
+  max-height: 92vh;
+  overflow: auto;
+  background: #f3faf5;
+  border: 1px solid #bfe3cc;
+  border-radius: 12px;
+  box-shadow: 0 30px 70px -20px rgba(20, 32, 68, 0.45), 0 8px 24px -12px rgba(20, 32, 68, 0.3);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.appr-panel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.appr-panel__title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1e7a44;
+}
+
+.appr-panel__close {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: #5b6573;
+  font-size: 13px;
+}
+
+.appr-panel__info {
+  font-size: 12px;
+  color: #1e7a44;
+}
+
+.appr-panel__error {
+  font-size: 12px;
+  color: #b3261e;
+}
+
+.appr-panel__options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.appr-panel__option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #2b2f36;
+}
+
+.appr-panel__option--disabled {
+  color: #9aa2ad;
+}
+
+.appr-panel__option-hint {
+  font-size: 11px;
+  color: #9aa2ad;
+  font-style: italic;
+}
+
+.appr-panel__recipients {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 4px;
+  border-top: 1px solid #d9ecdf;
+}
+
+.appr-panel__recipients-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: #5b6573;
+}
+
+.appr-panel__recipients-empty {
+  font-size: 12px;
+  color: #9aa2ad;
+}
+
+.appr-panel__recipient {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.appr-panel__text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.appr-panel__text-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: #5b6573;
+}
+
+.appr-panel__textarea {
+  border: 1px solid #d0d5dd;
+  border-radius: 6px;
+  padding: 8px;
+  font-size: 13px;
+  font-family: inherit;
+  resize: vertical;
+}
+
+.appr-panel__actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.appr-panel__submit {
+  background: #1e7a44;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.appr-panel__submit:disabled {
+  background: #b7c6bd;
+  cursor: not-allowed;
+}

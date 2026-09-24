@@ -1,0 +1,98 @@
+<div class="page">
+  <nav class="breadcrumb">
+    <a routerLink="/settings" class="breadcrumb__link">Settings</a>
+    <span class="breadcrumb__sep">/</span>
+    <span class="breadcrumb__current">Accounting Status Setup</span>
+  </nav>
+
+  <div class="page__header">
+    <h1 class="page__title">Accounting Status Setup</h1>
+  </div>
+
+  @if (error()) {
+    <div class="error-banner">{{ error() }}</div>
+  }
+
+  <div class="layout">
+    <!-- ── Left: form ── -->
+    <div class="panel panel--form">
+      <div class="panel__head">
+        Add New Accounting Status
+        @if (editingId() !== null) { <span class="panel__edit-tag">Editing</span> }
+      </div>
+      <div class="panel__body">
+        <form (ngSubmit)="save()">
+          <div class="field">
+            <label class="field__label" for="asName">Accounting Status Name</label>
+            <input id="asName" type="text" class="field__input" [ngModel]="formName()" (ngModelChange)="formName.set($event)" name="asName" required placeholder="e.g. Invoiced" />
+          </div>
+          <div class="field">
+            <label class="field__label" for="asLevel">Display Level</label>
+            <input id="asLevel" type="number" class="field__input" [ngModel]="formLevel()" (ngModelChange)="formLevel.set($event)" name="asLevel" required min="1" placeholder="#" />
+          </div>
+          <div class="field">
+            <label class="field__label">Is Active</label>
+            <div class="radio-group">
+              <label class="radio" [class.radio--active]="formActive()">
+                <input type="radio" name="active" [value]="true" [ngModel]="formActive()" (ngModelChange)="formActive.set($event)" />
+                <span>Active</span>
+              </label>
+              <label class="radio" [class.radio--inactive]="!formActive()">
+                <input type="radio" name="active" [value]="false" [ngModel]="formActive()" (ngModelChange)="formActive.set($event)" />
+                <span>Inactive</span>
+              </label>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="panel__footer">
+        <button type="button" class="btn btn--primary" [disabled]="!canSave" (click)="save()">{{ editingId() === null ? 'Save' : 'Update' }}</button>
+        <button type="button" class="btn btn--secondary" (click)="clearForm()">Clear</button>
+      </div>
+    </div>
+
+    <!-- ── Right: grid ── -->
+    <div class="list-col">
+      <div class="list-head">
+        <h3 class="list-title">Existing Accounting Statuses</h3>
+        <input type="search" class="list-search" [ngModel]="search()" (ngModelChange)="search.set($event)" name="search" placeholder="Search by name…" />
+      </div>
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th class="th--num">SL</th>
+              <th>Name</th>
+              <th class="th--level">Display Level</th>
+              <th class="th--active">Active</th>
+              <th class="th--actions"></th>
+            </tr>
+          </thead>
+          <tbody>
+            @if (loading()) {
+              <tr><td colspan="5" class="td--empty">Loading accounting statuses…</td></tr>
+            } @else {
+            @for (row of filteredRows(); track row.id; let idx = $index) {
+              <tr [class.tr--active]="editingId() === row.id" [class.tr--muted]="!row.isActive">
+                <td class="td--num">{{ idx + 1 }}</td>
+                <td class="td--name">{{ row.name }}</td>
+                <td class="td--level"><span class="level-badge">{{ row.level }}</span></td>
+                <td class="td--active">
+                  @if (row.isActive) { <span class="pill pill--yes">Y</span> } @else { <span class="pill pill--no">N</span> }
+                </td>
+                <td class="td--actions">
+                  <button type="button" class="icon-btn" title="Edit" (click)="selectRow(row)">
+                    <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M10.586 1.586a2 2 0 0 1 2.828 2.828L5.5 12.328l-3.6.9.9-3.6 7.786-8.042Z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </button>
+                </td>
+              </tr>
+            } @empty {
+              <tr><td colspan="5" class="td--empty">{{ search().trim() ? 'No accounting statuses match your search.' : 'No accounting statuses defined.' }}</td></tr>
+            }
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>

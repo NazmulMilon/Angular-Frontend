@@ -1,0 +1,93 @@
+<div class="panel" *ngIf="jobKey()">
+  <div class="sec-head">
+    <span class="n">👁</span>
+    <h3>Bill Verification &amp; QBO Status</h3>
+    <span class="sub">Each vendor bill must clear these items before it can be approved into QuickBooks Online.</span>
+  </div>
+
+  <div class="loading-row" *ngIf="loading()">Loading…</div>
+  <div class="error-row" *ngIf="!loading() && errorMessage()">{{ errorMessage() }}</div>
+
+  <ng-container *ngIf="!loading() && !errorMessage() && state() as st">
+    <div class="body">
+      <div class="recap-line" [class.ok]="st.completionCallVerified">
+        <ng-container *ngIf="st.completionCallVerified; else noCall">
+          ✓ Job completion verified by phone — AM spoke with <b>{{ st.completionCallContact }}</b>
+          <ng-container *ngIf="st.completionCallWhen">, {{ st.completionCallWhen }}</ng-container>
+          <ng-container *ngIf="st.completionCallNote">: "{{ st.completionCallNote }}"</ng-container>
+        </ng-container>
+        <ng-template #noCall>ℹ Completion not verified by phone with service location (optional).</ng-template>
+      </div>
+
+      <div class="recap-line" [class.ok]="st.storeManagerResponded">
+        <ng-container *ngIf="st.storeManagerResponded; else noSmResponse">
+          ✓ Store manager confirmed via email landing page
+          <ng-container *ngIf="st.storeManagerRespondedWhen">· {{ st.storeManagerRespondedWhen }}</ng-container>
+          <ng-container *ngIf="st.storeManagerComment"> · "{{ st.storeManagerComment }}"</ng-container>
+        </ng-container>
+        <ng-template #noSmResponse>
+          <ng-container *ngIf="st.storeManagerEmailSent; else noSmEmail">
+            ℹ Verification email sent to store manager ({{ st.storeManagerEmailTo }}) — awaiting landing-page response.
+          </ng-container>
+          <ng-template #noSmEmail>ℹ No store manager email on file — verification email not sent.</ng-template>
+        </ng-template>
+      </div>
+
+      <b class="section-label">Per-vendor — REQUIRED items to clear before the bill can be approved into QuickBooks Online</b>
+      <div class="vendor-rows">
+        <div class="vendor-row" *ngFor="let v of st.vendorRows">
+          <div class="vendor-row-head">
+            <b>{{ v.vendorName }}</b>
+            <span class="badge" [class.b-red]="v.level === 'blocked' || v.level === 'removed'"
+                  [class.b-green]="v.level === 'ready'" [class.b-gray]="v.level === 'done'">
+              {{ v.level === 'blocked' ? 'BLOCKED' : v.level === 'done' ? 'DONE' : v.level === 'removed' ? 'NON-PAYABLE' : 'READY' }}
+            </span>
+            <span class="badge b-blue" *ngIf="v.pushedToQuickBooks">QBO {{ v.qboTransactionNumber }}</span>
+          </div>
+          <div class="vendor-line blocker" *ngFor="let b of v.blockers">⚠ {{ b }}</div>
+          <div class="vendor-line ok-line" *ngFor="let g of v.green">{{ g }}</div>
+        </div>
+        <div class="muted" *ngIf="!st.vendorRows.length">No vendors on this job.</div>
+      </div>
+
+      <b class="section-label" style="display:block; margin-top:10px">Customer invoice / receivable</b>
+      <div class="invoice-rows">
+        <div class="invoice-row" *ngFor="let inv of st.invoices">
+          <span class="badge b-gray" *ngIf="inv.isDeposit">DEPOSIT</span>
+          Invoice #{{ inv.invoiceNo }} —
+          <span [class.ok-text]="inv.approvedByAm">{{ inv.approvedByAm ? 'approved' : 'not yet approved' }}</span> ·
+          <span [class.ok-text]="inv.sentToCustomer">{{ inv.sentToCustomer ? 'sent to customer' : 'NOT sent' }}</span> ·
+          <span [class.ok-text]="inv.inQuickBooks">{{ inv.inQuickBooks ? ('in QBO · ' + inv.qbRefNo) : 'NOT in QBO' }}</span>
+        </div>
+        <div class="muted" *ngIf="!st.hasActiveInvoices">No active customer invoice on this job yet.</div>
+      </div>
+
+      <div class="recap-line" *ngIf="st.portalUploadRequired">
+        🔗 <b>Customer portal upload REQUIRED:</b>
+        <span [class.ok-text]="st.portalUploadOk">{{ st.portalUploadOk ? 'verified' : 'not yet verified' }}</span>
+      </div>
+    </div>
+
+    <div class="finalize-panel" [class.ready]="st.ready">
+      <h3>Final Step — Finalize Job</h3>
+      <div class="gates">
+        <div class="gate" [class.ok]="g.ok" *ngFor="let g of st.gates">
+          <span class="dot">{{ g.ok ? '✓' : '•' }}</span>{{ g.text }}
+        </div>
+      </div>
+      <div class="route-note">➜ {{ st.routeNote }}</div>
+
+      <div class="fully-finalized-line" *ngIf="st.fullyFinalized; else finalizeButton">
+        ✓ Fully finalized — this job is in Payables &amp; Receivables. Nothing left to do here.
+      </div>
+      <ng-template #finalizeButton>
+        <button class="btn xl" [class.green]="st.ready" [disabled]="!st.ready || finalizing()" (click)="finalize()">
+          {{ finalizing() ? 'Finalizing…' : '🚀 Finalize — Upload Bills to QuickBooks & Route Job' }}
+        </button>
+      </ng-template>
+
+      <div class="error-row" *ngIf="finalizeError()">{{ finalizeError() }}</div>
+      <div class="recap-line ok" *ngIf="finalizeResultMessage()">✓ {{ finalizeResultMessage() }}</div>
+    </div>
+  </ng-container>
+</div>

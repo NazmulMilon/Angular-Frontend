@@ -1,0 +1,96 @@
+@if (isOpen()) {
+  <div class="modal-overlay" (click)="onOverlayClick($event)">
+    <div class="modal modal--completion-call" role="dialog" aria-modal="true" aria-labelledby="ccModalTitle">
+      <div class="modal__header">
+        <h3 class="modal__title" id="ccModalTitle">
+          📞 Verify completion with store location — CALL
+          @if (po()) {
+            <span class="modal__po">— PO {{ po() }}</span>
+          }
+        </h3>
+        <button type="button" class="modal__close" (click)="onClose()" aria-label="Close">&times;</button>
+      </div>
+
+      <div class="modal__body">
+        @if (errorMessage()) {
+          <div class="cc-error">{{ errorMessage() }}</div>
+        }
+
+        @if (loadingState()) {
+          <div class="cc-cross-ref">Loading current status…</div>
+        } @else if (existingState()) {
+          <div class="cc-verified-banner">
+            ✓ <b>Completion verified — AM spoke with {{ existingState()!.contactName }}</b>
+            @if (existingState()!.contactTitle) {
+              ({{ existingState()!.contactTitle }})
+            }
+            @if (existingState()!.calledOn) {
+              — {{ existingState()!.calledOn | date: 'M/d/yy, h:mm a' }}
+            }
+            @if (existingState()!.note) {
+              <div class="cc-verified-banner__note">"{{ existingState()!.note }}"</div>
+            }
+          </div>
+        }
+
+        @if (locPhone()) {
+          <div class="cc-call-bar">
+            <a class="btn primary sm" [href]="telHref(locPhone())">📞 Call {{ locPhone() }} via 8x8</a>
+            <span class="cc-call-bar__who">
+              {{ locationName() }}{{ locContactName() ? ' — ' + locContactName() : '' }}
+            </span>
+            <span class="badge b-gray">☎ 8x8 auto-records every call</span>
+          </div>
+        }
+
+        <div class="cc-cross-ref">
+          ✉ The store-manager verification EMAIL (with the full job scope, landing page + survey) is its own
+          separate step now — see the "Store Manager Verification — Email" bar above the vendor cards.
+        </div>
+
+        <div class="cc-roadmap">
+          🤖 <b>Roadmap:</b> an AI voice agent will place this verification call to the store manager
+          automatically and log the result here.
+          <button type="button" class="btn sm" disabled>Let AI call <span class="badge b-gray">COMING SOON</span></button>
+        </div>
+
+        <div class="cc-note">
+          Record who you spoke with and what they said. This verification is stamped into Notes
+          to Accounting and shows in the Accounting handoff.
+        </div>
+
+        <b class="cc-label">SPOKE WITH (name)</b>
+        <input
+          class="cc-input"
+          type="text"
+          [ngModel]="contactName()"
+          (ngModelChange)="contactName.set($event)"
+        />
+
+        <b class="cc-label">THEIR TITLE <span class="muted">(optional — name is what matters)</span></b>
+        <input
+          class="cc-input"
+          type="text"
+          placeholder="e.g. Store Manager"
+          [ngModel]="contactTitle()"
+          (ngModelChange)="contactTitle.set($event)"
+        />
+
+        <b class="cc-label">WHAT THEY SAID</b>
+        <textarea
+          class="cc-textarea"
+          placeholder="e.g. Confirmed all work is complete, area clean, lighting working. No outstanding items."
+          [ngModel]="note()"
+          (ngModelChange)="note.set($event)"
+        ></textarea>
+      </div>
+
+      <div class="modal__footer">
+        <button type="button" class="btn" (click)="onClose()">Cancel</button>
+        <button type="button" class="btn green" [disabled]="!canSave" (click)="save()">
+          ✓ Log call — completion verified
+        </button>
+      </div>
+    </div>
+  </div>
+}

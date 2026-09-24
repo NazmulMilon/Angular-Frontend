@@ -1,0 +1,445 @@
+/* ============================================================
+   Modal chrome for the "🔗 Landing page — as the store manager sees it" popup. Matches
+   complete-screen-v2.html's renderSmLanding() look-and-feel: white card, centered retailfixit
+   header, --blue #2563eb accent (design source of truth: complete-screen-v2.html's :root vars).
+   ============================================================ */
+
+@keyframes smvFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes smvScaleIn {
+  from { transform: scale(0.97); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+:host {
+  --smv-blue: #2563eb;
+  --smv-ink: #0f172a;
+  --smv-ink2: #475569;
+  --smv-ink3: #94a3b8;
+  --smv-line: #e2e8f0;
+  --smv-green: #16a34a;
+  --smv-amber: #f59e0b;
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(3px);
+  padding: 40px 20px;
+  overflow-y: auto;
+  animation: smvFadeIn 0.2s ease;
+}
+
+.modal {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  animation: smvScaleIn 0.25s ease;
+  font-family: 'Segoe UI', system-ui, -apple-system, Arial, sans-serif;
+  overflow: hidden;
+}
+
+.modal--smv {
+  width: 100%;
+  max-width: 640px;
+  max-height: 85vh;
+}
+
+/* Blue title bar -- complete-screen-v2.html's modal header convention for this popup. */
+.modal__title-bar {
+  background: var(--smv-blue);
+  color: #fff;
+  font-weight: 700;
+  font-size: 13px;
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.modal__chrome-head {
+  position: relative;
+  text-align: center;
+  padding: 14px 18px 12px;
+  border-bottom: 1px solid var(--smv-line);
+}
+
+.smv-brand {
+  font-size: 20px;
+  color: var(--smv-ink2);
+
+  b {
+    color: var(--smv-blue);
+  }
+}
+
+.smv-brand-sub {
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  color: var(--smv-ink3);
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+.modal__close {
+  background: none;
+  border: none;
+  font-size: 18px;
+  color: #fff;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+  opacity: 0.85;
+
+  &:hover {
+    opacity: 1;
+  }
+}
+
+.modal__body {
+  padding: 14px 20px;
+  font-family: 'Segoe UI', system-ui, -apple-system, Arial, sans-serif;
+  font-size: 12px;
+  background: #fafbfc;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.modal__footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--smv-line);
+  background: #fff;
+}
+
+/* ---- constant header ---- */
+.smv-const-head {
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+.smv-const-title {
+  font-size: 15px;
+  margin: 0 0 4px;
+  color: var(--smv-ink);
+}
+
+.smv-const-meta {
+  font-size: 12px;
+  color: var(--smv-ink2);
+}
+
+.smv-const-request {
+  font-size: 11.5px;
+  color: var(--smv-ink2);
+  margin: 6px auto 0;
+  max-width: 480px;
+  font-style: italic;
+
+  p {
+    margin: 0 0 4px;
+  }
+}
+
+.smv-const-question {
+  font-size: 12.5px;
+  font-weight: 700;
+  margin-top: 10px;
+  color: var(--smv-ink);
+}
+
+/* ---- responded: real captured answers ---- */
+.smv-response {
+  margin-top: 6px;
+  border: 1px solid var(--smv-line);
+  border-radius: 9px;
+  padding: 11px 13px;
+  background: #fff;
+  text-align: left;
+}
+
+.smv-response__head {
+  font-size: 12.5px;
+}
+
+.smv-remark {
+  margin-top: 8px;
+  font-style: italic;
+  color: var(--smv-ink2);
+  font-size: 11.5px;
+}
+
+.smv-label {
+  display: block;
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--smv-ink2);
+  margin-top: 10px;
+  margin-bottom: 4px;
+}
+
+/* Side-by-side layout for paired questions (Quality/Professional, Timeliness/Overall
+   Satisfaction, etc.) -- falls back to a single column on narrow screens. */
+.smv-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 16px;
+}
+
+@media (max-width: 480px) {
+  .smv-grid-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+.smv-answer-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 11.5px;
+  border-bottom: 1px dashed var(--smv-line);
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.smv-answer-row__label {
+  color: var(--smv-ink);
+}
+
+.smv-stars {
+  display: inline-flex;
+  gap: 1px;
+}
+
+.smv-stars--lg {
+  gap: 3px;
+}
+
+.smv-star {
+  color: #d1d5db;
+  font-size: 15px;
+  line-height: 1;
+}
+
+.smv-stars--lg .smv-star {
+  font-size: 21px;
+}
+
+.smv-star--on {
+  color: var(--smv-amber);
+}
+
+.smv-star--selectable {
+  cursor: pointer;
+}
+
+.smv-comment {
+  border: 1px solid var(--smv-line);
+  border-radius: 7px;
+  padding: 8px 10px;
+  margin-top: 4px;
+  background: #fafbfc;
+  font-size: 11.5px;
+}
+
+.smv-comment__label {
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.badge {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  padding: 2.5px 8px;
+  border-radius: 10px;
+  display: inline-block;
+}
+
+.b-gray {
+  background: #f1f5f9;
+  color: var(--smv-ink2);
+}
+
+.muted {
+  color: var(--smv-ink3);
+  font-size: 11px;
+}
+
+/* ---- not responded: real-form recreation (RCS_app's field set, this popup's own styling) ---- */
+.smv-form-preview {
+  margin-top: 6px;
+  border: 1px solid var(--smv-line);
+  border-radius: 9px;
+  padding: 12px 16px 14px;
+  background: #fff;
+  text-align: left;
+}
+
+.smv-form-preview__banner {
+  background: #eff6ff;
+  border: 1px dashed #bfdbfe;
+  border-radius: 7px;
+  padding: 6px 10px;
+  font-size: 10.5px;
+  color: var(--smv-ink2);
+  margin-bottom: 10px;
+}
+
+.smv-form-preview__error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  border-radius: 7px;
+  padding: 6px 10px;
+  font-size: 11px;
+  margin-bottom: 10px;
+}
+
+.smv-form-preview__loading {
+  font-size: 11.5px;
+  color: var(--smv-ink3);
+  padding: 4px 0;
+}
+
+.smv-field {
+  margin-bottom: 10px;
+
+  &:last-of-type {
+    margin-bottom: 8px;
+  }
+}
+
+.smv-field__label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--smv-ink);
+  margin-bottom: 4px;
+}
+
+.smv-required {
+  color: #dc2626;
+}
+
+.smv-input,
+.smv-textarea {
+  width: 100%;
+  border: 1px solid var(--smv-line);
+  border-radius: 7px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-family: inherit;
+  background: #fff;
+  color: var(--smv-ink);
+  box-sizing: border-box;
+
+  &:disabled {
+    background: #f8fafc;
+    color: var(--smv-ink2);
+  }
+}
+
+.smv-textarea {
+  resize: vertical;
+}
+
+.smv-choice-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.smv-choice {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  color: var(--smv-ink2);
+
+  input {
+    accent-color: var(--smv-blue);
+  }
+}
+
+.smv-submit-btn {
+  background: #e2e8f0;
+  color: var(--smv-ink3);
+  border: none;
+  border-radius: 8px;
+  padding: 9px 18px;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: not-allowed;
+}
+
+.smv-submit-btn--enabled {
+  background: var(--smv-green);
+  color: #fff;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: #15803d;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: wait;
+  }
+}
+
+.smv-call-instead {
+  margin-top: 8px;
+  font-size: 10.5px;
+  color: var(--smv-ink3);
+}
+
+.btn {
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 7px 13px;
+  border-radius: 8px;
+  border: 1px solid var(--smv-line);
+  background: #fff;
+  color: var(--smv-ink);
+  cursor: pointer;
+
+  &:hover {
+    background: #f1f5f9;
+  }
+}
+
+@media (max-width: 768px) {
+  .modal--smv {
+    width: 100vw;
+    max-width: 100vw;
+    height: 100vh;
+    max-height: 100vh;
+    border-radius: 0;
+  }
+
+  .modal__body {
+    flex: 1;
+    overflow-y: auto;
+  }
+}

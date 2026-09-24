@@ -1,0 +1,563 @@
+<div class="page">
+  <button type="button" class="back-link" (click)="cancel()">← Back to Customers</button>
+
+  <!-- Identity / page header band -->
+  <header class="hero">
+    <div class="hero__avatar hero__avatar--new" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round" width="26" height="26">
+        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+        <circle cx="9" cy="7" r="4" />
+        <line x1="19" y1="8" x2="19" y2="14" /><line x1="22" y1="11" x2="16" y2="11" />
+      </svg>
+    </div>
+    <div class="hero__body">
+      <span class="hero__eyebrow">Customer</span>
+      <h2 class="hero__name">Add New Customer</h2>
+      <p class="hero__sub">Fill in the customer details and configuration, then create the profile. Contacts, rates and other records unlock once the customer is saved.</p>
+    </div>
+  </header>
+
+  @if (error()) {
+    <div class="banner banner--error" role="alert">
+      {{ error() }}
+      <button type="button" class="banner__close" (click)="error.set(null)" aria-label="Dismiss">×</button>
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="state state--loading"><span class="spinner"></span> Loading…</div>
+  } @else {
+    <!-- Sticky section navigator -->
+    <nav class="section-nav" aria-label="Sections">
+      <button type="button" class="section-nav__btn" (click)="scrollToGroup('c-details')">Customer details</button>
+      <button type="button" class="section-nav__btn" (click)="scrollToGroup('c-config')">Billing &amp; configuration</button>
+      <button type="button" class="section-nav__btn" (click)="scrollToGroup('c-later')">Available after saving</button>
+    </nav>
+
+    <form [formGroup]="form" (ngSubmit)="save()">
+      <!-- ══════ GROUP: Customer details ══════ -->
+      <section class="seg-group" id="c-details">
+        <h3 class="seg-group__title">Customer details</h3>
+        <div class="accordions">
+        <!-- ═══════════════ 1. BASIC INFORMATION ═══════════════ -->
+        <app-accordion heading="Basic Information" variant="figma" [defaultOpen]="true">
+          <div class="panel-pad">
+            <!-- Company logo on top (per RFI-342 UI review) -->
+            <label class="field field--full logo-field">
+              <span class="field__label">Company Logo</span>
+              <div class="logo-row">
+                <input type="file" accept="image/*" (change)="onLogoChange($event)" />
+                @if (logoFile(); as f) {
+                  <span class="logo-name">{{ f.name }}</span>
+                  <button type="button" class="link-btn" (click)="clearLogo()">Remove</button>
+                }
+              </div>
+            </label>
+
+            <div class="form-grid">
+              <label class="field field--full">
+                <span class="field__label">Customer Name <span class="req">*</span></span>
+                <input type="text" class="field__input" formControlName="customerName"
+                  [class.field__input--invalid]="showError('customerName')" maxlength="200"
+                  placeholder="Enter customer name" />
+                @if (showError('customerName')) { <span class="field__error">{{ errorText('customerName') }}</span> }
+              </label>
+
+              <label class="field">
+                <span class="field__label">Account Manager <span class="req">*</span></span>
+                <app-searchable-select [options]="amOptions()" formControlName="accountManagerKey"
+                  placeholder="-- Select account manager --" />
+                @if (showError('accountManagerKey')) { <span class="field__error">{{ errorText('accountManagerKey') }}</span> }
+              </label>
+
+              <label class="field">
+                <span class="field__label">Terms <span class="req">*</span></span>
+                <app-searchable-select [options]="termOptions()" formControlName="netId"
+                  placeholder="-- Select terms --" />
+                @if (showError('netId')) { <span class="field__error">{{ errorText('netId') }}</span> }
+              </label>
+
+              <label class="checkbox-field field--full">
+                <input type="checkbox" formControlName="priviledgedForVendorBlast" />
+                <span>Enable Vendor Broadcast</span>
+              </label>
+
+              <label class="checkbox-field field--full">
+                <input type="checkbox" formControlName="nonUsaAddress" />
+                <span>Non-US address
+                  <small class="hint">If outside the US, enter the full address incl. country in the address field.</small></span>
+              </label>
+
+              <label class="field field--full">
+                <span class="field__label">Street Address</span>
+                <input type="text" class="field__input" formControlName="address" maxlength="250"
+                  placeholder="Street address" />
+              </label>
+
+              @if (!nonUsa()) {
+                <label class="field">
+                  <span class="field__label">State <span class="req">*</span></span>
+                  <app-searchable-select [options]="stateOptions()" formControlName="stateCode"
+                    placeholder="-- Select state --" />
+                  @if (showError('stateCode')) { <span class="field__error">{{ errorText('stateCode') }}</span> }
+                </label>
+
+                <label class="field">
+                  <span class="field__label">City <span class="req">*</span></span>
+                  <app-searchable-select [options]="cityOptions()" [loading]="citiesLoading()"
+                    formControlName="cityKey" placeholder="-- Select city --" />
+                  @if (showError('cityKey')) { <span class="field__error">{{ errorText('cityKey') }}</span> }
+                </label>
+
+                <label class="field">
+                  <span class="field__label">ZIP Code <span class="req">*</span></span>
+                  <input type="text" class="field__input" formControlName="zip"
+                    [class.field__input--invalid]="showError('zip')" inputmode="numeric" maxlength="10"
+                    placeholder="e.g. 90210" />
+                  @if (showError('zip')) { <span class="field__error">{{ errorText('zip') }}</span> }
+                </label>
+              }
+
+              <label class="field">
+                <span class="field__label">Website</span>
+                <input type="text" class="field__input" formControlName="website"
+                  [class.field__input--invalid]="showError('website')" placeholder="e.g. www.company.com" />
+                @if (showError('website')) { <span class="field__error">{{ errorText('website') }}</span> }
+              </label>
+
+              <label class="field">
+                <span class="field__label">Company Email</span>
+                <input type="email" class="field__input" formControlName="companyEmail"
+                  [class.field__input--invalid]="showError('companyEmail')" placeholder="e.g. info@company.com" />
+                @if (showError('companyEmail')) { <span class="field__error">{{ errorText('companyEmail') }}</span> }
+              </label>
+
+              <label class="field">
+                <span class="field__label">Company Phone</span>
+                <input type="tel" class="field__input" formControlName="companyPhone"
+                  [class.field__input--invalid]="showError('companyPhone')" placeholder="e.g. (555) 123-4567" />
+                @if (showError('companyPhone')) { <span class="field__error">{{ errorText('companyPhone') }}</span> }
+              </label>
+            </div>
+          </div>
+        </app-accordion>
+        </div>
+      </section>
+
+      <!-- ══════ GROUP: Billing & configuration ══════ -->
+      <section class="seg-group" id="c-config">
+        <h3 class="seg-group__title">Billing &amp; configuration</h3>
+        <div class="accordions accordions--two-col">
+        <!-- ═══════════════ 2. CUSTOMER PO CUSTOMIZATION ═══════════════ -->
+        <app-accordion heading="Customer PO Customization" variant="figma">
+          <div class="panel-pad">
+            <div class="form-grid">
+              <label class="field">
+                <span class="field__label">Label Text for Customer Job No</span>
+                <input type="text" class="field__input" formControlName="freeTextLabel"
+                  placeholder="Reef 'SC' or 'INC' number here" />
+                <span class="hint">This value if entered then populates as the label of the Customer PO/Customer Job No of the Service request of customer portal e.g.: 'Customer Job PO'</span>
+              </label>
+              <label class="field">
+                <span class="field__label">Example Placeholder Text</span>
+                <input type="text" class="field__input" formControlName="freeTextContent"
+                  placeholder="Example: INC123456" />
+                <span class="hint">This value if entered then populates as the dimmed down text that goes inside the textbox of Customer PO/Customer Job No of the Service request of customer portal e.g.: 'Example: INC123456'</span>
+              </label>
+            </div>
+
+            <!-- Vendor invoice file configuration (Required only; saved to both columns) -->
+            <h4 class="subsection">Vendor Invoice File Configuration</h4>
+            <div class="table-scroll">
+              <table class="cfg-table">
+                <thead>
+                  <tr><th>Field For</th><th>Label</th><th>Required</th></tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>INVOICE Attachment</td>
+                    <td><input type="text" class="field__input" formControlName="file1Label" /></td>
+                    <td><input type="checkbox" formControlName="file1Required" /></td>
+                  </tr>
+                  <tr>
+                    <td>SIGN OFF SHEET</td>
+                    <td><input type="text" class="field__input" formControlName="file2Label" /></td>
+                    <td><input type="checkbox" formControlName="file2Required" /></td>
+                  </tr>
+                  <tr>
+                    <td>COMPLETION PICTURES</td>
+                    <td><input type="text" class="field__input" formControlName="file3Label" /></td>
+                    <td><input type="checkbox" formControlName="file3Required" /></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Dynamic custom text fields -->
+            <h4 class="subsection">Dynamic Custom Text Fields</h4>
+            <p class="muted">Dynamic text fields that will be able to be viewed and filled in on the customer portal &gt; new service request. Results will show in customer portal on associated job, admin in job and on vendor work order email/pdf/portal</p>
+            <div class="table-scroll">
+              <table class="cfg-table">
+                <thead><tr><th>Label</th><th>Placeholder (dimmed text in the textbox)</th></tr></thead>
+                <tbody>
+                  <tr>
+                    <td><input type="text" class="field__input" formControlName="customTextboxLabel" /></td>
+                    <td><input type="text" class="field__input" formControlName="customTextboxText" /></td>
+                  </tr>
+                  <tr>
+                    <td><input type="text" class="field__input" formControlName="customTextboxLabel1" /></td>
+                    <td><input type="text" class="field__input" formControlName="customTextboxText1" /></td>
+                  </tr>
+                  <tr>
+                    <td><input type="text" class="field__input" formControlName="customTextboxLabel2" /></td>
+                    <td><input type="text" class="field__input" formControlName="customTextboxText2" /></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </app-accordion>
+
+        <!-- ═══════════════ 3. MARKUP, DNE & JOB TYPES ═══════════════ -->
+        <app-accordion heading="Markup, DNE & Job Types" variant="figma">
+          <div class="panel-pad">
+            <!-- Markups -->
+            <h4 class="subsection">Markups</h4>
+            <div class="form-grid form-grid--3">
+              <label class="field">
+                <span class="field__label">Material Mark Up</span>
+                <input type="text" class="field__input" formControlName="materialMarkUp" inputmode="decimal"
+                  [class.field__input--invalid]="showError('materialMarkUp')" placeholder="0" />
+                @if (showError('materialMarkUp')) { <span class="field__error">{{ errorText('materialMarkUp') }}</span> }
+              </label>
+              <label class="field">
+                <span class="field__label">Labor & Trip</span>
+                <input type="text" class="field__input" formControlName="laborAndTrip" inputmode="decimal"
+                  [class.field__input--invalid]="showError('laborAndTrip')" placeholder="0" />
+                @if (showError('laborAndTrip')) { <span class="field__error">{{ errorText('laborAndTrip') }}</span> }
+              </label>
+              <label class="field">
+                <span class="field__label">Admin Markup</span>
+                <input type="text" class="field__input" formControlName="adminMarkup" inputmode="decimal"
+                  [class.field__input--invalid]="showError('adminMarkup')" placeholder="0" />
+                @if (showError('adminMarkup')) { <span class="field__error">{{ errorText('adminMarkup') }}</span> }
+              </label>
+            </div>
+
+            <!-- DNE -->
+            <h4 class="subsection">DNE (Do Not Exceed)</h4>
+            <div class="form-grid">
+              <label class="field">
+                <span class="field__label">Customer DNE</span>
+                <input type="text" class="field__input" formControlName="customerDne" inputmode="decimal"
+                  [class.field__input--invalid]="showError('customerDne')" placeholder="0" />
+                @if (showError('customerDne')) { <span class="field__error">{{ errorText('customerDne') }}</span> }
+              </label>
+              <label class="field">
+                <span class="field__label">Customer Emergency DNE</span>
+                <input type="text" class="field__input" formControlName="customerEmergencyDne" inputmode="decimal"
+                  [class.field__input--invalid]="showError('customerEmergencyDne')" placeholder="0" />
+                @if (showError('customerEmergencyDne')) { <span class="field__error">{{ errorText('customerEmergencyDne') }}</span> }
+              </label>
+              <label class="field">
+                <span class="field__label">Vendor DNE</span>
+                <input type="text" class="field__input" formControlName="vendorDne" inputmode="decimal"
+                  [class.field__input--invalid]="showError('vendorDne')" placeholder="0" />
+                @if (showError('vendorDne')) { <span class="field__error">{{ errorText('vendorDne') }}</span> }
+              </label>
+              <label class="field">
+                <span class="field__label">Vendor Emergency DNE</span>
+                <input type="text" class="field__input" formControlName="vendorEmergencyDne" inputmode="decimal"
+                  [class.field__input--invalid]="showError('vendorEmergencyDne')" placeholder="0" />
+                @if (showError('vendorEmergencyDne')) { <span class="field__error">{{ errorText('vendorEmergencyDne') }}</span> }
+              </label>
+            </div>
+
+            <!-- Job types -->
+            <h4 class="subsection">Job Types Shown in Customer Portal</h4>
+            <p class="muted">Select the job type(s) that show in the customer portal when creating a job request. If none are selected, all show.</p>
+            <div class="chip-grid">
+              @for (jt of jobTypeOptions(); track jt.id) {
+                <label class="chip-check">
+                  <input type="checkbox" [checked]="selectedJobTypes().has(jt.id)"
+                    (change)="toggleJobType(jt.id, $any($event.target).checked)" />
+                  <span>{{ jt.name }}</span>
+                </label>
+              } @empty {
+                <span class="muted">No job types configured.</span>
+              }
+            </div>
+          </div>
+        </app-accordion>
+
+        <!-- ═══════════════ 4. CUSTOMER EMAIL & JOB SETTINGS (all radio toggles) ═══════════════ -->
+        <app-accordion heading="Customer Email & Job Settings" variant="figma">
+          <div class="panel-pad">
+            <div class="toggle-row" [class.toggle-row--invalid]="showError('allowCustomerToEnterDneJobExclusive')">
+              <span class="toggle-row__label">Show DNE data field in customer portal &gt;New Service request so that customer enters DNE amount for Job Specific <span class="req">*</span></span>
+              <span class="toggle-row__options">
+                <label><input type="radio" formControlName="allowCustomerToEnterDneJobExclusive" [value]="true" /> On</label>
+                <label><input type="radio" formControlName="allowCustomerToEnterDneJobExclusive" [value]="false" /> OFF</label>
+              </span>
+              <span class="toggle-row__help">This amount will be the amount that shows as "customer dne" on admin side in that job. This would supersede any Customer DNE that is stated in the customer profile.</span>
+              @if (showError('allowCustomerToEnterDneJobExclusive')) { <span class="field__error toggle-row__error">Please choose On or OFF.</span> }
+            </div>
+            <div class="toggle-row" [class.toggle-row--invalid]="showError('sendAttachmentToVendorsMadeDuringRequest')">
+              <span class="toggle-row__label">Send customer attachments to vendor <span class="req">*</span></span>
+              <span class="toggle-row__options">
+                <label><input type="radio" formControlName="sendAttachmentToVendorsMadeDuringRequest" [value]="true" /> ON</label>
+                <label><input type="radio" formControlName="sendAttachmentToVendorsMadeDuringRequest" [value]="false" /> OFF</label>
+              </span>
+              <span class="toggle-row__help">When turned on, this feature will send any attachments that the customer attaches when they are creating a job in the customer portal for ALL TYPES of job. If this is turned off then attachments are not included and user needs to send them at will manually.</span>
+              @if (showError('sendAttachmentToVendorsMadeDuringRequest')) { <span class="field__error toggle-row__error">Please choose ON or OFF.</span> }
+            </div>
+            <div class="toggle-row">
+              <span class="toggle-row__label">DO NOT auto send preferred vendor work orders for this customer</span>
+              <span class="toggle-row__options">
+                <label><input type="radio" formControlName="doNotUsePrimaryVendor" [value]="true" /> YES</label>
+                <label><input type="radio" formControlName="doNotUsePrimaryVendor" [value]="false" /> NO</label>
+              </span>
+            </div>
+            <div class="toggle-row">
+              <span class="toggle-row__label">Auto approve vendor estimate during customer approving RCS estimate</span>
+              <span class="toggle-row__options">
+                <label><input type="radio" formControlName="toggleApproveVendorEstimate" [value]="true" /> YES</label>
+                <label><input type="radio" formControlName="toggleApproveVendorEstimate" [value]="false" /> NO</label>
+              </span>
+            </div>
+            <div class="toggle-row">
+              <span class="toggle-row__label">Sends an email to customer for Checkout complete when job is moved to accounting</span>
+              <span class="toggle-row__options">
+                <label><input type="radio" formControlName="completeStatusUpdateMail" [value]="true" /> YES</label>
+                <label><input type="radio" formControlName="completeStatusUpdateMail" [value]="false" /> NO</label>
+              </span>
+            </div>
+            <div class="toggle-row">
+              <span class="toggle-row__label">Tech on Site</span>
+              <span class="toggle-row__options">
+                <label><input type="radio" formControlName="techOnSiteMail" [value]="true" /> YES</label>
+                <label><input type="radio" formControlName="techOnSiteMail" [value]="false" /> NO</label>
+              </span>
+            </div>
+            <div class="toggle-row">
+              <span class="toggle-row__label">Send Mail on ETA set/ Return ETA</span>
+              <span class="toggle-row__options">
+                <label><input type="radio" formControlName="returnScheduleStatusMail" [value]="true" /> YES</label>
+                <label><input type="radio" formControlName="returnScheduleStatusMail" [value]="false" /> NO</label>
+              </span>
+            </div>
+            <div class="toggle-row">
+              <span class="toggle-row__label">Send Mail to Customer on Job Create/ Service Request by Customer</span>
+              <span class="toggle-row__options">
+                <label><input type="radio" formControlName="updateForeJobCreate" [value]="true" /> YES</label>
+                <label><input type="radio" formControlName="updateForeJobCreate" [value]="false" /> NO</label>
+              </span>
+            </div>
+            <div class="toggle-row">
+              <span class="toggle-row__label">Send Mail to customer on Job Create/ Service Request by Admin</span>
+              <span class="toggle-row__options">
+                <label><input type="radio" formControlName="updateForJobCreateByAdmin" [value]="true" /> YES</label>
+                <label><input type="radio" formControlName="updateForJobCreateByAdmin" [value]="false" /> NO</label>
+              </span>
+            </div>
+            <div class="toggle-row">
+              <span class="toggle-row__label">Make Customer PO Mandatory during Service Request</span>
+              <span class="toggle-row__options">
+                <label><input type="radio" formControlName="mandatoryRcsPo" [value]="true" /> YES</label>
+                <label><input type="radio" formControlName="mandatoryRcsPo" [value]="false" /> NO</label>
+              </span>
+              <span class="toggle-row__help">If 'YES' is selected then for this customer when they are creating a Service Request from the customer portal, entering the datafield 'Customer Job No.' becomes mandatory, but if 'No' is selected then it is optional.</span>
+            </div>
+            <div class="toggle-row">
+              <span class="toggle-row__label">Show Customer PO in Service request form in Customer Portal</span>
+              <span class="toggle-row__options">
+                <label><input type="radio" formControlName="showHideCustomerPo" [value]="true" /> YES</label>
+                <label><input type="radio" formControlName="showHideCustomerPo" [value]="false" /> NO</label>
+              </span>
+            </div>
+
+            <!-- Vendor ETA window -->
+            <h4 class="subsection">Vendor ETA Window</h4>
+            <div class="toggle-row">
+              <span class="toggle-row__label">Set a specific amount of days so that the vendor is allowed to set their eta</span>
+              <span class="toggle-row__options">
+                <label><input type="radio" formControlName="vendorSetEtaForCustomDays" [value]="true" /> YES</label>
+                <label><input type="radio" formControlName="vendorSetEtaForCustomDays" [value]="false" /> NO</label>
+              </span>
+            </div>
+            @if (etaOn()) {
+              <div class="form-grid">
+                <label class="field">
+                  <span class="field__label">No of days</span>
+                  <div class="input-suffix">
+                    <input type="text" class="field__input" formControlName="etaForCustomDays" inputmode="numeric"
+                      [class.field__input--invalid]="etaMissing()" placeholder="Days vendor may set their eta within" />
+                    <span class="suffix">days</span>
+                  </div>
+                  <span class="hint">
+                    @if (systemwideEtaDays() !== null) {
+                      There is a company wide eta set parameter set for {{ systemwideEtaDays() }} of days now.
+                    }
+                    If you set days here, it will supersede the companywide settings for this customer.
+                  </span>
+                </label>
+                <label class="field">
+                  <span class="field__label">Emergency-job ETA hour cap</span>
+                  <div class="input-suffix">
+                    <input type="text" class="field__input" formControlName="hoursForEmergencyJobForSettingEtaDate"
+                      inputmode="decimal" [class.field__input--invalid]="etaMissing()"
+                      placeholder="If left blank, vendor can set eta for any date or time" />
+                    <span class="suffix">hour(s)</span>
+                  </div>
+                </label>
+              </div>
+              @if (etaMissing()) {
+                <span class="field__error">Please enter the number of days and emergency hours.</span>
+              }
+            }
+          </div>
+        </app-accordion>
+
+        <!-- ═══════════════ 5. NOTICES & POP-UPS ═══════════════ -->
+        <app-accordion heading="Notices & Pop-ups" variant="figma">
+          <div class="panel-pad">
+            <div class="rte-field">
+              <span class="field__label">Notice About Customer</span>
+              <app-rich-text-editor formControlName="notice" />
+            </div>
+            <div class="rte-field">
+              <span class="field__label">Job Popup</span>
+              <app-rich-text-editor formControlName="jobPopup" />
+            </div>
+            <div class="rte-field">
+              <span class="field__label">Estimate Popup</span>
+              <app-rich-text-editor formControlName="estimatePopup" />
+            </div>
+            <div class="rte-field">
+              <span class="field__label">Invoice Popup</span>
+              <app-rich-text-editor formControlName="invoicePopup" />
+            </div>
+            <div class="rte-field">
+              <span class="field__label">IVR Instruction</span>
+              <app-rich-text-editor formControlName="ivrInstruction" />
+            </div>
+            <div class="rte-field">
+              <span class="field__label">Auto-text for Invoices</span>
+              <app-rich-text-editor formControlName="autoTextForInvoice" />
+            </div>
+            <div class="rte-field">
+              <span class="field__label">Auto-text for Estimates</span>
+              <app-rich-text-editor formControlName="autoTextForEstimate" />
+            </div>
+          </div>
+        </app-accordion>
+
+        </div>
+      </section>
+
+      <!-- ══════ GROUP: Available after saving ══════ -->
+      <section class="seg-group" id="c-later">
+        <h3 class="seg-group__title">Available after saving</h3>
+        <p class="seg-group__note">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round" width="15" height="15" aria-hidden="true">
+            <rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
+          </svg>
+          These records open for editing once you create the customer.
+        </p>
+        <div class="accordions accordions--locked">
+        <!-- ═══════════════ 2–8. Placeholders (functional after save, on Edit) ═══════════════ -->
+        <app-accordion heading="Contact Profile" variant="figma">
+          <div class="panel-pad placeholder">
+            <p class="placeholder__msg">Please save the customer information first.</p>
+            <div class="table-scroll">
+              <table class="cfg-table">
+                <thead><tr><th>Name</th><th>Title</th><th>Phone</th><th>Ext</th><th>FAX</th><th>Email</th><th>Default</th></tr></thead>
+                <tbody><tr><td colspan="7" class="empty">No contacts yet.</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </app-accordion>
+
+        <app-accordion heading="Rates" variant="figma">
+          <div class="panel-pad placeholder">
+            <p class="placeholder__msg">Please save the customer information first.</p>
+            <div class="table-scroll">
+              <table class="cfg-table">
+                <thead><tr><th>Trade</th><th>Standard</th><th>Emergency</th><th>Holiday</th></tr></thead>
+                <tbody><tr><td colspan="4" class="empty">No labour / trip charges yet.</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </app-accordion>
+
+        <app-accordion heading="Job History" variant="figma">
+          <div class="panel-pad placeholder">
+            <p class="placeholder__msg">Please save the customer information first.</p>
+            <div class="table-scroll">
+              <table class="cfg-table">
+                <thead><tr><th>Date</th><th>Job Name</th><th>PO No</th><th>Service Location</th><th>Status</th></tr></thead>
+                <tbody><tr><td colspan="5" class="empty">No job history yet.</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </app-accordion>
+
+        <app-accordion heading="Files and Attachments" variant="figma">
+          <div class="panel-pad placeholder">
+            <p class="placeholder__msg">Please save the customer information first.</p>
+            <div class="table-scroll">
+              <table class="cfg-table">
+                <thead><tr><th>Doc Type</th><th>Comment</th><th>Added On</th><th>Added By</th><th>Status</th><th>View</th></tr></thead>
+                <tbody><tr><td colspan="6" class="empty">No files yet.</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </app-accordion>
+
+        <app-accordion heading="Service Locations" variant="figma">
+          <div class="panel-pad placeholder">
+            <p class="placeholder__msg">Please save the customer information first.</p>
+            <div class="table-scroll">
+              <table class="cfg-table">
+                <thead><tr><th>Business Name</th><th>Contact Person</th><th>Title</th><th>Phone</th><th>Fax</th><th>Email</th></tr></thead>
+                <tbody><tr><td colspan="6" class="empty">No service locations yet.</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </app-accordion>
+
+        <app-accordion heading="Notes" variant="figma">
+          <div class="panel-pad placeholder">
+            <p class="placeholder__msg">Please save the customer information first.</p>
+            <div class="table-scroll">
+              <table class="cfg-table">
+                <thead><tr><th>Title</th><th>Added On</th><th>Added By</th><th>Status</th><th>Note</th></tr></thead>
+                <tbody><tr><td colspan="5" class="empty">No notes yet.</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </app-accordion>
+
+        <app-accordion heading="Estimates" variant="figma">
+          <div class="panel-pad placeholder">
+            <p class="placeholder__msg">Please save the customer information first.</p>
+            <p class="empty">No estimates yet.</p>
+          </div>
+        </app-accordion>
+        </div>
+      </section>
+
+      <div class="form-actions">
+        <span class="form-actions__hint"><span class="req">*</span> Required fields must be completed before creating.</span>
+        <div class="form-actions__buttons">
+          <app-button variant="secondary" [disabled]="saving()" (clicked)="cancel()">Cancel</app-button>
+          <app-button variant="primary" type="submit" [loading]="saving()" [disabled]="saving()">
+            Create Customer
+          </app-button>
+        </div>
+      </div>
+    </form>
+  }
+</div>

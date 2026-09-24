@@ -1,0 +1,240 @@
+@if (isOpen()) {
+  <div class="modal-overlay" (click)="onOverlayClick($event)">
+    <div class="modal modal--smv" role="dialog" aria-modal="true" aria-labelledby="smvModalTitle">
+      <div class="modal__title-bar">
+        <span id="smvModalTitle">🔗 Landing page — as the store manager sees it (from the email link)</span>
+        <button type="button" class="modal__close" (click)="onClose()" aria-label="Close">&times;</button>
+      </div>
+
+      <div class="modal__chrome-head">
+        <span class="smv-brand">retail<b>fix</b>it</span>
+        <div class="smv-brand-sub">NATIONWIDE REPAIR &amp; MAINTENANCE</div>
+      </div>
+
+      <div class="modal__body">
+        <!-- Constant header -- shown in every state (complete-screen-v2.html's renderSmLanding()). -->
+        <div class="smv-const-head">
+          <h3 class="smv-const-title">Job Completion Verification</h3>
+          <div class="smv-const-meta">
+            {{ state().locationName || 'Location' }}
+            @if (po()) {
+              · PO {{ po() }}
+            }
+          </div>
+          @if (state().serviceRequest) {
+            <div class="smv-const-request" [innerHTML]="'&quot;' + state().serviceRequest + '&quot;'"></div>
+          }
+          <div class="smv-const-question">Was the work completed to your satisfaction?</div>
+        </div>
+
+        @if (state().responded) {
+          <!-- Real captured response -->
+          <div class="smv-response">
+            <div class="smv-response__head">
+              <b>✓ Store manager responded</b>
+              @if (state().storeManagerName) {
+                — {{ state().storeManagerName }}
+              }
+              @if (state().responseDate) {
+                <span class="muted">· {{ state().responseDate | date: 'M/d/yyyy h:mm a' }}</span>
+              }
+            </div>
+
+            @if (state().remark) {
+              <div class="smv-remark">"{{ state().remark }}"</div>
+            }
+
+            @if (ratingAnswers().length) {
+              <b class="smv-label">Ratings</b>
+              <div class="smv-grid-2">
+                @for (a of ratingAnswers(); track $index) {
+                  <div class="smv-answer-row">
+                    <span class="smv-answer-row__label">{{ a.displayLabel }}</span>
+                    <span class="smv-stars">
+                      @for (filled of stars(a.score); track $index) {
+                        <span [class.smv-star--on]="filled" class="smv-star">★</span>
+                      }
+                    </span>
+                  </div>
+                }
+              </div>
+            }
+
+            @if (choiceAnswers().length) {
+              <b class="smv-label">Answers</b>
+              <div class="smv-grid-2">
+                @for (a of choiceAnswers(); track $index) {
+                  <div class="smv-answer-row">
+                    <span class="smv-answer-row__label">{{ a.displayLabel }}</span>
+                    <span class="badge b-gray">{{ a.answer }}</span>
+                  </div>
+                }
+              </div>
+            }
+
+            @if (commentAnswers().length) {
+              <b class="smv-label">Comments</b>
+              @for (a of commentAnswers(); track $index) {
+                <div class="smv-comment">
+                  @if (a.displayLabel) {
+                    <div class="smv-comment__label">{{ a.displayLabel }}</div>
+                  }
+                  <div>{{ a.answer || '—' }}</div>
+                </div>
+              }
+            }
+
+            @if (unclassifiedAnswers().length) {
+              <b class="smv-label">Other answers</b>
+              @for (a of unclassifiedAnswers(); track $index) {
+                <div class="smv-answer-row">
+                  <span class="smv-answer-row__label">{{ a.displayLabel }}</span>
+                  <span>{{ a.score ?? a.answer }}</span>
+                </div>
+              }
+            }
+          </div>
+        } @else {
+          <!-- Not yet responded -- recreates the real survey form's fields
+               (ScorecardStoreManagerResponseSetup). Interactive + submit-able when canSubmit (a
+               real pending survey exists); otherwise the same fields, read-only. -->
+          <div class="smv-form-preview">
+            @if (!state().canSubmit) {
+              <div class="smv-form-preview__banner">
+                Preview — no survey has been sent for this job yet, so there is nothing to submit.
+              </div>
+            }
+
+            @if (submitError()) {
+              <div class="smv-form-preview__error">{{ submitError() }}</div>
+            }
+
+            <div class="smv-field">
+              <label class="smv-field__label">Manager's Name <span class="smv-required">*</span></label>
+              <input
+                type="text"
+                class="smv-input"
+                [value]="managerName()"
+                (input)="onNameInput($any($event.target).value)"
+                [disabled]="!state().canSubmit"
+              />
+            </div>
+
+            @if (questionSetupLoading()) {
+              <div class="smv-form-preview__loading">Loading survey questions…</div>
+            }
+
+            @if (ratingQuestions().length) {
+              <div class="smv-grid-2">
+                @for (q of ratingQuestions(); track q.scoreCardResponseKey) {
+                  <div class="smv-field">
+                    <div class="smv-field__label" [innerHTML]="q.displayLabel"></div>
+                    <div class="smv-stars smv-stars--lg">
+                      @for (n of [1, 2, 3, 4, 5]; track n) {
+                        <span
+                          class="smv-star smv-star--selectable"
+                          [class.smv-star--on]="(ratingFor(q.scoreCardResponseKey) ?? 0) >= n"
+                          (click)="setRating(q.scoreCardResponseKey, n)"
+                          >★</span
+                        >
+                      }
+                    </div>
+                  </div>
+                }
+              </div>
+            }
+
+            @if (yesNoUnsureQuestions().length || yesPartiallyNoQuestions().length) {
+              <div class="smv-grid-2">
+                @for (q of yesNoUnsureQuestions(); track q.scoreCardResponseKey) {
+                  <div class="smv-field">
+                    <div class="smv-field__label" [innerHTML]="q.displayLabel"></div>
+                    <div class="smv-choice-row">
+                      @for (opt of ['Yes', 'No', 'Not sure']; track opt) {
+                        <label class="smv-choice">
+                          <input
+                            type="radio"
+                            [name]="'q_' + q.scoreCardResponseKey"
+                            [checked]="choiceFor(q.scoreCardResponseKey) === opt"
+                            (change)="setChoice(q.scoreCardResponseKey, opt)"
+                            [disabled]="!state().canSubmit"
+                          />
+                          {{ opt }}
+                        </label>
+                      }
+                    </div>
+                  </div>
+                }
+
+                @for (q of yesPartiallyNoQuestions(); track q.scoreCardResponseKey) {
+                  <div class="smv-field">
+                    <div class="smv-field__label" [innerHTML]="q.displayLabel"></div>
+                    <div class="smv-choice-row">
+                      @for (opt of ['Yes', 'Partially', 'No']; track opt) {
+                        <label class="smv-choice">
+                          <input
+                            type="radio"
+                            [name]="'q_' + q.scoreCardResponseKey"
+                            [checked]="choiceFor(q.scoreCardResponseKey) === opt"
+                            (change)="setChoice(q.scoreCardResponseKey, opt)"
+                            [disabled]="!state().canSubmit"
+                          />
+                          {{ opt }}
+                        </label>
+                      }
+                    </div>
+                  </div>
+                }
+              </div>
+            }
+
+            @for (q of commentQuestions(); track q.scoreCardResponseKey) {
+              <div class="smv-field">
+                <input
+                  type="text"
+                  class="smv-input"
+                  placeholder="Optional comment"
+                  [value]="choiceFor(q.scoreCardResponseKey) ?? ''"
+                  (input)="setComment(q.scoreCardResponseKey, $any($event.target).value)"
+                  [disabled]="!state().canSubmit"
+                />
+              </div>
+            }
+
+            <div class="smv-field">
+              <label class="smv-field__label">General comments</label>
+              <textarea
+                class="smv-textarea"
+                rows="2"
+                placeholder="Optional feedback about this job or visit"
+                [value]="generalRemarks()"
+                (input)="onRemarksInput($any($event.target).value)"
+                [disabled]="!state().canSubmit"
+              ></textarea>
+            </div>
+
+            <button
+              type="button"
+              class="smv-submit-btn"
+              [class.smv-submit-btn--enabled]="state().canSubmit"
+              [disabled]="!state().canSubmit || submitting()"
+              (click)="submit()"
+            >
+              {{ submitting() ? 'Submitting…' : '✓ Yes — job is complete and satisfactory · Submit' }}
+            </button>
+
+            @if (state().locationPhone) {
+              <div class="smv-call-instead">
+                Something wrong? Call us at {{ state().locationPhone }} instead of submitting.
+              </div>
+            }
+          </div>
+        }
+      </div>
+
+      <div class="modal__footer">
+        <button type="button" class="btn" (click)="onClose()">← Back (don't submit)</button>
+      </div>
+    </div>
+  </div>
+}

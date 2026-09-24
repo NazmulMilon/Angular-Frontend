@@ -1,0 +1,151 @@
+<div class="page">
+  <nav class="breadcrumb">
+    <a routerLink="/settings" class="breadcrumb__link">Settings</a>
+    <span class="breadcrumb__sep">/</span>
+    <span class="breadcrumb__current">Vendor Registration Question Setup</span>
+  </nav>
+
+  <div class="page__header">
+    <div class="page__header-row">
+      <div>
+        <h1 class="page__title">Vendor Registration Question Setup</h1>
+        <p class="page__subtitle">Manage the questions (and answer options) shown during vendor registration.</p>
+      </div>
+      @if (!formOpen()) {
+        <button type="button" class="btn btn--primary btn--icon" (click)="startCreate()">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          Add New Question
+        </button>
+      }
+    </div>
+  </div>
+
+  @if (error()) {
+    <div class="error-banner">{{ error() }}</div>
+  }
+
+  <!-- ── Question form ── -->
+  @if (formOpen()) {
+    <div class="panel" [class.panel--edit]="editingKey() !== null">
+      <div class="panel__head">{{ editingKey() === null ? 'New Question' : 'Edit Question' }}</div>
+      <div class="panel__body">
+        <div class="form-grid">
+          <div class="field">
+            <label class="field__label" for="qCode">Question Code</label>
+            <input id="qCode" type="text" class="field__input" maxlength="100" [ngModel]="qCode()" (ngModelChange)="qCode.set($event)" name="qCode" placeholder="optional" />
+          </div>
+          <div class="field">
+            <label class="field__label" for="qType">Question Type</label>
+            <select id="qType" class="field__select" [ngModel]="qType()" (ngModelChange)="qType.set($event)" name="qType">
+              @for (t of questionTypes(); track t) { <option [value]="t">{{ t }}</option> }
+            </select>
+          </div>
+          <div class="field field--full">
+            <label class="field__label" for="qText">Question Text</label>
+            <textarea id="qText" class="field__textarea" rows="3" [ngModel]="qText()" (ngModelChange)="qText.set($event)" name="qText" required placeholder="Enter the question..."></textarea>
+          </div>
+          <div class="field field--narrow">
+            <label class="field__label" for="qSort">Sort Order</label>
+            <input id="qSort" type="number" class="field__input" [ngModel]="qSort()" (ngModelChange)="qSort.set($event)" name="qSort" required min="0" placeholder="#" />
+          </div>
+          <div class="field field--checks">
+            <label class="chk">
+              <input type="checkbox" [ngModel]="qRequired()" (ngModelChange)="qRequired.set($event)" name="qRequired" />
+              <span>Required</span>
+            </label>
+            <label class="chk">
+              <input type="checkbox" [ngModel]="qActive()" (ngModelChange)="qActive.set($event)" name="qActive" />
+              <span>Active</span>
+            </label>
+          </div>
+        </div>
+        @if (hasOptions(qType())) {
+          <p class="opt-note">This question type has answer options — add them from the question's <strong>Options</strong> panel after saving.</p>
+        }
+      </div>
+      <div class="panel__footer">
+        <button type="button" class="btn btn--primary" [disabled]="!canSave" (click)="save()">Save</button>
+        <button type="button" class="btn btn--secondary" (click)="cancelForm()">Cancel</button>
+      </div>
+    </div>
+  }
+
+  <!-- ── Questions grid ── -->
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th class="th--sort">Sort</th>
+          <th class="th--code">Code</th>
+          <th>Question Text</th>
+          <th class="th--type">Type</th>
+          <th class="th--flag">Required</th>
+          <th class="th--flag">Active</th>
+          <th class="th--actions"></th>
+        </tr>
+      </thead>
+      <tbody>
+        @if (loading()) {
+          <tr><td colspan="7" class="td--empty">Loading questions…</td></tr>
+        } @else {
+        @for (q of questions(); track q.key) {
+          <tr [class.tr--active]="editingKey() === q.key" [class.tr--muted]="!q.active">
+            <td class="td--sort">{{ q.sortOrder }}</td>
+            <td class="td--code">@if (q.code) { <span class="code-badge">{{ q.code }}</span> } @else { <span class="dash">—</span> }</td>
+            <td class="td--text">{{ q.text }}</td>
+            <td><span class="type-badge">{{ q.type }}</span></td>
+            <td class="td--flag">@if (q.required) { <span class="pill pill--yes">Yes</span> } @else { <span class="pill pill--no">No</span> }</td>
+            <td class="td--flag">@if (q.active) { <span class="pill pill--yes">Yes</span> } @else { <span class="pill pill--no">No</span> }</td>
+            <td class="td--actions">
+              <button type="button" class="icon-btn" title="Edit" (click)="startEdit(q)">
+                <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M10.586 1.586a2 2 0 0 1 2.828 2.828L5.5 12.328l-3.6.9.9-3.6 7.786-8.042Z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+              @if (hasOptions(q.type)) {
+                <button type="button" class="opt-btn" [class.opt-btn--open]="expandedKey() === q.key" (click)="toggleOptions(q)">Options ({{ q.options.length }})</button>
+              }
+              @if (q.active) {
+                <button type="button" class="deact-btn" title="Deactivate" (click)="deactivateQuestion(q)">Deactivate</button>
+              }
+            </td>
+          </tr>
+          @if (expandedKey() === q.key) {
+            <tr class="opt-row">
+              <td colspan="7">
+                <div class="opt-panel">
+                  <div class="opt-panel__title">Answer Options — {{ q.text }}</div>
+                  @if (q.options.length) {
+                    <div class="opt-list">
+                      @for (o of q.options; track o.key) {
+                        <div class="opt-item" [class.opt-item--muted]="!o.active">
+                          <span class="opt-sort">{{ o.sortOrder }}</span>
+                          <span class="opt-text">{{ o.text }}</span>
+                          <span class="opt-value">{{ o.value }}</span>
+                          @if (o.active) {
+                            <button type="button" class="opt-deact" (click)="deactivateOption(q, o)">Deactivate</button>
+                          } @else {
+                            <span class="opt-inactive">Inactive</span>
+                          }
+                        </div>
+                      }
+                    </div>
+                  } @else {
+                    <p class="opt-empty">No options yet.</p>
+                  }
+                  <div class="opt-add">
+                    <input type="text" class="field__input field__input--sm" [ngModel]="oText()" (ngModelChange)="oText.set($event)" name="oText" placeholder="Option text" />
+                    <input type="text" class="field__input field__input--sm" [ngModel]="oValue()" (ngModelChange)="oValue.set($event)" name="oValue" placeholder="Option value" />
+                    <input type="number" class="field__input field__input--xs" [ngModel]="oSort()" (ngModelChange)="oSort.set($event)" name="oSort" min="0" placeholder="#" />
+                    <button type="button" class="btn btn--sm btn--primary" [disabled]="!canAddOption" (click)="addOption(q)">Add Option</button>
+                  </div>
+                </div>
+              </td>
+            </tr>
+          }
+        } @empty {
+          <tr><td colspan="7" class="td--empty">No questions defined.</td></tr>
+        }
+        }
+      </tbody>
+    </table>
+  </div>
+</div>

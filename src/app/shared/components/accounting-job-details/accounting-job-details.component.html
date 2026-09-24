@@ -1,0 +1,117 @@
+<!-- ============================================================
+     Accounting V2 — Job Details accordion
+     Mirrors complete-screen-v2.html's jobDetailsHTML() markup/classes exactly
+     (.panel > .jd-head + .jd-body > .jd-grid > .jd-col > .kv rows).
+     ============================================================ -->
+@if (jobHeaderDetail(); as hd) {
+  <div class="panel">
+    <div class="jd-head" [class.open]="isOpen()" (click)="toggle()">
+      <span class="caret">▶</span>
+      <span class="t">Job Details</span>
+      <span class="chip stat">● {{ (hd.jobStatusName || 'COMPLETE').toUpperCase() }}</span>
+      <span class="chip">{{ hd.customerName }}</span>
+      @if (hd.tradeName) {
+        <span class="chip">{{ hd.tradeName }}</span>
+      }
+      @if (hd.jobTypeName) {
+        <span class="chip">{{ hd.jobTypeName }}</span>
+      }
+      <span class="chip dne"><small>CUST DNE</small> {{ (hd.revCustomerDne ?? hd.customerDne) | currency }}</span>
+      <span class="chip dne"><small>REV VENDOR DNE</small> {{ revVendorTotal() | currency }}</span>
+      <span class="chip dne"><small>PO</small> {{ hd.po }}</span>
+      <span class="muted" style="font-size: 10.5px">
+        Entry {{ hd.entryDate | date: 'M/d/yy' }} → Compl. {{ hd.completionDate | date: 'M/d/yy' }}
+      </span>
+    </div>
+
+    <div class="jd-body" [class.open]="isOpen()">
+      <div class="jd-grid">
+        <div class="jd-col">
+          <h4>Job Info · <span class="chip" style="padding: 1px 7px">PO {{ hd.po }}</span></h4>
+          <div class="kv"><span class="k">Account Mgr</span><span class="v">{{ hd.accountManagerName || '—' }}</span></div>
+          <div class="kv">
+            <span class="k">Entry → Compl.</span>
+            <span class="v">{{ hd.entryDate | date: 'M/d/yy' }} → {{ hd.completionDate | date: 'M/d/yy' }}</span>
+          </div>
+          <div class="kv"><span class="k">Trade</span><span class="v">{{ hd.tradeName || '—' }}</span></div>
+          <div class="kv"><span class="k">Priority</span><span class="v">{{ hd.jobTypeName || '—' }}</span></div>
+          <div class="kv">
+            <span class="k">Revised Vendor DNE</span>
+            <span class="v">
+              @if (vendorDneChanged()) {
+                <span class="strike">{{ origVendorTotal() | currency }}</span>
+              }
+              {{ revVendorTotal() | currency }}
+            </span>
+          </div>
+        </div>
+
+        <div class="jd-col">
+          <h4>Customer <span class="chip" style="padding: 1px 7px; color: var(--blue)">{{ hd.customerName }}</span></h4>
+          <div class="kv"><span class="k">Contact</span><span class="v">{{ hd.customerContactName || '—' }}</span></div>
+          <div class="kv"><span class="k">Title</span><span class="v">{{ hd.customerContactTitle || '—' }}</span></div>
+          <div class="kv"><span class="k">Email</span><span class="v" style="color: var(--blue)">{{ hd.customerContactEmail || '—' }}</span></div>
+          <div class="kv">
+            <span class="k">Phone / Alt</span>
+            <span class="v" style="color: var(--blue)">☏ {{ hd.customerContactPhone || '—' }}</span>
+          </div>
+          <div class="kv"><span class="k">Customer DNE *</span><span class="v">{{ (hd.revCustomerDne ?? hd.customerDne) | currency }}</span></div>
+        </div>
+
+        <div class="jd-col">
+          <h4>Location <span class="chip" style="padding: 1px 7px; color: var(--blue)">{{ hd.locationName }}</span></h4>
+          <div class="kv"><span class="k">Contact</span><span class="v">{{ hd.locationContactName || '—' }}</span></div>
+          <div class="kv"><span class="k">Phone</span><span class="v" style="color: var(--blue)">☏ {{ hd.locationContactPhone || '—' }}</span></div>
+          <div class="kv"><span class="k">Email</span><span class="v" style="color: var(--blue)">✉ {{ hd.locationContactEmail || '—' }}</span></div>
+          <div class="kv"><span class="k">Address</span><span class="v" style="color: var(--blue)">{{ hd.locationAddress }}</span></div>
+          <div class="kv"><span class="k">City / State</span><span class="v">{{ hd.cityName || '—' }} · {{ hd.stateName || '—' }}</span></div>
+        </div>
+      </div>
+
+      <div class="jd-req">
+        <b>* Customer Service Request</b>
+        @if (hd.serviceRequest) {
+          <span [innerHTML]="hd.serviceRequest"></span>
+        } @else {
+          <span class="muted">None on file</span>
+        }
+      </div>
+
+      <div class="jd-grid" style="grid-template-columns: 1fr 1fr; border-top: 1px solid var(--line)">
+        <div class="jd-col">
+          <h4>Special Instruction</h4>
+          <div style="font-size: 12px">
+            @if (hd.specialInstruction) {
+              <div [innerHTML]="hd.specialInstruction"></div>
+            } @else {
+              <span class="muted">None on file</span>
+            }
+          </div>
+        </div>
+        <div class="jd-col">
+          <h4>Additional Approval</h4>
+          <div style="font-size: 12px">
+            @if (hd.additionalApproval) {
+              <div [innerHTML]="hd.additionalApproval"></div>
+            } @else {
+              <span class="muted">None on file</span>
+            }
+          </div>
+        </div>
+      </div>
+
+      <div class="jd-req">
+        <b>Location Special Instruction</b>
+        @if (hd.locationSpecialInstruction) {
+          <span [innerHTML]="hd.locationSpecialInstruction"></span>
+        } @else {
+          <span class="muted">None on file</span>
+        }
+      </div>
+    </div>
+  </div>
+} @else if (loading()) {
+  <div class="panel muted" style="padding: 12px 14px; font-size: 12px">Loading job details…</div>
+} @else if (errorMessage()) {
+  <div class="panel" style="padding: 12px 14px; font-size: 12px; color: var(--red)">{{ errorMessage() }}</div>
+}

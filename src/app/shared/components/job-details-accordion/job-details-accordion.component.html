@@ -1,0 +1,1713 @@
+<!-- ================================================================
+     SECTION 1: Job Details Accordion  (Figma node 1:37 / 1:38)
+     ================================================================ -->
+<div id="section-job-details" class="av-section-anchor"></div>
+<app-accordion
+  #jobDetailsAccordion
+  heading="Job Details"
+  [defaultOpen]="true"
+  variant="figma"
+>
+  <!-- ── Header chips + top action buttons ── -->
+  <div accordionHeaderActions class="jd-header-actions">
+    <!-- Summary chips -->
+    @if (jobHeaderDetail(); as hchd) {
+      <div class="jd-header-chips" [class.jd-header-chips--menu-open]="statusDropdownOpen()">
+        <!-- Status dropdown pill -->
+        @if (hchd.assignedVendors && hchd.assignedVendors.length > 0) {
+          @let statusVendor = defaultStatusVendor(hchd);
+          <span class="jd-status-dd" (click)="$event.stopPropagation()">
+            <span
+              class="jd-status-pill"
+              [class]="'jd-st-' + jobStatusColorKey(getVendorJobStatusLabel(statusVendor))"
+              (click)="toggleStatusDropdown()"
+              role="button"
+              tabindex="0"
+              aria-haspopup="listbox"
+              [attr.aria-expanded]="statusDropdownOpen()"
+              aria-label="Job status"
+            >
+              <span class="jd-st-dot"></span>
+              <span>{{ getVendorJobStatusLabel(statusVendor) || '—' }}</span>
+              <span class="jd-st-car">&#9662;</span>
+            </span>
+            <div class="jd-dd-menu" [class.show]="statusDropdownOpen()" role="listbox">
+              @for (opt of vendorJobStatusOptions(statusVendor); track opt.value) {
+                <div
+                  class="jd-dd-item"
+                  [class.selected]="normalizeSelectKey(opt.value) === vendorJobStatusSelectKey(statusVendor)"
+                  role="option"
+                  (click)="pickVendorJobStatus(statusVendor, opt)"
+                >
+                  <span class="jd-dd-dot" [class]="'jd-st-' + jobStatusColorKey(opt.text)"></span>
+                  {{ opt.text }}
+                  <span class="jd-dd-check">&#10003;</span>
+                </div>
+              }
+            </div>
+          </span>
+        } @else if (hchd.jobStatusName) {
+          <span class="jd-hchip jd-hchip--pill">{{ hchd.jobStatusName }}</span>
+        }
+        @if (hchd.customerName) {
+          <span class="jd-hchip jd-hchip--pill">{{ hchd.customerName }}</span>
+        }
+        @if (tradeName()) {
+          <span class="jd-hchip jd-hchip--pill">{{ tradeName() }}</span>
+        }
+        @if (hchd.jobTypeName) {
+          <span class="jd-hchip jd-hchip--priority" [class]="'jd-hchip--priority--' + (hchd.jobTypeName | lowercase)">{{ hchd.jobTypeName }}</span>
+        }
+        @if (vendorDneNumber(nteCustomer()) > 0) {
+          <span class="jd-hchip jd-hchip--pill">
+            <span class="jd-hchip__lbl">{{ vendorDneNumber(nteRevCustomer()) !== vendorDneNumber(nteCustomer()) ? 'Rev Cust DNE' : 'Cust DNE' }}</span>
+            {{ (vendorDneNumber(nteRevCustomer()) !== vendorDneNumber(nteCustomer()) ? vendorDneNumber(nteRevCustomer()) : vendorDneNumber(nteCustomer())) | currency }}
+          </span>
+        }
+        @if (vendorDneNumber(nteVendor()) > 0) {
+          <span class="jd-hchip jd-hchip--pill">
+            <span class="jd-hchip__lbl">{{ vendorDneNumber(nteRevVendor()) !== vendorDneNumber(nteVendor()) ? 'Rev Vendor DNE' : 'Vendor DNE' }}</span>
+            {{ (vendorDneNumber(nteRevVendor()) !== vendorDneNumber(nteVendor()) ? vendorDneNumber(nteRevVendor()) : vendorDneNumber(nteVendor())) | currency }}
+          </span>
+        }
+        @if (hchd.entryDate) {
+          <span class="jd-htext">Entry {{ hchd.entryDate | date:'M/d h:mma' }}</span>
+        }
+      </div>
+    }
+
+    <!-- Action buttons -->
+    <div class="top-action-buttons">
+      <button class="top-action-btn top-action-btn--primary" (click)="onBroadcastToVendors()">
+        Broadcast to Vendors
+      </button>
+      <button
+        class="top-action-btn top-action-btn--primary"
+        [disabled]="!canRecall()"
+        [title]="canRecall() ? '' : 'Recall is only available when the job status is Complete or Move to Accounting.'"
+        (click)="onRecallClick()"
+      >
+        Recall
+      </button>
+      <button class="top-action-btn top-action-btn--primary" (click)="onOpenFilesAttachments()">
+        Files and Attachments
+      </button>
+      <button class="top-action-btn top-action-btn--primary" (click)="onDuplicateJob()">
+        Duplicate this Job
+      </button>
+      <button class="top-action-btn top-action-btn--primary" (click)="onSave()">
+        Save
+      </button>
+    </div>
+  </div>
+
+  @if (errorMessage()) {
+    <div class="jd2-error-banner" role="alert">{{ errorMessage() }}</div>
+  }
+  @if (successMessage()) {
+    <div class="jd2-success-banner" role="status">{{ successMessage() }}</div>
+  }
+
+  <!-- ── Three-column compact panel layout ── -->
+  <div class="jd2-grid">
+    @if (jobHeaderDetail(); as hd) {
+
+      <!-- ============ JOB INFO ============ -->
+      <div class="jd2-col">
+        <div class="jd2-col-title">
+          Job Info
+          @if (hd.po) { <span class="jd2-title-badge">PO {{ hd.po }}</span> }
+        </div>
+
+        <div class="jd2-kv">
+          <span class="jd2-k">Account Mgr</span>
+          <span class="jd2-v">{{ hd.accountManagerName || '—' }}</span>
+        </div>
+
+        <div class="jd2-kv">
+          <span class="jd2-k">Entry &rarr; Compl.</span>
+          <span class="jd2-v">
+            {{ hd.entryDate ? (hd.entryDate | date:'M-dd-yy h:mma') : '—' }}
+            <span class="jd2-sub">&rarr; {{ hd.completionDate ? (hd.completionDate | date:'M-dd-yy h:mma') : '—' }}</span>
+          </span>
+        </div>
+
+        <div class="jd2-kv jd2-fld-dd">
+          <span class="jd2-k">Trade</span>
+          <span class="jd2-v">
+            <select
+              class="jd2-select"
+              (change)="onTradeChange($any($event.target).value)"
+              [disabled]="tradeSaving()"
+              aria-label="Trade"
+            >
+              @if (!pageContext()?.tradeKey) {
+                <option value="" selected>— Select Trade —</option>
+              }
+              @for (opt of tradeDropdown(); track opt.value) {
+                <option [value]="opt.value" [selected]="normalizeSelectKey(opt.value) === normalizeSelectKey(pageContext()?.tradeKey ?? '')">{{ opt.text }}</option>
+              }
+            </select>
+          </span>
+        </div>
+
+        <div class="jd2-kv jd2-fld-dd">
+          <span class="jd2-k">Priority</span>
+          <span class="jd2-v">
+            <select
+              class="jd2-select"
+              [ngModel]="jobPriorityUiKey()"
+              (ngModelChange)="onJobPriorityChange($event)"
+              [disabled]="jobPrioritySaving()"
+              aria-label="Job priority"
+            >
+              @if (!jobPriorityUiKey()) {
+                <option value="">— Select priority —</option>
+              }
+              @for (opt of jobPriorityOptions(); track opt.value) {
+                <option
+                  [value]="normalizeSelectKey(opt.value)"
+                  [disabled]="isJobPriorityOptionDisabled(opt)"
+                >{{ opt.text }}</option>
+              }
+            </select>
+          </span>
+        </div>
+
+        <div class="jd2-kv jd2-dne-row">
+          <span class="jd2-k">
+            {{ vendorDneNumber(nteRevVendor()) !== vendorDneNumber(nteVendor()) ? 'Revised Vendor DNE' : 'Default Vendor DNE' }}
+            @if (vendorDneNumber(nteRevVendor()) === vendorDneNumber(nteVendor())) { <span class="jd2-req">*</span> }
+          </span>
+          <span class="jd2-v">
+            @if (vendorDneNumber(nteRevVendor()) !== vendorDneNumber(nteVendor())) {
+              <span class="jd2-orig">{{ vendorDneNumber(nteVendor()) | currency }}</span>
+            }
+            {{ (vendorDneNumber(nteRevVendor()) !== vendorDneNumber(nteVendor()) ? vendorDneNumber(nteRevVendor()) : vendorDneNumber(nteVendor())) | currency }}
+          </span>
+        </div>
+      </div>
+
+      <!-- ============ CUSTOMER ============ -->
+      <div class="jd2-col">
+        <div class="jd2-col-title">
+          Customer
+          @if (hd.customerName && pageContext()?.customerKey) {
+            <a
+              class="jd2-title-badge jd2-title-badge--link"
+              [href]="legacyCustomerEditUrl(pageContext()?.customerKey)"
+              target="_blank"
+              rel="noopener noreferrer"
+            >{{ hd.customerName }} &#8599;</a>
+          } @else if (hd.customerName) {
+            <span class="jd2-title-badge">{{ hd.customerName }}</span>
+          }
+        </div>
+
+        <div class="jd2-kv jd2-fld-dd">
+          <span class="jd2-k">Contact</span>
+          <span class="jd2-v">
+            <select
+              class="jd2-select"
+              [ngModel]="customerRequestorSelectKey()"
+              (ngModelChange)="onCustomerRequestorChange($event)"
+              [disabled]="customerRequestorSaving()"
+              aria-label="Contact"
+            >
+              @if (!customerRequestorSelectKey()) {
+                <option value="">— Select contact —</option>
+              }
+              @for (opt of customerRequestorOptions(); track opt.value) {
+                <option [value]="normalizeSelectKey(opt.value)">{{ opt.text }}</option>
+              }
+            </select>
+          </span>
+        </div>
+
+        <div class="jd2-kv">
+          <span class="jd2-k">Title</span>
+          <span class="jd2-v">{{ hd.customerContactTitle || '—' }}</span>
+        </div>
+
+        <div class="jd2-kv">
+          <span class="jd2-k">Email</span>
+          <span class="jd2-v">
+            @if (hd.customerContactEmail) {
+              <button
+                type="button"
+                class="jd2-link jd2-link--btn"
+                (click)="onOpenNotesForCustomerEmail(hd.customerContactEmail)"
+              ><span class="jd2-icon">&#9993;</span>{{ hd.customerContactEmail }}</button>
+            } @else {
+              <span class="jd2-empty">—</span>
+            }
+          </span>
+        </div>
+
+        <div class="jd2-kv">
+          <span class="jd2-k">Phone / Alt</span>
+          <span class="jd2-v">
+            @if (hd.customerContactPhone) {
+              <a class="jd2-link" [href]="telHref(hd.customerContactPhone)" [attr.aria-label]="'Call ' + formatPhoneDisplay(hd.customerContactPhone)">
+                <span class="jd2-icon">&#9742;</span>{{ formatPhoneWithExt(hd.customerContactPhone, hd.customerContactPhoneExt) }}
+              </a>
+              @if (hd.customerContactAltPhone) {
+                <span class="jd2-sub"> &middot; Alt {{ formatPhoneWithExt(hd.customerContactAltPhone, hd.customerContactAltPhoneExt) }}</span>
+              }
+            } @else {
+              <span class="jd2-empty">—</span>
+            }
+          </span>
+        </div>
+
+        <div class="jd2-kv jd2-dne-row">
+          <span class="jd2-k">
+            {{ vendorDneNumber(nteRevCustomer()) !== vendorDneNumber(nteCustomer()) ? 'Revised Customer DNE' : 'Customer DNE' }}
+            @if (vendorDneNumber(nteRevCustomer()) === vendorDneNumber(nteCustomer())) { <span class="jd2-req">*</span> }
+          </span>
+          <span class="jd2-v">
+            @if (vendorDneNumber(nteRevCustomer()) !== vendorDneNumber(nteCustomer())) {
+              <span class="jd2-orig">{{ vendorDneNumber(nteCustomer()) | currency }}</span>
+            }
+            {{ (vendorDneNumber(nteRevCustomer()) !== vendorDneNumber(nteCustomer()) ? vendorDneNumber(nteRevCustomer()) : vendorDneNumber(nteCustomer())) | currency }}
+          </span>
+        </div>
+      </div>
+
+      <!-- ============ LOCATION ============ -->
+      <div class="jd2-col">
+        <div class="jd2-col-title">
+          Location
+          @if (hd.locationName && pageContext()?.locationKey) {
+            <a
+              class="jd2-title-badge jd2-title-badge--link"
+              [href]="legacyLocationEditUrl(pageContext()?.locationKey)"
+              target="_blank"
+              rel="noopener noreferrer"
+              [attr.title]="hd.locationName"
+            >{{ hd.locationName }}</a>
+          } @else if (hd.locationName) {
+            <span class="jd2-title-badge" [attr.title]="hd.locationName">{{ hd.locationName }}</span>
+          }
+        </div>
+
+        <div class="jd2-kv">
+          <span class="jd2-k">Contact</span>
+          <span class="jd2-v">{{ hd.locationContactName || '—' }}</span>
+        </div>
+
+        <div class="jd2-kv">
+          <span class="jd2-k">Phone</span>
+          <span class="jd2-v">
+            @if (hd.locationContactPhone) {
+              <a class="jd2-link" [href]="telHref(hd.locationContactPhone)" [attr.aria-label]="'Call ' + formatPhoneDisplay(hd.locationContactPhone)">
+                <span class="jd2-icon">&#9742;</span>{{ formatPhoneWithExt(hd.locationContactPhone, hd.locationContactPhoneExt) }}
+              </a>
+            } @else if (hd.locationPhone && isValidPhoneNumber(hd.locationPhone)) {
+              <a class="jd2-link" [href]="telHref(hd.locationPhone)" [attr.aria-label]="'Call ' + formatPhoneDisplay(hd.locationPhone)">
+                <span class="jd2-icon">&#9742;</span>{{ formatPhoneDisplay(hd.locationPhone) }}
+              </a>
+            } @else {
+              <span class="jd2-empty">—</span>
+            }
+          </span>
+        </div>
+
+        <div class="jd2-kv">
+          <span class="jd2-k">Email</span>
+          <span class="jd2-v">
+            @if (hd.locationContactEmail) {
+              <button
+                type="button"
+                class="jd2-link jd2-link--btn"
+                (click)="onOpenNotesForLocationEmail(hd.locationContactEmail)"
+              ><span class="jd2-icon">&#9993;</span>{{ hd.locationContactEmail }}</button>
+            } @else {
+              <span class="jd2-empty">—</span>
+            }
+          </span>
+        </div>
+
+        <div class="jd2-kv">
+          <span class="jd2-k">Address</span>
+          <span class="jd2-v">
+            @if (hd.locationAddress) {
+              <a class="jd2-link" [href]="getLocationHref(hd.locationAddress, hd.cityName, hd.stateName, hd.zipCode)" target="_blank" rel="noopener noreferrer">
+                {{ hd.locationAddress }}@if (hd.locationAddress2) {, {{ hd.locationAddress2 }}}
+              </a>
+            } @else {
+              <span class="jd2-empty">—</span>
+            }
+          </span>
+        </div>
+
+        <div class="jd2-kv">
+          <span class="jd2-k">City / TZ</span>
+          <span class="jd2-v">
+            {{ hd.cityName || '—' }}@if (hd.stateName) {, {{ hd.stateName }}} {{ hd.zipCode }}
+            @if (getTimezoneForState(hd.stateName)) {
+              <span class="jd2-sub"> &middot; {{ getTimezoneForState(hd.stateName) }}</span>
+            }
+          </span>
+        </div>
+
+        @if (jobHeaderDetail()?.storeHours && jobHeaderDetail()!.storeHours!.length > 0) {
+          <button
+            class="jd2-store-hours-btn"
+            type="button"
+            (click)="storeHoursModalOpen.set(true)"
+          >
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true">
+              <circle cx="6.5" cy="6.5" r="5.5" stroke="#475569" stroke-width="1"/>
+              <path d="M6.5 3.5v3l2 1.5" stroke="#475569" stroke-width="1" stroke-linecap="round"/>
+            </svg>
+            View Store Hours
+          </button>
+        }
+      </div>
+
+    } @else {
+      <p class="text-muted" style="grid-column:1/-1;padding:12px 16px">Loading job details…</p>
+    }
+  </div>
+
+  <!-- ── Notes: 2-up grid, Customer Service Request spans full width ── -->
+  @if (jobHeaderDetail(); as hdn) {
+    <div class="jd2-notes">
+      <div class="jd2-note-row jd2-note-row--span2" [class.jd2-note-row--open]="!sriFieldCollapsed('serviceRequest')">
+        @if (sriFieldCollapsed('serviceRequest')) {
+          <button type="button" class="jd2-note-head jd2-note-head--collapsed" (click)="onSriFieldExpand('serviceRequest')">
+            <span class="jd2-note-title"><span class="jd2-req">*</span> Customer Service Request</span>
+            <span class="jd2-note-empty-tag">No service request on file — click to add</span>
+          </button>
+        } @else {
+          <div class="jd2-note-head">
+            <span class="jd2-note-title"><span class="jd2-req">*</span> Customer Service Request</span>
+            @if (sriSaving()) { <span class="jd2-saving">Saving…</span> }
+            <button type="button" class="jd2-note-collapse-btn" title="Collapse" aria-label="Collapse" (click)="onSriFieldCollapse('serviceRequest')">×</button>
+          </div>
+          <div class="jd2-note-body">
+            <textarea
+              rows="2"
+              placeholder="No service request on file."
+              [value]="sriFieldValue('serviceRequest')"
+              [disabled]="sriSaving()"
+              (input)="onSriFieldInput('serviceRequest', $any($event.target).value)"
+              (blur)="onSriFieldBlur('serviceRequest')"
+            ></textarea>
+          </div>
+        }
+      </div>
+
+      <div class="jd2-note-row" [class.jd2-note-row--open]="!sriFieldCollapsed('specialInstruction')">
+        @if (sriFieldCollapsed('specialInstruction')) {
+          <button type="button" class="jd2-note-head jd2-note-head--collapsed" (click)="onSriFieldExpand('specialInstruction')">
+            <span class="jd2-note-title">Special Instruction</span>
+            <span class="jd2-note-empty-tag">None on file — click to add</span>
+          </button>
+        } @else {
+          <div class="jd2-note-head">
+            <span class="jd2-note-title">Special Instruction</span>
+            <button type="button" class="jd2-note-collapse-btn" title="Collapse" aria-label="Collapse" (click)="onSriFieldCollapse('specialInstruction')">×</button>
+          </div>
+          <div class="jd2-note-body">
+            <textarea
+              rows="2"
+              placeholder="—"
+              [value]="sriFieldValue('specialInstruction')"
+              [disabled]="sriSaving()"
+              (input)="onSriFieldInput('specialInstruction', $any($event.target).value)"
+              (blur)="onSriFieldBlur('specialInstruction')"
+            ></textarea>
+          </div>
+        }
+      </div>
+
+      <div class="jd2-note-row" [class.jd2-note-row--open]="!sriFieldCollapsed('additionalApproval')">
+        @if (sriFieldCollapsed('additionalApproval')) {
+          <button type="button" class="jd2-note-head jd2-note-head--collapsed" (click)="onSriFieldExpand('additionalApproval')">
+            <span class="jd2-note-title">Additional Approval</span>
+            <span class="jd2-note-empty-tag">Not required — click to add</span>
+          </button>
+        } @else {
+          <div class="jd2-note-head">
+            <span class="jd2-note-title">Additional Approval</span>
+            <button type="button" class="jd2-note-collapse-btn" title="Collapse" aria-label="Collapse" (click)="onSriFieldCollapse('additionalApproval')">×</button>
+          </div>
+          <div class="jd2-note-body">
+            <textarea
+              rows="2"
+              placeholder="—"
+              [value]="sriFieldValue('additionalApproval')"
+              [disabled]="sriSaving()"
+              (input)="onSriFieldInput('additionalApproval', $any($event.target).value)"
+              (blur)="onSriFieldBlur('additionalApproval')"
+            ></textarea>
+          </div>
+        }
+      </div>
+
+      <div class="jd2-note-row jd2-note-row--span2" [class.jd2-note-row--open]="!sriFieldCollapsed('locationSpecialInstruction')">
+        @if (sriFieldCollapsed('locationSpecialInstruction')) {
+          <button type="button" class="jd2-note-head jd2-note-head--collapsed" (click)="onSriFieldExpand('locationSpecialInstruction')">
+            <span class="jd2-note-title">Location Special Instruction</span>
+            <span class="jd2-note-empty-tag">None on file — click to add</span>
+          </button>
+        } @else {
+          <div class="jd2-note-head">
+            <span class="jd2-note-title">Location Special Instruction</span>
+            <button type="button" class="jd2-note-collapse-btn" title="Collapse" aria-label="Collapse" (click)="onSriFieldCollapse('locationSpecialInstruction')">×</button>
+          </div>
+          <div class="jd2-note-body">
+            <textarea
+              rows="2"
+              placeholder="—"
+              [value]="sriFieldValue('locationSpecialInstruction')"
+              [disabled]="sriSaving()"
+              (input)="onSriFieldInput('locationSpecialInstruction', $any($event.target).value)"
+              (blur)="onSriFieldBlur('locationSpecialInstruction')"
+            ></textarea>
+          </div>
+        }
+      </div>
+    </div>
+  }
+</app-accordion>
+
+<!-- QUICK NAVIGATION BAR -->
+@if (showNav() && activeNavTab()) {
+  <div class="job-quick-nav-wrap">
+    <nav class="job-quick-nav" aria-label="Vendor bills section navigation">
+      <button
+        class="job-quick-nav__tab"
+        [class.job-quick-nav__tab--active]="activeNavTab() === 'job-details'"
+        (click)="onNavigateSection('section-job-details', 'job-details')"
+        type="button"
+      >
+        <svg class="job-quick-nav__icon" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+          <rect x="1" y="2" width="10" height="1.5" rx="0.75" fill="currentColor"/>
+          <rect x="1" y="5.25" width="10" height="1.5" rx="0.75" fill="currentColor"/>
+          <rect x="1" y="8.5" width="7" height="1.5" rx="0.75" fill="currentColor"/>
+        </svg>
+        <span>Job Details</span>
+      </button>
+      <button
+        class="job-quick-nav__tab"
+        [class.job-quick-nav__tab--active]="activeNavTab() === 'check-in-out'"
+        (click)="onNavigateSection('section-check-in-out', 'check-in-out')"
+        type="button"
+      >
+        <svg class="job-quick-nav__icon" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+          <circle cx="6" cy="6" r="4.25" stroke="currentColor" stroke-width="1.2"/>
+          <path d="M6 3.75V6l1.75 1.25" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>Check-In/Out</span>
+      </button>
+      <button
+        class="job-quick-nav__tab"
+        [class.job-quick-nav__tab--active]="activeNavTab() === 'estimating'"
+        (click)="onNavigateToEstimates()"
+        type="button"
+      >
+        <svg class="job-quick-nav__icon" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+          <rect x="2.5" y="1.5" width="7" height="9" rx="1" stroke="currentColor" stroke-width="1.2"/>
+          <path d="M4.5 5h3M4.5 7h3" stroke="currentColor" stroke-width="1" stroke-linecap="round"/>
+        </svg>
+        <span>Estimating / Onsite Approval</span>
+        @if (hasUnseenDepositDecision()) {
+          <span class="job-quick-nav__notify-dot" aria-label="Deposit approval decision awaiting review"></span>
+        }
+      </button>
+      <button
+        class="job-quick-nav__tab"
+        [class.job-quick-nav__tab--active]="activeNavTab() === 'attachments-estimate'"
+        (click)="onNavigateSection('section-attachments-estimate', 'attachments-estimate')"
+        type="button"
+      >
+        <svg class="job-quick-nav__icon" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+          <path d="M6.5 1.5l3.5 3.5v5a1 1 0 01-1 1h-6a1 1 0 01-1-1v-7a1 1 0 011-1h3.5z" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/>
+          <path d="M6 1.5v3.5h3.5" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/>
+        </svg>
+        <span>Attachments — Estimate Stage</span>
+      </button>
+      <button
+        class="job-quick-nav__tab"
+        [class.job-quick-nav__tab--active]="activeNavTab() === 'invoices'"
+        (click)="onNavigateSection('section-invoices', 'invoices')"
+        type="button"
+      >
+        <svg class="job-quick-nav__icon" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+          <rect x="2" y="2" width="8" height="8" rx="1" stroke="currentColor" stroke-width="1.2"/>
+          <path d="M4 5h4M4 7h4" stroke="currentColor" stroke-width="1" stroke-linecap="round"/>
+        </svg>
+        <span>Invoices</span>
+      </button>
+      <button
+        class="job-quick-nav__tab"
+        [class.job-quick-nav__tab--active]="activeNavTab() === 'attachments-invoice'"
+        (click)="onNavigateSection('section-attachments-invoice', 'attachments-invoice')"
+        type="button"
+      >
+        <svg class="job-quick-nav__icon" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+          <path d="M6.5 1.5l3.5 3.5v5a1 1 0 01-1 1h-6a1 1 0 01-1-1v-7a1 1 0 011-1h3.5z" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/>
+          <path d="M6 1.5v3.5h3.5" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/>
+        </svg>
+        <span>Attachments — Invoice Stage</span>
+      </button>
+    </nav>
+  </div>
+}
+
+@if (jobPriorityChangeModalOpen()) {
+  <div class="modal-overlay">
+    <div class="modal modal--priority-change">
+      <div class="modal__header">
+        <h2 class="modal__title">Confirm Job Priority Change</h2>
+        <button type="button" class="modal__close" aria-label="Close" (click)="onCancelJobPriorityChange()">&#x2715;</button>
+      </div>
+
+      @if (jobPriorityPreview(); as preview) {
+        <div class="modal__body job-priority-change-modal">
+          <div class="job-priority-change-summary">
+            <div class="job-priority-change-priority-badge job-priority-change-from">
+              <small>From</small>
+              <strong>{{ preview.oldPriorityName || 'Unknown' }}</strong>
+            </div>
+            <div class="job-priority-change-arrow" aria-hidden="true">&#8594;</div>
+            <div class="job-priority-change-priority-badge job-priority-change-to">
+              <small>To</small>
+              <strong>{{ preview.newPriorityName || 'Unknown' }}</strong>
+            </div>
+          </div>
+
+          @if (priorityChangeMessageLines().length > 0) {
+            <div class="job-priority-change-message">
+              @for (line of priorityChangeMessageLines(); track $index) {
+                <p class="job-priority-change-message-line">{{ line }}</p>
+              }
+            </div>
+          }
+
+          @if (jobPriorityChangeStatus()) {
+            <p class="job-priority-change-status">{{ jobPriorityChangeStatus() }}</p>
+          }
+        </div>
+      }
+
+      <div class="modal__footer">
+        <button
+          type="button"
+          class="btn btn--secondary"
+          (click)="onCancelJobPriorityChange()"
+          [disabled]="jobPrioritySaving()"
+        >Cancel Changes</button>
+        <button
+          type="button"
+          class="btn btn--primary"
+          (click)="onConfirmJobPriorityChange($event)"
+          [disabled]="jobPrioritySaving()"
+        >
+          @if (jobPrioritySaving()) { Saving… }
+          @else { Continue }
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (duplicateModalOpen()) {
+  <div class="modal-overlay" (click)="onCloseDuplicateModal()">
+    <div class="modal modal--duplicate" (click)="$event.stopPropagation()">
+      <div class="modal__header">
+        <h2 class="modal__title">Duplicate this Job</h2>
+        <button type="button" class="modal__close" aria-label="Close" (click)="onCloseDuplicateModal()">&#x2715;</button>
+      </div>
+
+      <div class="modal__body">
+        <p class="duplicate-instructions">
+          Select a location to duplicate this job to. A new job will be created for the same customer with the same trade, description, and NTE values.
+        </p>
+
+        @if (duplicateMessage()) {
+          <div class="broadcast-success-msg">
+            {{ duplicateMessage() }}
+            @if (duplicateJobResult()) {
+              <button type="button" class="link-btn link-btn--inline" (click)="navigateToDuplicatedJob()">
+                Open new job &rarr;
+              </button>
+            }
+          </div>
+        }
+        @if (duplicateError()) {
+          <div class="broadcast-error-msg">{{ duplicateError() }}</div>
+        }
+
+        @if (duplicateLocLoading()) {
+          <div class="broadcast-loading">Loading locations…</div>
+        } @else if (duplicateLocations().length === 0 && !duplicateError()) {
+          <p class="broadcast-empty">No locations found for this customer.</p>
+        } @else if (!duplicateMessage()) {
+          <div class="duplicate-search-wrap">
+            <input
+              type="text"
+              class="duplicate-search-input"
+              placeholder="Search by location name or address..."
+              [value]="duplicateSearchQuery()"
+              (input)="duplicateSearchQuery.set($any($event.target).value)"
+            />
+            @if (duplicateSearchQuery()) {
+              <button
+                type="button"
+                class="duplicate-search-clear"
+                aria-label="Clear search"
+                (click)="duplicateSearchQuery.set('')"
+              >&#x2715;</button>
+            }
+          </div>
+
+          @if (filteredDuplicateLocations().length === 0) {
+            <p class="broadcast-empty">No locations match your search.</p>
+          } @else {
+            <div class="duplicate-loc-list">
+              @for (loc of filteredDuplicateLocations(); track loc.locationKey) {
+                <label class="duplicate-loc-row" [class.duplicate-loc-row--selected]="duplicateSelectedLoc() === loc.locationKey">
+                  <input
+                    type="radio"
+                    name="duplicateLoc"
+                    [value]="loc.locationKey"
+                    [checked]="duplicateSelectedLoc() === loc.locationKey"
+                    (change)="duplicateSelectedLoc.set(loc.locationKey)"
+                  />
+                  <div class="duplicate-loc-info">
+                    <span class="duplicate-loc-name">{{ loc.lname }}</span>
+                    @if (loc.address) {
+                      <span class="duplicate-loc-addr">{{ loc.address }}</span>
+                    }
+                  </div>
+                </label>
+              }
+            </div>
+          }
+        }
+      </div>
+
+      <div class="modal__footer">
+        @if (!duplicateMessage()) {
+          <button type="button" class="btn btn--secondary" (click)="onCloseDuplicateModal()" [disabled]="duplicateSaving()">Cancel</button>
+          <button
+            type="button"
+            class="btn btn--primary"
+            [disabled]="duplicateSaving() || !duplicateSelectedLoc()"
+            (click)="onConfirmDuplicate()"
+          >
+            @if (duplicateSaving()) { Duplicating… }
+            @else { Duplicate Job }
+          </button>
+        } @else {
+          <button type="button" class="btn btn--secondary" (click)="onCloseDuplicateModal()">Close</button>
+        }
+      </div>
+    </div>
+  </div>
+}
+
+@if (storeHoursModalOpen()) {
+  <div class="modal-overlay" (click)="storeHoursModalOpen.set(false)">
+    <div class="modal modal--store-hours" (click)="$event.stopPropagation()">
+      <div class="modal__header">
+        <h2 class="modal__title">Store Hours</h2>
+        <button type="button" class="modal__close" (click)="storeHoursModalOpen.set(false)" aria-label="Close">&#x2715;</button>
+      </div>
+      <div class="modal__body">
+        @if (jobHeaderDetail()?.storeHours?.length) {
+          <div class="sh-modal-list">
+            @for (entry of jobHeaderDetail()!.storeHours!; track entry.day) {
+              <div class="sh-modal-row">
+                <span class="sh-modal-day">{{ entry.day }}</span>
+                <span class="sh-modal-hours">{{ entry.hours }}</span>
+              </div>
+            }
+          </div>
+        } @else {
+          <div class="sh-modal-empty">
+            <p class="sh-modal-empty__text">Store hours are not on file for this location.</p>
+            @if (jobHeaderDetail(); as hd) {
+              <a
+                class="sh-modal-maps-link"
+                [href]="getLocationHref(hd.locationAddress, hd.cityName, hd.stateName, hd.zipCode, hd.locationName)"
+                target="_blank"
+                rel="noopener"
+              >View on Google Maps &#8599;</a>
+            }
+          </div>
+        }
+      </div>
+      <div class="modal__footer">
+        <button type="button" class="btn btn--secondary" (click)="storeHoursModalOpen.set(false)">Close</button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- ================================================================
+     MODAL: Broadcast Confirmation (when vendors already assigned)
+     ================================================================ -->
+@if (showBroadcastConfirmModal()) {
+  <div class="modal-overlay">
+    <div class="modal modal--medium">
+      <div class="modal__header">
+        <h3 class="modal__title">Broadcast to Vendors</h3>
+        <button class="modal__close" (click)="closeBroadcastConfirmModal()">&times;</button>
+      </div>
+      <div class="modal__body">
+        <!-- Warning Message - Dynamic based on vendor status -->
+        <div class="broadcast-confirm-warning">
+          <svg class="broadcast-confirm-icon" viewBox="0 0 24 24" fill="none">
+            <path d="M12 9v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <div class="broadcast-confirm-text">
+            @if (assignedVendorsWithEta().length > 0) {
+              <!-- Vendors with ETA -->
+              <strong>You have {{ assignedVendorsWithEta().length }} vendor{{ assignedVendorsWithEta().length > 1 ? 's' : '' }} who {{ assignedVendorsWithEta().length > 1 ? 'have' : 'has' }} accepted and set ETA.</strong>
+              <p>What would you like to do?</p>
+            } @else if (assignedVendorsWithoutEta().length > 0) {
+              <!-- Vendors without ETA -->
+              <strong>You have {{ assignedVendorsWithoutEta().length }} vendor{{ assignedVendorsWithoutEta().length > 1 ? 's' : '' }} who {{ assignedVendorsWithoutEta().length > 1 ? 'haven\'t' : 'hasn\'t' }} accepted and set ETA.</strong>
+              <p>What would you like to do?</p>
+            }
+          </div>
+        </div>
+
+        <!-- Vendor List - Show all assigned vendors -->
+        <div class="broadcast-confirm-vendors">
+          @for (vendor of allAssignedVendors(); track vendor.jobVendorKey) {
+            <div class="broadcast-confirm-vendor-item">
+              <strong>{{ vendor.vendorName }}</strong>
+              @if (vendor.scheduleDate) {
+                <span class="broadcast-confirm-eta">ETA: {{ vendor.scheduleDate }}</span>
+              } @else {
+                <span class="broadcast-confirm-eta broadcast-confirm-eta--no-eta">No ETA set</span>
+              }
+            </div>
+          }
+        </div>
+
+        <!-- Radio Options - Conditional based on job type -->
+        <div class="broadcast-confirm-options">
+          <!-- Option 1: Remove Vendor(s) - Always shown -->
+          <label class="broadcast-confirm-option">
+            <input
+              type="radio"
+              name="broadcast-choice"
+              value="remove"
+              [checked]="broadcastConfirmChoice() === 'remove'"
+              (change)="broadcastConfirmChoice.set('remove')">
+            <div class="broadcast-confirm-option-content">
+              <strong>Remove existing vendor{{ allAssignedVendors().length > 1 ? 's' : '' }} first</strong>
+              <p>Unassign the current vendor{{ allAssignedVendors().length > 1 ? 's' : '' }} before broadcasting to new ones</p>
+            </div>
+          </label>
+
+          <!-- Option 2: Cancel Broadcast - Always shown -->
+          <label class="broadcast-confirm-option">
+            <input
+              type="radio"
+              name="broadcast-choice"
+              value="cancel"
+              [checked]="broadcastConfirmChoice() === 'cancel'"
+              (change)="broadcastConfirmChoice.set('cancel')">
+            <div class="broadcast-confirm-option-content">
+              <strong>Cancel broadcast</strong>
+              <p>Keep existing vendor{{ allAssignedVendors().length > 1 ? 's' : '' }} and don't send broadcast</p>
+            </div>
+          </label>
+
+          <!-- Option 3: Keep and Broadcast - Conditional based on business rules -->
+          @if (canKeepVendorsAndBroadcast()) {
+            <label class="broadcast-confirm-option">
+              <input
+                type="radio"
+                name="broadcast-choice"
+                value="keep"
+                [checked]="broadcastConfirmChoice() === 'keep'"
+                (change)="broadcastConfirmChoice.set('keep')">
+              <div class="broadcast-confirm-option-content">
+                <strong>Keep existing vendor{{ allAssignedVendors().length > 1 ? 's' : '' }} and broadcast to more</strong>
+                <p>Send broadcast while keeping current vendor{{ allAssignedVendors().length > 1 ? 's' : '' }} assigned</p>
+              </div>
+            </label>
+          }
+        </div>
+      </div>
+      <div class="modal__footer">
+        <button class="btn btn--secondary" (click)="closeBroadcastConfirmModal()" [disabled]="broadcastConfirmRemoving()">
+          Cancel
+        </button>
+        <button
+          class="btn btn--primary"
+          (click)="onBroadcastConfirmProceed()"
+          [disabled]="!broadcastConfirmChoice() || broadcastConfirmRemoving()">
+          @if (broadcastConfirmRemoving()) {
+            <span class="spinner"></span>
+            Removing Vendors...
+          } @else {
+            Proceed
+          }
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     BROADCAST CONFIGURATION MODAL (Pre-vendor-selection)
+════════════════════════════════════════════════════════════════════ -->
+@if (showBroadcastConfigModal()) {
+  <div class="modal-overlay" (click)="closeBroadcastConfigModal()">
+    <div class="modal modal--broadcast-config" (click)="$event.stopPropagation()">
+      <div class="modal__header">
+        <h2 class="modal__title">Configure Broadcast</h2>
+        <button type="button" class="modal__close" aria-label="Close" (click)="closeBroadcastConfigModal()">&#x2715;</button>
+      </div>
+
+      <div class="modal__body">
+        <!-- Current Trade Display -->
+        <div class="broadcast-config-section">
+          <label class="broadcast-config-label">Current Trade for this Job:</label>
+          <div class="broadcast-config-current-trade">
+            {{ pageContext()?.tradeName || 'Not specified' }}
+          </div>
+        </div>
+
+        <!-- ETA Limit -->
+        <div class="broadcast-config-section">
+          <label class="broadcast-config-label" for="broadcastEtaLimit">
+            @if (broadcastIsEmergency()) {
+              Give amt. of hours vendor can set their ETA out:
+            } @else {
+              Give amt. of days vendor can set their ETA out:
+            }
+          </label>
+          <input
+            type="number"
+            id="broadcastEtaLimit"
+            class="broadcast-config-input"
+            min="0"
+            [value]="broadcastDefaultEtaLimit()"
+            (input)="broadcastEtaLimit.set(+$any($event.target).value)"
+            [attr.placeholder]="broadcastDefaultEtaLimit()"
+          />
+          <p class="broadcast-config-hint">Time vendors have to respond with an ETA</p>
+        </div>
+
+        <!-- Expanded Search Radius -->
+        <div class="broadcast-config-section">
+          <label class="broadcast-config-label" for="broadcastExpandedMiles">
+            Set distance from service location to search for vendors:
+          </label>
+          <input
+            type="number"
+            id="broadcastExpandedMiles"
+            class="broadcast-config-input"
+            min="0"
+            max="150"
+            [value]="broadcastSearchDistanceMiles()"
+            (input)="onBroadcastSearchDistanceInput(+$any($event.target).value || 0)"
+            [attr.placeholder]="broadcastDefaultBroadcastRadiusMiles()"
+          />
+          <p class="broadcast-config-hint">
+            Includes the common broadcast radius of {{ broadcastDefaultBroadcastRadiusMiles() }} miles
+          </p>
+        </div>
+
+        <!-- Max Vendor Accept (for Bid/Project jobs) -->
+        @if (broadcastShowMaxAccept()) {
+          <div class="broadcast-config-section">
+            <label class="broadcast-config-label" for="broadcastMaxAccept">
+              Maximum number of vendors who can accept:
+            </label>
+            <input
+              type="number"
+              id="broadcastMaxAccept"
+              class="broadcast-config-input"
+              min="0"
+              [value]="broadcastMaxAccept()"
+              (input)="broadcastMaxAccept.set(+$any($event.target).value)"
+              placeholder="0 (unlimited)"
+            />
+            <p class="broadcast-config-hint">Leave 0 for unlimited</p>
+          </div>
+        }
+
+        <!-- Additional Trades -->
+        <div class="broadcast-config-section">
+          <label class="broadcast-config-label">
+            Add other relevant trades to expand vendor reach:
+          </label>
+
+          <!-- Trade Selector -->
+          <div class="broadcast-config-trade-select-row">
+            <select
+              class="broadcast-config-select"
+              [value]="broadcastSelectedTradeKey()"
+              (change)="onSelectBroadcastTrade($any($event.target).value)"
+            >
+              <option value="">-- Select a trade to add --</option>
+              @for (trade of broadcastAvailableTrades(); track trade.value) {
+                <option [value]="trade.value">{{ trade.text }}</option>
+              }
+            </select>
+          </div>
+
+          <!-- Added Trades List -->
+          @if (broadcastAdditionalTrades().length > 0) {
+            <div class="broadcast-config-trade-list">
+              @for (trade of broadcastAdditionalTrades(); track trade.value) {
+                <div class="broadcast-config-trade-chip">
+                  <span class="broadcast-config-trade-chip-text">{{ trade.text }}</span>
+                  <button
+                    type="button"
+                    class="broadcast-config-trade-chip-remove"
+                    (click)="onRemoveBroadcastTrade(trade.value)"
+                    aria-label="Remove trade"
+                  >
+                    &times;
+                  </button>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      </div>
+
+      <div class="modal__footer">
+        <button type="button" class="btn btn--secondary" (click)="closeBroadcastConfigModal()">Cancel</button>
+        <button type="button" class="btn btn--primary" (click)="onProceedToBroadcast()">
+          Proceed to Broadcast
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     BROADCAST TO VENDORS MODAL
+════════════════════════════════════════════════════════════════════ -->
+@if (broadcastModalOpen()) {
+  <div class="modal-overlay" (click)="onCloseBroadcastModal()">
+    <div class="modal modal--broadcast" (click)="$event.stopPropagation()">
+
+      <div class="modal__header">
+        <h2 class="modal__title">Broadcast to Vendors</h2>
+        <button type="button" class="modal__close" aria-label="Close" (click)="onCloseBroadcastModal()">&#x2715;</button>
+      </div>
+
+      <div class="modal__body">
+
+        <!-- Radius picker -->
+        <div class="broadcast-radius-row">
+          <label class="broadcast-radius-label">Search radius:</label>
+          @for (r of [25, 50, 75, 100, 150]; track r) {
+            <button
+              type="button"
+              class="radius-chip"
+              [class.radius-chip--active]="broadcastRadius() === r"
+              (click)="onBroadcastRadiusChange(r)"
+            >{{ r }} mi</button>
+          }
+        </div>
+
+        <!-- Success / Error messages -->
+        @if (broadcastMessage()) {
+          <div class="broadcast-success-msg">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <circle cx="8" cy="8" r="7.5" stroke="#22c55e"/>
+              <path d="M4.5 8l2.5 2.5 4.5-5" stroke="#22c55e" stroke-width="1.4" stroke-linecap="round"/>
+            </svg>
+            {{ broadcastMessage() }}
+          </div>
+        }
+        @if (broadcastError()) {
+          <div class="broadcast-error-msg">{{ broadcastError() }}</div>
+        }
+
+        <!-- Loading state -->
+        @if (broadcastLoading()) {
+          <div class="broadcast-loading">
+            <div class="spinner-sm"></div>
+            <span>Loading vendors…</span>
+          </div>
+        } @else if (broadcastVendors().length === 0 && !broadcastError()) {
+          <p class="broadcast-empty">No eligible vendors found within {{ broadcastRadius() }} miles for this trade.</p>
+        } @else {
+          <!-- Select all / Deselect all -->
+          <div class="broadcast-toolbar">
+            <span class="broadcast-count">{{ broadcastVendors().length }} vendor(s) found</span>
+            <button type="button" class="link-btn" (click)="selectAllBroadcastVendors()">Select all</button>
+            <span class="broadcast-sep">|</span>
+            <button type="button" class="link-btn" (click)="deselectAllBroadcastVendors()">Deselect all</button>
+          </div>
+
+          <!-- Vendor list -->
+          <div class="broadcast-vendor-list">
+            @for (v of broadcastVendors(); track v.vendorKey) {
+              <label class="broadcast-vendor-row" [class.broadcast-vendor-row--selected]="broadcastSelectedKeys().has(v.vendorKey)">
+                <input
+                  type="checkbox"
+                  class="broadcast-checkbox"
+                  [checked]="broadcastSelectedKeys().has(v.vendorKey)"
+                  (change)="toggleBroadcastVendor(v.vendorKey)"
+                />
+                <div class="broadcast-vendor-info">
+                  <span class="broadcast-vendor-name">{{ v.vname }}</span>
+                  <span class="broadcast-vendor-meta">
+                    @if (v.contactName) { {{ v.contactName }} · }
+                    @if (v.email) { {{ v.email }} · }
+                    {{ v.distanceMiles ?? '—' }} mi
+                  </span>
+                </div>
+              </label>
+            }
+          </div>
+        }
+
+        <!-- File selection -->
+        @if (broadcastFilesLoading()) {
+          <div class="broadcast-loading">
+            <div class="spinner-sm"></div>
+            <span>Loading files…</span>
+          </div>
+        } @else if (broadcastFiles().length > 0) {
+          <div class="broadcast-toolbar">
+            <span class="broadcast-count">Attach files to vendors ({{ broadcastFiles().length }} available)</span>
+            <button type="button" class="link-btn" (click)="selectAllBroadcastFiles()">Select all</button>
+            <span class="broadcast-sep">|</span>
+            <button type="button" class="link-btn" (click)="deselectAllBroadcastFiles()">Deselect all</button>
+          </div>
+          <app-attachment-thumbnail-grid
+            [files]="broadcastAttachmentCards()"
+            [selectedKeys]="[...broadcastSelectedFileKeys()]"
+            (toggle)="toggleBroadcastFile($event.fileKey)"
+            (view)="onViewBroadcastAttachment($event)"
+          ></app-attachment-thumbnail-grid>
+        }
+      </div>
+
+      <div class="modal__footer">
+        <button type="button" class="btn btn--secondary" (click)="onCloseBroadcastModal()" [disabled]="broadcastSending()">Cancel</button>
+        <button
+          type="button"
+          class="btn btn--primary"
+          [disabled]="broadcastSending() || broadcastSelectedKeys().size === 0"
+          (click)="onSendBroadcast()"
+        >
+            @if (broadcastSending()) { <span class="spinner-sm"></span> Sending… }
+          @else { Send Work Order ({{ broadcastSelectedKeys().size }}) }
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+<app-recall-review-modal
+  (confirmed)="onRecallReviewConfirmed($event)"
+  (cancelled)="onRecallReviewCancelled()"
+></app-recall-review-modal>
+
+<!-- ================================================================
+     FILES & ATTACHMENTS MODAL (legacy MgtJobFile/Index parity)
+     ================================================================ -->
+@if (filesModalOpen()) {
+  <div class="jd-files-modal-backdrop" (click)="onCloseFilesAttachments()"></div>
+  <div
+    class="jd-files-modal"
+    role="dialog"
+    aria-labelledby="jd-files-title"
+    aria-modal="true"
+    (click)="$event.stopPropagation()"
+  >
+    <div class="jd-files-modal__header">
+      <h2 id="jd-files-title">Files &amp; Attachments</h2>
+      <button
+        type="button"
+        class="jd-files-modal__close"
+        (click)="onCloseFilesAttachments()"
+        aria-label="Close"
+      >&times;</button>
+    </div>
+
+    <div class="jd-files-modal__body">
+      @if (filesModalError()) {
+        <div class="jd-files-alert jd-files-alert--error" role="alert">
+          {{ filesModalError() }}
+        </div>
+      }
+      @if (filesModalMessage()) {
+        <div class="jd-files-alert jd-files-alert--success" role="status">
+          {{ filesModalMessage() }}
+        </div>
+      }
+
+      <!-- Upload form -->
+      <section class="jd-files-upload">
+        <div class="jd-files-upload__title">
+          <span class="jd-files-upload__icon" aria-hidden="true">+</span>
+          Add a File
+        </div>
+
+        <div class="jd-files-upload__grid">
+          <div class="jd-files-field">
+            <label class="jd-files-field__label" for="jd-files-doctype">Document Type</label>
+            <select
+              id="jd-files-doctype"
+              class="jd-files-field__control"
+              [ngModel]="filesUploadDocTypeKey()"
+              (ngModelChange)="filesUploadDocTypeKey.set($event)"
+              [disabled]="filesDocTypesLoading()"
+            >
+              <option value="">
+                @if (filesDocTypesLoading()) { Loading… }
+                @else { — Select Document Type — }
+              </option>
+              @for (dt of filesDocTypes(); track dt.value) {
+                <option [value]="dt.value">{{ dt.text }}</option>
+              }
+            </select>
+          </div>
+
+          <div class="jd-files-field">
+            <label class="jd-files-field__label" for="jd-files-comment">Comment</label>
+            <textarea
+              id="jd-files-comment"
+              class="jd-files-field__control jd-files-field__textarea"
+              rows="1"
+              [ngModel]="filesUploadComment()"
+              (ngModelChange)="filesUploadComment.set($event)"
+              placeholder="Optional note about this file"
+            ></textarea>
+          </div>
+        </div>
+
+        <label
+          class="jd-files-drop"
+          [class.jd-files-drop--active]="filesDragActive()"
+          (dragover)="onFilesDragOver($event)"
+          (dragleave)="onFilesDragLeave($event)"
+          (drop)="onFilesDrop($event)"
+        >
+          <input
+            type="file"
+            multiple
+            class="jd-files-drop__input"
+            (change)="onFilesInputChange($event)"
+          />
+          <div class="jd-files-drop__icon" aria-hidden="true">⬆</div>
+          <div class="jd-files-drop__main">Drop files here or <span class="jd-files-drop__browse">click to browse</span></div>
+          <div class="jd-files-drop__hint">Up to 10 MB per file</div>
+        </label>
+
+        @if (filesToUpload().length > 0) {
+          <ul class="jd-files-pending">
+            @for (f of filesToUpload(); track f.name; let i = $index) {
+              <li class="jd-files-pending__item">
+                <span class="jd-files-pending__ico" aria-hidden="true">📄</span>
+                <span class="jd-files-pending__name" [title]="f.name">{{ f.name }}</span>
+                <span class="jd-files-pending__size">{{ (f.size / 1024) | number:'1.0-0' }} KB</span>
+                <button
+                  type="button"
+                  class="jd-files-pending__remove"
+                  (click)="onRemovePendingUpload(i)"
+                  aria-label="Remove"
+                  title="Remove"
+                >×</button>
+              </li>
+            }
+          </ul>
+        }
+
+        <div class="jd-files-upload__actions">
+          <button
+            type="button"
+            class="jd-files-btn jd-files-btn--primary"
+            [disabled]="filesUploading() || filesToUpload().length === 0"
+            (click)="onSaveFilesUpload()"
+          >
+            @if (filesUploading()) {
+              <span class="jd-files-spinner" aria-hidden="true"></span> Uploading…
+            } @else {
+              Save {{ filesToUpload().length > 0 ? '(' + filesToUpload().length + ')' : '' }}
+            }
+          </button>
+        </div>
+      </section>
+
+      <!-- Files list section -->
+      <section class="jd-files-list">
+        <div class="jd-files-list__title">Files Under this Job</div>
+
+        @if (filesListLoading()) {
+          <div class="jd-files-list__empty">Loading…</div>
+        } @else if (filesList().length === 0) {
+          <div class="jd-files-list__empty">No files uploaded for this job yet.</div>
+        } @else {
+          <div class="jd-files-table-wrap">
+            <table class="jd-files-table">
+              <thead>
+                <tr>
+                  <th>Added On</th>
+                  <th>Document Type</th>
+                  <th>Document Name</th>
+                  <th>Added By</th>
+                  <th class="jd-files-th-actions">View</th>
+                  <th class="jd-files-th-actions">Delete</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (file of filesList(); track file.fileKey) {
+                  <tr>
+                    <td>{{ file.addedOn ? (file.addedOn | date:'M/d/yy h:mma') : '—' }}</td>
+                    <td>{{ file.documentTypeName || '—' }}</td>
+                    <td class="jd-files-table__name">{{ file.title || '—' }}</td>
+                    <td>{{ file.addedByName || '—' }}</td>
+                    <td class="jd-files-td-actions">
+                      <button
+                        type="button"
+                        class="jd-files-btn jd-files-btn--view"
+                        (click)="onViewJobFile(file)"
+                      >View File</button>
+                    </td>
+                    <td class="jd-files-td-actions">
+                      <button
+                        type="button"
+                        class="jd-files-btn jd-files-btn--danger"
+                        [disabled]="filesDeletingKey() === file.fileKey"
+                        (click)="onDeleteJobFile(file)"
+                        aria-label="Delete"
+                      >
+                        @if (filesDeletingKey() === file.fileKey) { … } @else { Delete }
+                      </button>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </section>
+
+      <!-- Vendor Papers section (read-only, mirrors V1) -->
+      <section class="jd-files-list">
+        <div class="jd-files-list__title">Vendor Papers Under this Job</div>
+
+        @if (vendorPapersLoading()) {
+          <div class="jd-files-list__empty">Loading…</div>
+        } @else if (vendorPapersList().length === 0) {
+          <div class="jd-files-list__empty">No vendor papers uploaded for this job yet.</div>
+        } @else {
+          <div class="jd-files-table-wrap">
+            <table class="jd-files-table">
+              <thead>
+                <tr>
+                  <th>Uploaded On</th>
+                  <th>Type</th>
+                  <th>File Name</th>
+                  <th>Comment</th>
+                  <th>Uploaded By</th>
+                  <th class="jd-files-th-actions">View</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (paper of vendorPapersList(); track paper.fileKey) {
+                  <tr>
+                    <td>{{ paper.uploadDate ? (paper.uploadDate | date:'M/d/yy h:mma') : '—' }}</td>
+                    <td>{{ paper.fileType || '—' }}</td>
+                    <td class="jd-files-table__name">{{ paper.fileName || '—' }}</td>
+                    <td class="jd-files-table__comment">{{ paper.comment || '—' }}</td>
+                    <td>{{ paper.staffName || paper.vendorName || '—' }}</td>
+                    <td class="jd-files-td-actions">
+                      <button
+                        type="button"
+                        class="jd-files-btn jd-files-btn--view"
+                        (click)="onViewVendorPaper(paper)"
+                      >View File</button>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </section>
+
+      <!-- Service Location Files section (read-only, only visible if any) -->
+      @if (locationFilesLoading() || locationFilesList().length > 0) {
+        <section class="jd-files-list">
+          <div class="jd-files-list__title">Service Location Files</div>
+
+          @if (locationFilesLoading()) {
+            <div class="jd-files-list__empty">Loading…</div>
+          } @else {
+            <div class="jd-files-table-wrap">
+              <table class="jd-files-table">
+                <thead>
+                  <tr>
+                    <th>File Name</th>
+                    <th>Type</th>
+                    <th class="jd-files-th-actions">View</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (locFile of locationFilesList(); track locFile.fileKey) {
+                    <tr>
+                      <td class="jd-files-table__name">{{ locFile.fileName || '—' }}</td>
+                      <td>{{ locFile.fileType || '—' }}</td>
+                      <td class="jd-files-td-actions">
+                        <button
+                          type="button"
+                          class="jd-files-btn jd-files-btn--view"
+                          (click)="onViewLocationFile(locFile)"
+                        >View File</button>
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        </section>
+      }
+    </div>
+
+    <div class="jd-files-modal__footer">
+      <button
+        type="button"
+        class="jd-files-btn jd-files-btn--secondary"
+        (click)="onCloseFilesAttachments()"
+      >Close</button>
+    </div>
+  </div>
+}
+
+<!-- ================================================================
+     APPROVE CUSTOMER ESTIMATE ON BEHALF MODAL
+     (triggered after uploading a "Customer Additional Approval" file
+      when the job has an unapproved customer estimate — legacy parity)
+     ================================================================ -->
+@if (approveEstimateModalOpen()) {
+  <div class="jd-files-modal-backdrop" (click)="approveEstimateSaving() ? null : onCloseApproveEstimateModal()"></div>
+  <div
+    class="jd-files-modal jd-files-modal--narrow"
+    role="dialog"
+    aria-labelledby="jd-approve-est-title"
+    aria-modal="true"
+    (click)="$event.stopPropagation()"
+  >
+    <div class="jd-files-modal__header">
+      <h2 id="jd-approve-est-title">Approve an Estimate on Behalf of the Customer</h2>
+      <button
+        type="button"
+        class="jd-files-modal__close"
+        [disabled]="approveEstimateSaving()"
+        (click)="onCloseApproveEstimateModal()"
+        aria-label="Close"
+      >&times;</button>
+    </div>
+
+    <div class="jd-files-modal__body">
+      <p class="jd-approve-est__intro">
+        This job has customer estimate(s) awaiting a response. Select one below to approve on
+        behalf of the customer.
+      </p>
+      <div class="jd-approve-est__dne">
+        Customer DNE: <strong>{{ approveEstimateCustomerDne() | currency }}</strong>
+      </div>
+
+      <ul class="jd-approve-est__list">
+        @for (est of approveEstimateList(); track est.invoiceKey) {
+          <li class="jd-approve-est__item">
+            <div class="jd-approve-est__info">
+              <span class="jd-approve-est__name">
+                {{ est.estimateTitle || ('Estimate #' + (est.mcEstimate ?? '—')) }}
+              </span>
+              <span class="jd-approve-est__total">{{ est.total | currency }}</span>
+            </div>
+            <button
+              type="button"
+              class="jd-files-btn jd-files-btn--primary"
+              [disabled]="approveEstimateSaving()"
+              (click)="onApproveEstimateOnBehalf(est)"
+            >{{ approveEstimateSaving() ? 'Approving…' : 'Approve on Behalf of the Customer' }}</button>
+          </li>
+        }
+      </ul>
+    </div>
+
+    <div class="jd-files-modal__footer">
+      <button
+        type="button"
+        class="jd-files-btn jd-files-btn--secondary"
+        [disabled]="approveEstimateSaving()"
+        (click)="onCloseApproveEstimateModal()"
+      >Cancel</button>
+    </div>
+  </div>
+}
+
+<!-- ================================================================
+     CHANGE JOB STATUS CONFIRM MODAL
+     (doc-type-driven prompt after upload — legacy statusModal / statusModalV parity)
+     ================================================================ -->
+@if (statusChangeModalOpen()) {
+  <div class="jd-files-modal-backdrop" (click)="onCancelStatusChange()"></div>
+  <div
+    class="jd-files-modal jd-files-modal--narrow"
+    role="dialog"
+    aria-labelledby="jd-status-change-title"
+    aria-modal="true"
+    (click)="$event.stopPropagation()"
+  >
+    <div class="jd-files-modal__header">
+      <h2 id="jd-status-change-title">Change Job Status</h2>
+      <button
+        type="button"
+        class="jd-files-modal__close"
+        (click)="onCancelStatusChange()"
+        aria-label="Close"
+      >&times;</button>
+    </div>
+
+    <div class="jd-files-modal__body">
+      <div class="jd-status-change__prompt">
+        Change JOB status to "{{ statusChangeTargetLabel() }}"?
+      </div>
+    </div>
+
+    <div class="jd-files-modal__footer">
+      <button
+        type="button"
+        class="jd-files-btn jd-files-btn--secondary"
+        [disabled]="statusChangeSaving()"
+        (click)="onCancelStatusChange()"
+      >No</button>
+      <button
+        type="button"
+        class="jd-files-btn jd-files-btn--primary"
+        [disabled]="statusChangeSaving()"
+        (click)="onConfirmStatusChange()"
+      >
+        @if (statusChangeSaving()) { Saving… } @else { Yes }
+      </button>
+    </div>
+  </div>
+}
+
+<!-- ================================================================
+     SEND ESTIMATE TO VENDOR MODAL  (RBR-483)
+     Opens after a vendor-estimate file is saved. Mirrors legacy
+     #ModalSendEstimateToVendor ("Vendor Estimates").
+     ================================================================ -->
+@if (sendEstimateModalOpen()) {
+  <div class="jd-files-modal-backdrop" (click)="onCloseSendEstimateModal()"></div>
+  <div
+    class="jd-files-modal jd-send-estimate-modal"
+    role="dialog"
+    aria-labelledby="jd-send-estimate-title"
+    aria-modal="true"
+    (click)="$event.stopPropagation()"
+  >
+    <div class="jd-files-modal__header">
+      <h2 id="jd-send-estimate-title">Vendor Estimates</h2>
+      <button
+        type="button"
+        class="jd-files-modal__close"
+        (click)="onCloseSendEstimateModal()"
+        aria-label="Close"
+      >&times;</button>
+    </div>
+
+    <div class="jd-files-modal__body">
+      @if (sendEstimateError()) {
+        <div class="jd-files-alert jd-files-alert--error" role="alert">{{ sendEstimateError() }}</div>
+      }
+      @if (sendEstimateMessage()) {
+        <div class="jd-files-alert jd-files-alert--success" role="status">{{ sendEstimateMessage() }}</div>
+      }
+
+      <div class="jd-send-estimate__note">
+        <strong>NOTE:</strong>
+        <div>You can select the <span class="jd-send-estimate__note-green">GREEN</span> button to Create estimate on behalf of the vendor</div>
+        <div class="jd-send-estimate__note-or">OR</div>
+        <div>You can select the <span class="jd-send-estimate__note-orange">ORANGE</span> button to email the Link to vendor to upload estimate in the portal</div>
+      </div>
+
+      @if (sendEstimateLoading()) {
+        <div class="jd-files-list__empty">Loading vendor contacts…</div>
+      } @else if (sendEstimateVendors().length === 0) {
+        <div class="jd-files-list__empty">No vendor is assigned to this job yet.</div>
+      } @else {
+        <div class="jd-send-estimate__vendors">
+          @for (vendor of sendEstimateVendors(); track vendor.jobVendorKey) {
+            <div class="jd-send-estimate__vendor">
+              <label class="jd-send-estimate__vendor-head">
+                <input
+                  type="radio"
+                  name="sendEstimateVendor"
+                  [value]="vendor.jobVendorKey"
+                  [checked]="sendEstimateSelectedVendorKey() === vendor.jobVendorKey"
+                  (change)="onSelectSendEstimateVendor(vendor)"
+                />
+                <strong>{{ vendor.vendorName || 'Vendor' }}</strong>
+                @if (vendor.isDefault) { <span class="jd-send-estimate__default-tag">(Default)</span> }
+              </label>
+
+              @if (vendor.contacts.length > 0) {
+                <div class="jd-send-estimate__contacts">
+                  @for (contact of vendor.contacts; track contact.contactKey) {
+                    <label class="jd-send-estimate__contact">
+                      <input
+                        type="checkbox"
+                        [checked]="sendEstimateSelectedContacts().has(contact.contactKey)"
+                        (change)="onToggleSendEstimateContact(contact.contactKey)"
+                      />
+                      <span class="jd-send-estimate__contact-name">{{ contact.cname || '—' }}</span>
+                      <span class="jd-send-estimate__contact-email">( {{ contact.email || '—' }} )</span>
+                      @if (contact.isDefault) { <span class="jd-send-estimate__default-tag">(DEFAULT)</span> }
+                    </label>
+                  }
+                </div>
+              } @else {
+                <div class="jd-send-estimate__no-contacts">No contacts on file for this vendor.</div>
+              }
+            </div>
+          }
+        </div>
+
+        <div class="jd-files-field">
+          <label class="jd-files-field__label" for="jd-send-estimate-note">Email note</label>
+          <textarea
+            id="jd-send-estimate-note"
+            class="jd-files-field__control jd-files-field__textarea"
+            rows="3"
+            [ngModel]="sendEstimateEmailNote()"
+            (ngModelChange)="sendEstimateEmailNote.set($event)"
+          ></textarea>
+        </div>
+
+        <div class="jd-files-field">
+          <label class="jd-files-field__label" for="jd-send-estimate-custom-email">
+            Custom email <span class="jd-send-estimate__field-hint">(optional, only applicable when sending estimate)</span>
+          </label>
+          <input
+            id="jd-send-estimate-custom-email"
+            type="email"
+            class="jd-files-field__control"
+            [ngModel]="sendEstimateCustomEmail()"
+            (ngModelChange)="sendEstimateCustomEmail.set($event)"
+            placeholder="name@example.com"
+          />
+        </div>
+      }
+    </div>
+
+    <div class="jd-files-modal__footer jd-send-estimate__footer">
+      <div class="jd-send-estimate__actions">
+        <button
+          type="button"
+          class="jd-files-btn jd-send-estimate__btn--green"
+          [disabled]="sendEstimateLoading() || sendEstimateSending() || sendEstimateSent() || sendEstimateVendors().length === 0"
+          (click)="onCreateEstimateOnBehalf()"
+        >Create estimate on behalf of the vendors</button>
+        <button
+          type="button"
+          class="jd-files-btn jd-send-estimate__btn--orange"
+          [disabled]="sendEstimateLoading() || sendEstimateSending() || sendEstimateSent() || sendEstimateVendors().length === 0"
+          (click)="onSendEstimateEmail()"
+        >
+          @if (sendEstimateSending()) {
+            <span class="jd-files-spinner" aria-hidden="true"></span> Sending…
+          } @else {
+            Send email to vendor
+          }
+        </button>
+      </div>
+      <button
+        type="button"
+        class="jd-files-btn jd-files-btn--secondary"
+        (click)="onCloseSendEstimateModal()"
+      >Close</button>
+    </div>
+  </div>
+}
+
+<!-- ================================================================
+     DELETE CONFIRM MODAL  (replaces browser's native confirm())
+     ================================================================ -->
+@if (deleteConfirmModalOpen()) {
+  <div class="jd-files-modal-backdrop" (click)="onCancelDeleteConfirm()"></div>
+  <div
+    class="jd-files-modal jd-files-modal--narrow jd-delete-confirm-modal"
+    role="dialog"
+    aria-labelledby="jd-delete-confirm-title"
+    aria-modal="true"
+    (click)="$event.stopPropagation()"
+  >
+    <div class="jd-files-modal__header">
+      <h2 id="jd-delete-confirm-title">Confirm</h2>
+      <button
+        type="button"
+        class="jd-files-modal__close"
+        (click)="onCancelDeleteConfirm()"
+        aria-label="Close"
+      >&times;</button>
+    </div>
+    <div class="jd-files-modal__body">
+      <p class="jd-delete-confirm__text">Click OK to continue?</p>
+    </div>
+    <div class="jd-files-modal__footer">
+      <button
+        type="button"
+        class="jd-files-btn jd-files-btn--secondary"
+        (click)="onCancelDeleteConfirm()"
+      >Cancel</button>
+      <button
+        type="button"
+        class="jd-files-btn jd-files-btn--primary"
+        (click)="onConfirmDelete()"
+      >OK</button>
+    </div>
+  </div>
+}
+
+<!-- ================================================================
+     DELETE SUCCESS MODAL  (shown after successful file removal)
+     ================================================================ -->
+@if (deleteSuccessModalOpen()) {
+  <div class="jd-files-modal-backdrop" (click)="onCloseDeleteSuccess()"></div>
+  <div
+    class="jd-files-modal jd-files-modal--narrow jd-delete-success-modal"
+    role="dialog"
+    aria-labelledby="jd-delete-success-title"
+    aria-modal="true"
+    (click)="$event.stopPropagation()"
+  >
+    <div class="jd-files-modal__header">
+      <h2 id="jd-delete-success-title">Deleted</h2>
+      <button
+        type="button"
+        class="jd-files-modal__close"
+        (click)="onCloseDeleteSuccess()"
+        aria-label="Close"
+      >&times;</button>
+    </div>
+    <div class="jd-files-modal__body">
+      <p class="jd-delete-success__text">File has been removed successfully.</p>
+    </div>
+    <div class="jd-files-modal__footer">
+      <button
+        type="button"
+        class="jd-files-btn jd-files-btn--secondary"
+        (click)="onCloseDeleteSuccess()"
+      >Close</button>
+    </div>
+  </div>
+}

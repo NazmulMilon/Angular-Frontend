@@ -1,0 +1,267 @@
+<div class="page">
+  <div class="page-header">
+    <div class="page-header__left">
+      <h2>Customers</h2>
+      @if (!loading()) {
+        <span class="record-count">{{ total() }} {{ total() === 1 ? 'customer' : 'customers' }}</span>
+      }
+    </div>
+    <app-button variant="primary" size="sm" (clicked)="goToCreate()">+ Add New Customer</app-button>
+  </div>
+
+  @if (successMessage()) {
+    <div class="banner banner--success" role="status">{{ successMessage() }}</div>
+  }
+  @if (error()) {
+    <div class="banner banner--error" role="alert">
+      {{ error() }}
+      <button type="button" class="banner__close" (click)="error.set(null)" aria-label="Dismiss">×</button>
+    </div>
+  }
+
+  <!-- Bulk-actions help note -->
+  <div class="bulk-hint" role="note">
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+      stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" />
+    </svg>
+    <span>
+      <strong>Select customers to make bulk changes.</strong>
+      Tick the checkbox beside one or more customers (or the header checkbox to select the whole page). An action
+      bar then appears here, letting you assign an account manager, enable or disable vendor broadcast, and
+      activate or deactivate all the selected customers at once.
+    </span>
+  </div>
+
+  <!-- Toolbar: status toggle + search + page size -->
+  <div class="toolbar">
+    <div class="status-toggle" role="tablist" aria-label="Customer status">
+      <button
+        type="button"
+        role="tab"
+        class="status-toggle__btn"
+        [class.is-active]="status() === 'active'"
+        [attr.aria-selected]="status() === 'active'"
+        (click)="setStatus('active')"
+      >
+        Active
+      </button>
+      <button
+        type="button"
+        role="tab"
+        class="status-toggle__btn"
+        [class.is-active]="status() === 'inactive'"
+        [attr.aria-selected]="status() === 'inactive'"
+        (click)="setStatus('inactive')"
+      >
+        Deactivated
+      </button>
+    </div>
+
+    <div class="search-box">
+      <svg class="search-box__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2" />
+        <path d="m20 20-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+      </svg>
+      <input
+        type="search"
+        class="search-box__input"
+        placeholder="Search name, contact, email or phone…"
+        [value]="search()"
+        (input)="onSearchInput($any($event.target).value)"
+        aria-label="Search customers"
+      />
+    </div>
+
+    <label class="page-size">
+      <span>Rows</span>
+      <select [value]="pageSize()" (change)="changePageSize(+$any($event.target).value)">
+        <option [value]="25">25</option>
+        <option [value]="50">50</option>
+        <option [value]="100">100</option>
+      </select>
+    </label>
+  </div>
+
+  <!-- Bulk action bar -->
+  @if (selectedCount() > 0) {
+    <div class="bulk-bar">
+      <span class="bulk-bar__count">{{ selectedCount() }} selected</span>
+      <div class="bulk-bar__actions">
+        <app-button variant="primary" size="sm" [disabled]="saving()" (clicked)="openAssignModal()">
+          Assign Account Manager
+        </app-button>
+        <app-button variant="secondary" size="sm" [disabled]="saving()" (clicked)="setBroadcast(true)">
+          Enable Broadcast
+        </app-button>
+        <app-button variant="secondary" size="sm" [disabled]="saving()" (clicked)="setBroadcast(false)">
+          Disable Broadcast
+        </app-button>
+        @if (status() === 'active') {
+          <app-button variant="danger" size="sm" [disabled]="saving()" (clicked)="bulkSetActive(false)">
+            Deactivate
+          </app-button>
+        } @else {
+          <app-button variant="primary" size="sm" [disabled]="saving()" (clicked)="bulkSetActive(true)">
+            Activate
+          </app-button>
+        }
+        <button type="button" class="bulk-bar__clear" (click)="clearSelection()">Clear</button>
+      </div>
+    </div>
+  }
+
+  <!-- Table -->
+  <div class="table-wrap">
+    <table class="grid">
+      <thead>
+        <tr>
+          <th class="col-check">
+            <input
+              type="checkbox"
+              [checked]="allOnPageSelected()"
+              (change)="toggleAllOnPage()"
+              [disabled]="rows().length === 0"
+              aria-label="Select all on page"
+            />
+          </th>
+          <th class="sortable" (click)="sort('name')">
+            Customer Name
+            @if (sortBy() === 'name') { <span class="sort-ind">{{ sortDir() === 'asc' ? '▲' : '▼' }}</span> }
+          </th>
+          <th>Primary Contact</th>
+          <th>Phone</th>
+          <th>Email</th>
+          <th class="sortable" (click)="sort('accountManager')">
+            Account Manager
+            @if (sortBy() === 'accountManager') { <span class="sort-ind">{{ sortDir() === 'asc' ? '▲' : '▼' }}</span> }
+          </th>
+          <th class="sortable col-broadcast" (click)="sort('broadcast')">
+            Broadcast
+            @if (sortBy() === 'broadcast') { <span class="sort-ind">{{ sortDir() === 'asc' ? '▲' : '▼' }}</span> }
+          </th>
+          <th class="col-actions">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        @if (loading()) {
+          <tr class="state-row">
+            <td colspan="8">
+              <div class="state state--loading"><span class="spinner"></span> Loading customers…</div>
+            </td>
+          </tr>
+        } @else if (rows().length === 0) {
+          <tr class="state-row">
+            <td colspan="8">
+              <div class="state state--empty">No results found.</div>
+            </td>
+          </tr>
+        } @else {
+          @for (row of rows(); track trackByKey($index, row)) {
+            <tr [class.is-selected]="isSelected(row.customerKey)">
+              <td class="col-check">
+                <input
+                  type="checkbox"
+                  [checked]="isSelected(row.customerKey)"
+                  (change)="toggleRow(row.customerKey)"
+                  [attr.aria-label]="'Select ' + row.customerName"
+                />
+              </td>
+              <td class="cell-name">{{ row.customerName || '—' }}</td>
+              <td>{{ row.primaryContact || '—' }}</td>
+              <td>{{ row.phone || '—' }}</td>
+              <td class="cell-email">{{ row.email || '—' }}</td>
+              <td>{{ row.accountManagerName || '—' }}</td>
+              <td class="col-broadcast">
+                @if (row.vendorBroadcastEnabled) {
+                  <span class="badge badge--on">Enabled</span>
+                } @else {
+                  <span class="badge badge--off">Off</span>
+                }
+              </td>
+              <td class="col-actions">
+                <div class="row-actions">
+                  <button type="button" class="icon-btn" (click)="goToEdit(row)"
+                    title="Edit customer" [attr.aria-label]="'Edit ' + row.customerName">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                    </svg>
+                  </button>
+                  @if (status() === 'active') {
+                    <button type="button" class="icon-btn icon-btn--danger" [disabled]="saving()"
+                      (click)="setRowActive(row, false)"
+                      title="Deactivate customer" [attr.aria-label]="'Deactivate ' + row.customerName">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M18.36 6.64a9 9 0 1 1-12.73 0" /><line x1="12" y1="2" x2="12" y2="12" />
+                      </svg>
+                    </button>
+                  } @else {
+                    <button type="button" class="icon-btn icon-btn--success" [disabled]="saving()"
+                      (click)="setRowActive(row, true)"
+                      title="Activate customer" [attr.aria-label]="'Activate ' + row.customerName">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M18.36 6.64a9 9 0 1 1-12.73 0" /><line x1="12" y1="2" x2="12" y2="12" />
+                      </svg>
+                    </button>
+                  }
+                </div>
+              </td>
+            </tr>
+          }
+        }
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination -->
+  @if (!loading() && total() > 0) {
+    <div class="pager">
+      <span class="pager__range">Showing {{ rangeStart() }}–{{ rangeEnd() }} of {{ total() }}</span>
+      <div class="pager__controls">
+        <button type="button" class="pager__btn" [disabled]="page() <= 1" (click)="goToPage(1)" aria-label="First page">«</button>
+        <button type="button" class="pager__btn" [disabled]="page() <= 1" (click)="goToPage(page() - 1)" aria-label="Previous page">‹</button>
+        <span class="pager__status">Page {{ page() }} of {{ totalPages() }}</span>
+        <button type="button" class="pager__btn" [disabled]="page() >= totalPages()" (click)="goToPage(page() + 1)" aria-label="Next page">›</button>
+        <button type="button" class="pager__btn" [disabled]="page() >= totalPages()" (click)="goToPage(totalPages())" aria-label="Last page">»</button>
+      </div>
+    </div>
+  }
+</div>
+
+<!-- Assign account manager modal -->
+@if (showAssignModal()) {
+  <div class="modal-overlay" (click)="closeAssignModal()">
+    <div class="modal" (click)="$event.stopPropagation()" role="dialog" aria-modal="true" aria-labelledby="assign-title">
+      <div class="modal__header">
+        <h3 id="assign-title">Assign Account Manager</h3>
+        <button type="button" class="modal__close" (click)="closeAssignModal()" aria-label="Close">×</button>
+      </div>
+      <div class="modal__body">
+        <p class="modal__hint">Assign an account manager to {{ selectedCount() }} selected customer(s).</p>
+        <label class="field-label" for="am-select">Account Manager</label>
+        <app-searchable-select
+          [options]="amOptions()"
+          [loading]="amLoading()"
+          placeholder="-- Select account manager --"
+          (selectionChange)="onAmSelected($event)"
+        />
+      </div>
+      <div class="modal__footer">
+        <app-button variant="secondary" [disabled]="saving()" (clicked)="closeAssignModal()">Cancel</app-button>
+        <app-button
+          variant="primary"
+          [loading]="saving()"
+          [disabled]="!selectedAmKey() || saving()"
+          (clicked)="confirmAssign()"
+        >
+          Assign
+        </app-button>
+      </div>
+    </div>
+  </div>
+}
+
+<app-confirm-dialog />

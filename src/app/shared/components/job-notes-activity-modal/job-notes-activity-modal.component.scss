@@ -1,0 +1,157 @@
+/* ============================================================
+   Modal chrome for the reusable "Job Notes / Activity" popup.
+   Mirrors the established Notes & Activity modal pattern already shipped in
+   assign-vendor.component.scss (.modal-overlay / .modal / .modal--notes-activity /
+   .modal__header / .modal__title / .modal__close / .modal__body--notes-activity /
+   .modal__footer) — scoped to this component via Angular's normal view encapsulation, so
+   these class names can be reused here without colliding with that page's own copy.
+   `.btn` / `.btn--secondary` are global (src/styles.scss) and intentionally not redefined here.
+   ============================================================ */
+
+@keyframes jnaFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes jnaScaleIn {
+  from {
+    transform: scale(0.97);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(3px);
+  animation: jnaFadeIn 0.2s ease;
+}
+
+/* ------------------------------------------------------------------
+   Spec: complete-screen-v2.html — .modal / .modal-head / .modal-body /
+   .modal-foot, with the Notes & Activity modal's own maxWidth override
+   (renderNotesModal() sets `.modal.style.maxWidth = '1050px'`). This wrapper
+   is not shared with any other page, so the spec's chrome is applied
+   directly here (no scoping trick needed).
+   ------------------------------------------------------------------ */
+.modal {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  animation: jnaScaleIn 0.25s ease;
+  font-family: 'Segoe UI', system-ui, -apple-system, Arial, sans-serif;
+}
+
+/* Notes & Activity modal is wider than the app's other modals (spec: 1050px, not 860px). */
+.modal--notes-activity {
+  width: 100%;
+  max-width: 1050px;
+  max-height: 90vh;
+}
+
+.modal__header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 16px;
+  border-bottom: 1px solid var(--border-color, #e2e8f0);
+}
+
+.modal__title {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text-primary, #0f172a);
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.modal__po {
+  font-weight: 400;
+  font-size: 11px;
+  color: var(--text-secondary, #94a3b8);
+}
+
+/* Spec: renderNotesModal() title includes a muted '(V2 Notes & Activity tab)'
+   sub-label after the PO — same treatment as .modal__po (11px/400/muted). */
+.modal__subtab {
+  font-weight: 400;
+  font-size: 11px;
+  color: var(--text-secondary, #94a3b8);
+}
+
+.modal__close {
+  margin-left: auto;
+  background: none;
+  border: none;
+  font-size: 18px;
+  color: var(--text-secondary, #94a3b8);
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  line-height: 1;
+
+  &:hover {
+    background: var(--surface-alt, #f1f5f9);
+    color: var(--text-primary, #0f172a);
+  }
+}
+
+.modal__body--notes-activity {
+  overflow: auto;
+  flex: 1;
+  min-height: 0;
+  padding: 16px;
+  /* Spec: .modal-body{padding:16px;max-height:70vh;overflow-y:auto} — the
+     scroll region itself is capped at 70vh (not the outer .modal, which the
+     spec leaves unconstrained since header+footer are small and fixed). */
+  max-height: 70vh;
+}
+
+.modal__footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border-color, #e2e8f0);
+}
+
+@media (max-width: 768px) {
+  .modal--notes-activity {
+    width: 100vw;
+    max-width: 100vw;
+    height: 100vh;
+    max-height: 100vh;
+    border-radius: 0;
+  }
+
+  .modal__header {
+    padding: 14px 16px;
+  }
+
+  .modal__title {
+    font-size: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .modal__footer {
+    padding: 12px 16px;
+  }
+}

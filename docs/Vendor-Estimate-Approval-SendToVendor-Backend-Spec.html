@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vendor Estimate Approval — Send to Vendor Simplification — Backend Spec</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --surface: #1a2332;
+      --surface2: #243044;
+      --border: #2d3a4f;
+      --text: #e6edf3;
+      --muted: #8b9cb3;
+      --accent: #58a6ff;
+      --accent2: #3fb950;
+      --warn: #d29922;
+      --danger: #f85149;
+      --code-bg: #161b22;
+      --purple: #bc8cff;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      line-height: 1.6;
+      color: var(--text);
+      background: var(--bg);
+      margin: 0;
+      padding: 2rem;
+      max-width: 1100px;
+      margin-inline: auto;
+    }
+    h1 { color: var(--accent); border-bottom: 2px solid var(--border); padding-bottom: .5rem; }
+    h2 { color: var(--accent2); margin-top: 2.5rem; border-left: 4px solid var(--accent2); padding-left: .75rem; }
+    h3 { color: var(--warn); margin-top: 1.5rem; }
+    h4 { color: var(--muted); margin-top: 1rem; }
+    p, li { color: var(--text); }
+    a { color: var(--accent); }
+    code, pre {
+      font-family: "SF Mono", Consolas, monospace;
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+    }
+    code { padding: .1em .35em; font-size: .9em; }
+    pre { padding: 1rem; overflow-x: auto; font-size: .85em; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1rem 0;
+      font-size: .9em;
+    }
+    th, td {
+      border: 1px solid var(--border);
+      padding: .6rem .8rem;
+      text-align: left;
+      vertical-align: top;
+    }
+    th { background: var(--surface2); color: var(--accent); }
+    tr:nth-child(even) { background: var(--surface); }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.25rem;
+      margin: 1rem 0;
+    }
+    .note {
+      border-left: 4px solid var(--warn);
+      background: rgba(210, 153, 34, .08);
+      padding: .75rem 1rem;
+      margin: 1rem 0;
+      border-radius: 0 6px 6px 0;
+    }
+    .danger {
+      border-left: 4px solid var(--danger);
+      background: rgba(248, 81, 73, .08);
+      padding: .75rem 1rem;
+      margin: 1rem 0;
+      border-radius: 0 6px 6px 0;
+    }
+    .ok {
+      border-left: 4px solid var(--accent2);
+      background: rgba(63, 185, 80, .08);
+      padding: .75rem 1rem;
+      margin: 1rem 0;
+      border-radius: 0 6px 6px 0;
+    }
+    .tag {
+      display: inline-block;
+      padding: .15em .5em;
+      border-radius: 4px;
+      font-size: .75em;
+      font-weight: 600;
+      margin-right: .25rem;
+    }
+    .tag-post { background: #23863633; color: #3fb950; }
+    .tag-db { background: #8957e533; color: #bc8cff; }
+    .tag-frontend { background: #1f6feb33; color: #58a6ff; }
+    .tag-removed { background: #f8514933; color: #ff7b72; }
+    ul.compact li { margin: .25rem 0; }
+    .toc a { text-decoration: none; }
+    .toc li { margin: .35rem 0; }
+    del { color: #8b9cb3; }
+  </style>
+</head>
+<body>
+
+<h1>Vendor Estimate Approval — Send to Vendor Simplification</h1>
+<p><strong>Status:</strong> Frontend (V2 Admin Portal) is implemented. Backend needs to update the <code>save-vendor-approval-data</code> endpoint contract and the caller of <code>email-to-vendor</code> to match.</p>
+<p><strong>Scope:</strong> Only the Additional Approval panel (shown after <code>SetVendorEstimateToApproved</code> succeeds) changes. The reject-for-resubmission flow is a separate, unrelated spec.</p>
+
+<nav class="card toc">
+  <h3>Table of Contents</h3>
+  <ol>
+    <li><a href="#overview">Overview</a></li>
+    <li><a href="#before-after">Before / After</a></li>
+    <li><a href="#endpoint">Updated Endpoint Contract — save-vendor-approval-data</a></li>
+    <li><a href="#invoicetype">invoiceType Is Now Fixed at 33</a></li>
+    <li><a href="#removed">What Backend Logic Is No Longer Needed</a></li>
+    <li><a href="#frontend">What the Frontend Already Does</a></li>
+    <li><a href="#open-questions">Open Questions / Things to Confirm</a></li>
+  </ol>
+</nav>
+
+<!-- ============================================================ -->
+<h2 id="overview">1. Overview</h2>
+<div class="card">
+  <p>The legacy Additional Approval panel (<code>#frmAdditionalApprovalToVendor</code>) offered four radio choices — <em>Set Return ETA</em>, <em>Check-out</em>, <em>Create Invoice</em>, and <em>Save approved amount &amp; Close (no email)</em> — each mapping to a different <code>id1Type</code>/<code>invoiceType</code> and gated by different check-in/check-out preflight state.</p>
+  <p>V2 has simplified this to <strong>two choices</strong>: <strong>Send Approval &amp; Send Email</strong> or <strong>Save Approval &amp; Close</strong> (no email). The three "send" variants (ETA / Check-out / Create Invoice) are collapsed into one, using a single fixed <code>invoiceType</code>. There is no longer any checkout/invoice preflight gating in the UI.</p>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="before-after">2. Before / After</h2>
+<table>
+  <tr><th></th><th>Before (legacy-parity)</th><th>After (V2 simplified)</th></tr>
+  <tr>
+    <td>Choices in panel</td>
+    <td>4 radios: Set ETA (1), Check-out (2), Create Invoice (4), Save &amp; Close (5)</td>
+    <td>2 radios: Send to Vendor / Save &amp; Close</td>
+  </tr>
+  <tr>
+    <td>Wire field</td>
+    <td><code>approvalOption: 1 | 2 | 4 | 5</code></td>
+    <td><code>sendToVendor: boolean</code></td>
+  </tr>
+  <tr>
+    <td><code>invoiceType</code> on send</td>
+    <td>34 (ETA) / 5 (Check-out) / 10 (Create Invoice), determined server-side by <code>SaveVendorApprovalDataResponse.invoiceType</code></td>
+    <td>Always <code>33</code>, hardcoded client-side on the <code>email-to-vendor</code> call</td>
+  </tr>
+  <tr>
+    <td>Whether email sends</td>
+    <td>Server decides via <code>SaveVendorApprovalDataResponse.sendEmail</code> (frontend branches on it)</td>
+    <td>Frontend decides directly from <code>sendToVendor</code>; server's <code>sendEmail</code>/<code>invoiceType</code> response fields are <strong>no longer read</strong> by the frontend</td>
+  </tr>
+  <tr>
+    <td>Checkout / check-in preflight</td>
+    <td>Check-out radio disabled unless checked in; Create Invoice disabled unless checked out</td>
+    <td><del>Removed entirely</del> — no radio depends on check-in/out state anymore</td>
+  </tr>
+  <tr>
+    <td>Approval note textarea</td>
+    <td>Hidden entirely when "Save &amp; Close" (option 5) selected</td>
+    <td><strong>Always visible</strong> — the note/<code>revVendorDNE</code> still needs to persist even on Save &amp; Close</td>
+  </tr>
+</table>
+
+<!-- ============================================================ -->
+<h2 id="endpoint">3. Updated Endpoint Contract — save-vendor-approval-data</h2>
+<p><span class="tag tag-post">POST</span> <code>/api/v1/admin/on-site-approval/save-vendor-approval-data</code> (URL unchanged)</p>
+
+<h3>Request body</h3>
+<pre>{
+  sendToVendor: boolean;   // replaces approvalOption: 1 | 2 | 4 | 5
+  jobKey: string;
+  vendorKey: string;
+  approvalText: string;    // always sent now, even when sendToVendor is false
+  revVendorDNE: number;
+}</pre>
+
+<div class="note">
+  <strong><code>approvalText</code> and <code>revVendorDNE</code> must still be persisted when <code>sendToVendor</code> is <code>false</code>.</strong> "Save &amp; Close" is not a no-op — the approved amount and note need to save; only the email step is skipped. This was an explicit product decision.
+</div>
+
+<h3>Response</h3>
+<p>Existing <code>SaveVendorApprovalDataResponse</code> shape can stay as-is on the wire, but the frontend now <strong>ignores</strong> <code>sendEmail</code> and <code>invoiceType</code> entirely — it decides whether to call <code>email-to-vendor</code> purely from its own <code>sendToVendor</code> request value. If the backend has other consumers relying on those two response fields, they can remain for compatibility; V2 just no longer reads them. If nothing else depends on them, they can be considered for removal.</p>
+<pre>{
+  workOrderKey?: string | null;
+  invoiceType?: number | null;   // no longer read by V2 frontend
+  sendEmail: boolean;            // no longer read by V2 frontend
+  jobStatusTrigger?: number | null;
+  message: string;
+}</pre>
+
+<p>When <code>sendToVendor</code> is <code>true</code>, the frontend still requires <code>workOrderKey</code> in the response to proceed to the email step — if it's missing, the frontend closes the panel without emailing (existing behavior, unchanged).</p>
+
+<!-- ============================================================ -->
+<h2 id="invoicetype">4. invoiceType Is Now Fixed at 33</h2>
+<p>The subsequent <span class="tag tag-post">POST</span> <code>/api/v1/admin/work-order/email-to-vendor</code> call now always sends:</p>
+<pre>{
+  jobKey,
+  vendorKey,
+  workOrderKey,       // from save-vendor-approval-data response
+  invoiceType: 33,    // fixed — replaces legacy 34 / 5 / 10 variants
+  emailBody,
+  recipientEmails,
+}</pre>
+<p>Backend/email-template logic keyed on <code>invoiceType</code> 34/5/10 (Set ETA / Check-out / Create Invoice templates or branches) should be consolidated to a single template/branch for <code>invoiceType 33</code>, since V2 will never send those three values again for this flow.</p>
+
+<!-- ============================================================ -->
+<h2 id="removed">5. What Backend Logic Is No Longer Needed</h2>
+<div class="danger">
+  <ul class="compact">
+    <li><span class="tag tag-removed">Dead</span> Any server-side branching on <code>approvalOption</code> values 1 / 2 / 4 (ETA / Check-out / Create Invoice) for this endpoint — only a boolean send/no-send distinction remains.</li>
+    <li><span class="tag tag-removed">Dead</span> Check-in/check-out preflight validation gating this panel's options, if any exists server-side beyond the frontend's now-removed <code>checkoutBlocked</code>/<code>createInvoiceBlocked</code> checks.</li>
+    <li><span class="tag tag-removed">Dead</span> <code>jobStatusTrigger</code>-based redirect branching tied to the Check-out (id3=15) vs other option variants, if that logic lived server-side — confirm whether anything still depends on it before removing.</li>
+  </ul>
+  <p>Confirm with whoever owns the API before deleting any of the above — some of it may be shared with the legacy (non-V2) admin portal, which is out of scope for this change.</p>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="frontend">6. What the Frontend Already Does</h2>
+<div class="ok">
+  <ul class="compact">
+    <li><span class="tag tag-frontend">Frontend</span> <code>EstimateApprovalPanelComponent</code> now shows 2 radio options bound to a <code>sendToVendor</code> boolean signal, no more 4-way <code>selectedOption</code>.</li>
+    <li><span class="tag tag-frontend">Frontend</span> <code>isCheckedIn</code>/<code>isCheckedOut</code> inputs and all preflight-blocked computed signals have been removed from the panel component; the parent's <code>estApprovalIsCheckedIn</code>/<code>estApprovalIsCheckedOut</code> methods were deleted as dead code.</li>
+    <li><span class="tag tag-frontend">Frontend</span> Approval note textarea is unconditionally rendered — no longer hidden for "Save &amp; Close".</li>
+    <li><span class="tag tag-frontend">Frontend</span> Recipient checkboxes remain conditional on <code>sendToVendor</code> being true.</li>
+    <li><span class="tag tag-frontend">Frontend</span> <code>onSubmitVendorApproval</code> sends <code>sendToVendor</code> to <code>saveVendorApprovalData</code>, and independently decides (from its own request value, not the response) whether to call <code>sendEmailToVendor</code> with <code>invoiceType: 33</code>.</li>
+  </ul>
+</div>
+
+<!-- ============================================================ -->
+<h2 id="open-questions">7. Open Questions / Things to Confirm</h2>
+<div class="note">
+  <ul class="compact">
+    <li>Can <code>SaveVendorApprovalDataResponse.sendEmail</code> / <code>.invoiceType</code> be removed from the response entirely, or do other (non-V2) consumers still rely on them?</li>
+    <li>Does anything server-side still branch on the legacy <code>id1Type</code> 34/5/10 values that needs explicit migration to 33, beyond the email-to-vendor template?</li>
+    <li>Confirm the <code>jobStatusTrigger</code>/redirect-id3 behavior tied to the old Check-out option (legacy id3=15 for checkout, id3=0 otherwise) — is any of that still meaningful now that there's no distinct Check-out choice?</li>
+  </ul>
+</div>
+
+<p style="margin-top:3rem;color:var(--muted);font-size:.85em;">
+  Generated for Admin Portal V2 backend handoff. Cross-check against <code>context/VendorEstimate-Status-Lifecycle-Reference.html</code> §14 (Post-Approve: Additional Approval Panel) for the legacy baseline this simplifies.
+</p>
+
+</body>
+</html>

@@ -1,0 +1,621 @@
+/* ============================================================
+   Accounting V2 design system — ported from complete-screen-v2.html
+   (topbar / tabbar / joblist / jobcard / badges / main), scoped to this
+   page shell component. The stepper/autonomy/vendor-card styles are not
+   here yet — they belong to the next phase.
+   ============================================================ */
+
+:host {
+  --blue: #2563eb;
+  --blue-dk: #1d4ed8;
+  --blue-lt: #eff6ff;
+  --green: #16a34a;
+  --green-lt: #f0fdf4;
+  --amber: #d97706;
+  --amber-lt: #fffbeb;
+  --red: #dc2626;
+  --red-lt: #fef2f2;
+  --pink: #db2777;
+  --pink-lt: #fdf2f8;
+  --ink: #0f172a;
+  --ink2: #475569;
+  --ink3: #94a3b8;
+  --line: #e2e8f0;
+  --bg: #f1f5f9;
+  --card: #ffffff;
+
+  display: block;
+  font-family: 'Segoe UI', system-ui, -apple-system, Arial, sans-serif;
+  font-size: 13px;
+  color: var(--ink);
+  background: var(--bg);
+}
+
+/* ---------- top bar ---------- */
+.topbar {
+  background: #fff;
+  border-bottom: 1px solid var(--line);
+  padding: 8px 18px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+.brand {
+  font-size: 19px;
+  font-weight: 400;
+  color: #64748b;
+  letter-spacing: -0.5px;
+}
+.brand b {
+  color: var(--blue);
+  font-weight: 800;
+}
+.brand small {
+  display: block;
+  font-size: 8.5px;
+  letter-spacing: 1.6px;
+  color: var(--ink3);
+  font-weight: 600;
+}
+.screen-title {
+  font-weight: 700;
+  font-size: 14px;
+  padding-left: 14px;
+  border-left: 1px solid var(--line);
+}
+.screen-title span {
+  display: block;
+  font-size: 10.5px;
+  font-weight: 500;
+  color: var(--ink2);
+}
+.spacer {
+  flex: 1;
+}
+.proto-tag {
+  font-size: 10.5px;
+  color: var(--ink3);
+}
+
+/* ---------- tab bar ---------- */
+.tabbar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 9px 18px;
+  background: #fff;
+  border-bottom: 1px solid var(--line);
+  flex-wrap: wrap;
+}
+.tabpill {
+  cursor: pointer;
+  padding: 7px 14px;
+  border-radius: 9px;
+  font-weight: 800;
+  font-size: 12px;
+  display: inline-flex;
+  gap: 7px;
+  align-items: center;
+  background: #f1f5f9;
+  color: var(--ink2);
+  border: 1px solid var(--line);
+}
+.tabpill.active {
+  background: var(--blue);
+  color: #fff;
+  border-color: var(--blue);
+}
+.tabpill.disabled {
+  background: #f8fafc;
+  color: var(--ink3);
+  border: 1px dashed var(--line);
+  cursor: not-allowed;
+}
+.qbo-note {
+  margin-left: auto;
+  font-size: 10.5px;
+  color: var(--ink3);
+}
+
+/* ---------- badges ---------- */
+.badge {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  padding: 2.5px 8px;
+  border-radius: 10px;
+  display: inline-block;
+}
+.b-complete {
+  background: var(--green-lt);
+  color: var(--green);
+}
+.b-blue {
+  background: var(--blue-lt);
+  color: var(--blue);
+}
+.b-gray {
+  background: #f1f5f9;
+  color: var(--ink2);
+}
+.b-amber {
+  background: var(--amber-lt);
+  color: var(--amber);
+}
+
+/* ---------- layout ---------- */
+.app {
+  display: flex;
+  height: calc(100vh - 51px - 46px);
+}
+
+/* ---------- left job list ---------- */
+.joblist {
+  width: 295px;
+  min-width: 295px;
+  background: #fff;
+  border-right: 1px solid var(--line);
+  overflow-y: auto;
+}
+.joblist-head {
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--line);
+  position: sticky;
+  top: 0;
+  background: #fff;
+  z-index: 5;
+}
+.joblist-head h2 {
+  font-size: 11px;
+  letter-spacing: 0.8px;
+  color: var(--ink2);
+  text-transform: uppercase;
+}
+.joblist-head .cnt {
+  font-size: 11px;
+  color: var(--ink3);
+  margin-top: 2px;
+}
+.joblist-head input {
+  width: 100%;
+  margin-top: 7px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 7px 10px;
+  font-size: 11.5px;
+  font-family: inherit;
+}
+
+.jobcard {
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+  border-left: 3px solid transparent;
+}
+.jobcard:hover {
+  background: #f8fafc;
+}
+.jobcard.sel {
+  background: var(--blue-lt);
+  border-left-color: var(--blue);
+}
+.jobcard .row1 {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.jobcard .po {
+  font-weight: 800;
+  font-size: 13px;
+}
+.jobcard .cust {
+  font-size: 12px;
+  color: var(--ink);
+  margin-top: 2px;
+}
+.jobcard .loc {
+  font-size: 11px;
+  color: var(--ink2);
+}
+.jobcard .row2 {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 5px;
+}
+.jobcard .dne {
+  font-size: 11px;
+  color: var(--ink2);
+}
+.jobcard .dne b {
+  color: var(--ink);
+}
+
+/* ---------- JobRoutingLog job-list flags: "with X — sent ..." / "Back from Service" ---------- */
+.jobcard.routing-with-service {
+  background: #fffdf5;
+  border-left-color: var(--amber);
+}
+.jobcard.routing-returned {
+  border-left-color: var(--green);
+  animation: routingReturnedGlow 2.2s ease-in-out infinite;
+}
+@keyframes routingReturnedGlow {
+  0%,
+  100% {
+    box-shadow: inset 0 0 0 0 rgba(22, 163, 74, 0);
+  }
+  50% {
+    box-shadow: inset 0 0 0 1px rgba(22, 163, 74, 0.35);
+  }
+}
+
+.routing-flag {
+  margin-top: 7px;
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 3px 7px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.routing-flag--with-service {
+  color: var(--amber);
+  background: var(--amber-lt);
+}
+.routing-flag--returned {
+  color: var(--green);
+  background: var(--green-lt);
+  cursor: pointer;
+}
+.routing-flag--returned:hover {
+  background: #dcfce7;
+}
+.routing-flag__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--green);
+  animation: routingDotBlink 1.4s ease-in-out infinite;
+}
+@keyframes routingDotBlink {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.35;
+    transform: scale(0.7);
+  }
+}
+
+/* Blinking count callout next to "Jobs in Complete Status" -- how many are back from Service */
+.routing-returned-callout {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  margin-left: 6px;
+  border-radius: 999px;
+  background: var(--green);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  vertical-align: middle;
+  animation: routingCalloutPulse 1.4s ease-in-out infinite;
+}
+@keyframes routingCalloutPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(22, 163, 74, 0);
+  }
+}
+
+.empty-list {
+  padding: 16px;
+  font-size: 12px;
+  color: var(--ink3);
+}
+.show-more {
+  display: block;
+  width: calc(100% - 28px);
+  margin: 10px 14px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink);
+  border-radius: 7px;
+  padding: 7px 11px;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.show-more:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+/* ---------- main ---------- */
+.main {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 16px 80px;
+}
+.empty-main {
+  display: flex;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink3);
+  font-size: 14px;
+}
+.readiness-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+
+  .readiness-title {
+    font-size: 12px;
+  }
+
+  .btn:last-child {
+    margin-left: auto;
+  }
+}
+
+.eq-cards-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+/* One vendor card per row, stacked top-to-bottom -- mirrors complete-screen-v2.html's step1HTML(),
+   which just concatenates vendorHTML() per vendor as plain block elements, never side-by-side. */
+.vp-cards-row {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 14px;
+}
+
+.eq1-card {
+  flex: 1;
+  min-width: 300px;
+  max-width: 460px;
+  border: 1.5px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: #f8fafc;
+
+  &--blocked {
+    background: #fef2f2;
+    border-color: #fecaca;
+  }
+
+  &--done {
+    background: #f1f5f9;
+    color: var(--ink3);
+  }
+
+  &--removed {
+    background: #fef2f2;
+    border-color: #fecaca;
+  }
+
+  &--loading {
+    color: var(--ink3);
+    font-size: 11.5px;
+  }
+}
+
+.eq1-card__head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 6px;
+  font-size: 11.5px;
+
+  .badge {
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    padding: 2.5px 8px;
+    border-radius: 10px;
+    background: #fff;
+    border: 1px solid var(--line);
+  }
+
+  .b-red {
+    color: #dc2626;
+    border-color: #fecaca;
+  }
+
+  .b-green {
+    color: #16a34a;
+    border-color: #bbf7d0;
+  }
+
+  .b-gray {
+    color: var(--ink3);
+    border-color: var(--line);
+  }
+}
+
+.eq1-line {
+  font-size: 11px;
+  display: flex;
+  gap: 6px;
+  padding: 2px 0;
+
+  &--blocker {
+    color: #dc2626;
+  }
+
+  &--green {
+    color: #16a34a;
+  }
+
+  &--info {
+    color: var(--ink3);
+  }
+}
+.next-phase-note {
+  margin-top: 4px;
+  padding: 10px 14px;
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  background: #fafbfc;
+  color: var(--ink3);
+  font-size: 11.5px;
+}
+
+/* ---------- generic button (ported from complete-screen-v2.html's global .btn) ---------- */
+.btn {
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink);
+  border-radius: 7px;
+  padding: 6px 11px;
+  font-size: 11.5px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+}
+.btn:hover:not(:disabled) {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.btn.sm {
+  padding: 4.5px 9px;
+  font-size: 11px;
+  border-radius: 6px;
+}
+.btn.ghost-pink {
+  color: var(--pink);
+  border-color: #fbcfe8;
+  background: var(--pink-lt);
+}
+.btn.ghost-amber {
+  color: var(--amber);
+  border-color: #fde68a;
+  background: var(--amber-lt);
+}
+.btn.ghost-blue {
+  color: var(--blue);
+  border-color: #bfdbfe;
+  background: var(--blue-lt);
+}
+.btn.ghost-green {
+  color: var(--green);
+  border-color: #bbf7d0;
+  background: var(--green-lt);
+}
+.btn .muted {
+  color: var(--ink3);
+  font-weight: 500;
+}
+
+/* ---------- panel / job-level action row (complete-screen-v2.html commonBarHTML) ---------- */
+.panel {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+/* ---------- section head (complete-screen-v2.html's .sec-head, exact values) ---------- */
+.sec-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line);
+  background: #fafbfc;
+
+  .n {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--blue);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 800;
+    flex-shrink: 0;
+  }
+
+  h3 {
+    font-size: 13px;
+    font-weight: 800;
+    margin: 0;
+  }
+
+  .sub {
+    font-size: 11px;
+    color: var(--ink2);
+    font-weight: 400;
+  }
+
+  .right {
+    margin-left: auto;
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+}
+
+.common-bar {
+  display: flex;
+  gap: 7px;
+  padding: 10px 14px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.smv-send-row {
+  display: flex;
+  gap: 8px;
+  flex: 1;
+  min-width: 300px;
+  align-items: center;
+}
+.smv-send-row__input {
+  flex: 1;
+  min-width: 200px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 7px 10px;
+  font-size: 12px;
+  font-family: inherit;
+}
+.smv-send-error {
+  color: var(--red);
+  font-size: 11px;
+  flex-basis: 100%;
+}
+.common-bar .lbl {
+  font-size: 10px;
+  letter-spacing: 0.7px;
+  color: var(--ink2);
+  text-transform: uppercase;
+  font-weight: 700;
+  margin-right: 4px;
+}

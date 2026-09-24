@@ -1,0 +1,391 @@
+<aside class="neg-panel" aria-label="Negotiation recommendation agent">
+
+  <header class="neg-panel__head">
+
+    <span class="neg-panel__title">
+
+      ⚡ Negotiation Recommendation
+
+      <span class="neg-panel__title-agent">· Agent</span>
+
+    </span>
+
+  </header>
+
+
+
+  @switch (panelState()) {
+
+    @case ('generating') {
+
+      <div class="neg-panel__loading" role="status">Generating recommendations…</div>
+
+    }
+
+    @case ('error') {
+
+      <div class="neg-panel__error" role="alert">{{ negotiation()?.errorMessage || errorMessage() || 'Could not load recommendations.' }}</div>
+
+    }
+
+    @case ('unavailable') {
+
+      <div class="neg-panel__empty">Negotiation panel unavailable for this estimate.</div>
+
+    }
+
+    @case ('ready') {
+
+      @if (negotiation(); as neg) {
+
+        @if (neg.infoMessage) {
+          <div class="neg-panel__info" role="status">{{ neg.infoMessage }}</div>
+        }
+
+        @if (neg.vendorEditedSinceSubmission) {
+          <div class="neg-panel__warning" role="alert">
+            The vendor has updated this estimate since it was submitted — the recommendations below
+            may not reflect their latest numbers. Check the estimate's current line items before
+            countering.
+          </div>
+        }
+
+        <div class="neg-panel__table-wrap">
+
+          <table class="neg-panel__table">
+
+            <colgroup>
+
+              <col class="neg-panel__col-suggestion" />
+
+              <col class="neg-panel__col-action" />
+
+              <col class="neg-panel__col-action" />
+
+              <col class="neg-panel__col-action neg-panel__col-decline" />
+
+            </colgroup>
+
+            <thead>
+
+              <tr>
+
+                <th class="neg-panel__th neg-panel__th--label" scope="col"></th>
+
+                <th class="neg-panel__th neg-panel__th--accept" scope="col">
+
+                  <span>Accept</span>
+
+                  <span>Recommendation</span>
+
+                </th>
+
+                <th class="neg-panel__th neg-panel__th--edit" scope="col">
+
+                  <span>Edit</span>
+
+                  <span>Recommendation</span>
+
+                </th>
+
+                <th class="neg-panel__th neg-panel__th--decline" scope="col">
+
+                  <span>Decline</span>
+
+                  <span>Negotiation</span>
+
+                </th>
+
+              </tr>
+
+            </thead>
+
+            <tbody>
+
+              <tr class="neg-panel__row neg-panel__row--header-label">
+
+                <td class="neg-panel__td neg-panel__td--suggestion">
+
+                  <strong>Item</strong>
+
+                  <span>Vendor → Counter</span>
+
+                </td>
+
+                <td class="neg-panel__td neg-panel__td--accept"></td>
+
+                <td class="neg-panel__td neg-panel__td--edit"></td>
+
+                <td class="neg-panel__td neg-panel__td--decline"></td>
+
+              </tr>
+
+              @for (line of displayLines(); track line.lineItemId) {
+                <tr class="neg-panel__row" [class.neg-panel__row--passthrough]="!line.counterThisLine">
+
+                  <td class="neg-panel__td neg-panel__td--suggestion">
+
+                    <div class="neg-panel__line-main">
+
+                      <span class="neg-panel__item-name">{{ lineItemLabel(line) }}</span>
+
+                      <span class="neg-panel__line-values">
+
+                        <span class="neg-panel__vendor-val">{{ vendorDisplay(line) }}</span>
+
+                        <span class="neg-panel__value-sep" aria-hidden="true">→</span>
+
+                        <span
+                          class="neg-panel__suggest-val"
+                          [class.neg-panel__suggest-val--passthrough]="!line.counterThisLine"
+                          [attr.title]="hasAgentSuggestionTooltip(line) ? agentSuggestionTooltip(line) : null"
+                        >
+                          {{ line.displaySuggestion }}
+                        </span>
+
+                        @if (hasAgentSuggestionTooltip(line)) {
+                          <span
+                            class="neg-panel__tip-icon"
+                            tabindex="0"
+                            role="note"
+                            [attr.aria-label]="'Agent suggestion for ' + lineItemLabel(line)"
+                            [attr.title]="agentSuggestionTooltip(line)"
+                          >
+                            ⓘ
+                          </span>
+                        }
+
+                      </span>
+
+                    </div>
+
+                  </td>
+
+                  @if (line.counterThisLine) {
+                  <td class="neg-panel__td neg-panel__td--accept">
+
+                    <button
+
+                      type="button"
+
+                      class="neg-panel__action neg-panel__action--accept"
+
+                      [class.neg-panel__action--active]="isDecision(line.lineItemId, 'accept')"
+
+                      (click)="setDecision(line, 'accept')"
+
+                      aria-label="Accept recommendation"
+
+                    >
+
+                      ✓
+
+                    </button>
+
+                  </td>
+
+                  <td class="neg-panel__td neg-panel__td--edit">
+
+                    @if (editLineId() === line.lineItemId) {
+
+                      <div class="neg-panel__edit-inline">
+
+                        <input
+
+                          type="number"
+
+                          class="neg-panel__edit-input"
+
+                          [ngModel]="editValue()"
+
+                          (ngModelChange)="editValue.set($event)"
+
+                          step="0.01"
+
+                          min="0"
+
+                        />
+
+                        <button type="button" class="neg-panel__edit-save" (click)="confirmEdit(line)">Save</button>
+
+                        <button type="button" class="neg-panel__edit-cancel" (click)="cancelEdit()">Cancel</button>
+
+                      </div>
+
+                    } @else {
+
+                      <button
+
+                        type="button"
+
+                        class="neg-panel__edit-link"
+
+                        [class.neg-panel__edit-link--active]="isDecision(line.lineItemId, 'edit')"
+
+                        (click)="setDecision(line, 'edit')"
+
+                      >
+
+                        Edit
+
+                      </button>
+
+                    }
+
+                  </td>
+
+                  <td class="neg-panel__td neg-panel__td--decline">
+
+                    <button
+
+                      type="button"
+
+                      class="neg-panel__action neg-panel__action--decline"
+
+                      [class.neg-panel__action--active]="isDecision(line.lineItemId, 'decline')"
+
+                      (click)="setDecision(line, 'decline')"
+
+                      aria-label="Decline negotiation"
+
+                    >
+
+                      ✕
+
+                    </button>
+
+                  </td>
+                  } @else {
+                  <td class="neg-panel__td neg-panel__td--accept neg-panel__td--muted" colspan="3">
+                    Pass-through
+                  </td>
+                  }
+
+                </tr>
+
+              }
+
+              @if (displayLines().length === 0) {
+                <tr class="neg-panel__row">
+                  <td class="neg-panel__td neg-panel__td--empty" colspan="4">
+                    No line recommendations returned for this estimate.
+                  </td>
+                </tr>
+              }
+
+            </tbody>
+
+          </table>
+
+        </div>
+
+
+
+        <div class="neg-panel__actions">
+
+          <button
+
+            type="button"
+
+            class="neg-panel__accept-all"
+
+            (click)="onAcceptAll()"
+
+            [disabled]="submitting() || negotiableLines().length === 0"
+
+            title="Accept every agent recommendation and send counter to vendor"
+
+          >
+
+            ✓ Accept All
+
+          </button>
+
+          <button
+
+            type="button"
+
+            class="neg-panel__send-counter"
+
+            (click)="onSendCounter()"
+
+            [disabled]="submitting() || negotiableLines().length === 0"
+
+            title="Send your per-line accept/edit/decline choices to the vendor"
+
+          >
+
+            Send Counter
+
+          </button>
+
+          @if (openNegotiationUrl()) {
+
+            <button
+
+              type="button"
+
+              class="neg-panel__open-negotiation"
+
+              (click)="onOpenNegotiation()"
+
+            >
+
+              Open Negotiation ↗
+
+            </button>
+
+          }
+
+        </div>
+
+        @if (negotiableLines().length > 0) {
+          <p class="neg-panel__hint">
+            Use ✓ / Edit / ✕ to choose per line, then <strong>Send Counter</strong> or <strong>Accept All</strong>.
+          </p>
+        }
+
+
+
+        @if (neg.dneSummary; as dne) {
+
+          <div class="neg-panel__dne">
+
+            <div class="neg-panel__dne-heading">Customer DNE</div>
+
+            <div class="neg-panel__dne-row">
+
+              <span class="neg-panel__dne-label">DNE</span>
+
+              <span class="neg-panel__dne-value">${{ dne.customerDne | number:'1.2-2' }}</span>
+
+            </div>
+
+            <div class="neg-panel__dne-row">
+
+              <span class="neg-panel__dne-label">50% Ceiling</span>
+
+              <span class="neg-panel__dne-value">${{ dne.ceiling50Pct | number:'1.2-2' }}</span>
+
+            </div>
+
+            <div class="neg-panel__dne-row">
+
+              <span class="neg-panel__dne-label">Revised DNE</span>
+
+              <span class="neg-panel__dne-value">${{ dne.revisedDne | number:'1.2-2' }}</span>
+
+            </div>
+
+          </div>
+
+        }
+
+      }
+
+    }
+
+  }
+
+</aside>
+

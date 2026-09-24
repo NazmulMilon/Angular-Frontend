@@ -1,0 +1,109 @@
+<div class="contacts">
+  @if (listError()) {
+    <div class="banner banner--error">{{ listError() }}</div>
+  }
+
+  <div class="contacts__toolbar">
+    <span class="contacts__count">{{ contacts().length }} contact{{ contacts().length === 1 ? '' : 's' }}</span>
+    @if (editing() === null) {
+      <app-button variant="primary" size="sm" (clicked)="startAdd()">+ Add Contact</app-button>
+    }
+  </div>
+
+  <!-- Add / edit form -->
+  @if (editing() !== null) {
+    <form class="contact-form" [formGroup]="form" (ngSubmit)="save()">
+      <h4 class="contact-form__title">{{ editing() === 'new' ? 'New Contact' : 'Edit Contact' }}</h4>
+      <div class="form-grid">
+        <label class="field">
+          <span class="field__label">Name <span class="req">*</span></span>
+          <input type="text" class="field__input" formControlName="name" [class.field__input--invalid]="nameInvalid()" placeholder="Contact name" />
+          @if (nameInvalid()) { <span class="field__error">Contact name is required.</span> }
+        </label>
+        <label class="field">
+          <span class="field__label">Title</span>
+          <input type="text" class="field__input" formControlName="title" placeholder="Title" />
+        </label>
+        <label class="field">
+          <span class="field__label">Email</span>
+          <input type="email" class="field__input" formControlName="email" [class.field__input--invalid]="emailInvalid()" placeholder="name@company.com" />
+          @if (emailInvalid()) { <span class="field__error">Enter a valid email address.</span> }
+        </label>
+        <label class="field">
+          <span class="field__label">Fax</span>
+          <input type="text" class="field__input" formControlName="fax" placeholder="Fax" />
+        </label>
+        <label class="field">
+          <span class="field__label">Phone</span>
+          <input type="tel" class="field__input" formControlName="phone" placeholder="Phone" />
+        </label>
+        <label class="field">
+          <span class="field__label">Phone Ext.</span>
+          <input type="text" class="field__input" formControlName="phoneExt" placeholder="Ext." />
+        </label>
+        <label class="field">
+          <span class="field__label">Alt Phone</span>
+          <input type="tel" class="field__input" formControlName="altPhone" placeholder="Alternate phone" />
+        </label>
+        <label class="field">
+          <span class="field__label">Alt Phone Ext.</span>
+          <input type="text" class="field__input" formControlName="altPhoneExt" placeholder="Ext." />
+        </label>
+      </div>
+      <div class="contact-form__checks">
+        <label class="checkbox-field"><input type="checkbox" formControlName="receivesInvoice" /><span>Receives invoice</span></label>
+        <label class="checkbox-field"><input type="checkbox" formControlName="isDefault" /><span>Default contact</span></label>
+      </div>
+      <div class="contact-form__actions">
+        @if (saveError(); as e) { <span class="seg-msg seg-msg--error">{{ e }}</span> }
+        <app-button variant="secondary" size="sm" [disabled]="saving()" (clicked)="cancel()">Cancel</app-button>
+        <app-button variant="primary" size="sm" type="submit" [loading]="saving()" [disabled]="saving()">
+          {{ editing() === 'new' ? 'Add Contact' : 'Save Contact' }}
+        </app-button>
+      </div>
+    </form>
+  }
+
+  <!-- List -->
+  @if (loading()) {
+    <div class="state"><span class="spinner"></span> Loading…</div>
+  } @else {
+    <div class="table-scroll">
+      <table class="cfg-table">
+        <thead>
+          <tr><th>Name</th><th>Title</th><th>Email</th><th>Phone</th><th>Alt Phone</th><th>Fax</th><th>Invoice</th><th>Status</th><th></th></tr>
+        </thead>
+        <tbody>
+          @for (c of contacts(); track c.contactKey) {
+            <tr [class.row--inactive]="c.isDeleted">
+              <td>
+                {{ c.name }}
+                @if (c.isDefault) { <span class="badge badge--default">Default</span> }
+              </td>
+              <td>{{ c.title || '—' }}</td>
+              <td>{{ c.email || '—' }}</td>
+              <td>{{ c.phone || '—' }}{{ c.phoneExt ? ' x' + c.phoneExt : '' }}</td>
+              <td>{{ c.altPhone || '—' }}{{ c.altPhoneExt ? ' x' + c.altPhoneExt : '' }}</td>
+              <td>{{ c.fax || '—' }}</td>
+              <td>{{ c.receivesInvoice ? 'Yes' : 'No' }}</td>
+              <td>{{ c.isDeleted ? 'Inactive' : 'Active' }}</td>
+              <td class="row-actions">
+                <button type="button" class="link-btn" [disabled]="rowBusy() === c.contactKey" (click)="startEdit(c)">Edit</button>
+                @if (!c.isDeleted && !c.isDefault) {
+                  <button type="button" class="link-btn" [disabled]="rowBusy() === c.contactKey" (click)="makeDefault(c)">Set default</button>
+                }
+                @if (c.isDeleted) {
+                  <button type="button" class="link-btn" [disabled]="rowBusy() === c.contactKey" (click)="toggleActive(c)">Activate</button>
+                } @else {
+                  <button type="button" class="link-btn link-btn--danger" [disabled]="rowBusy() === c.contactKey" (click)="toggleActive(c)">Deactivate</button>
+                }
+              </td>
+            </tr>
+          } @empty {
+            <tr><td colspan="9" class="empty">No contacts yet.</td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>

@@ -1,0 +1,65 @@
+@if (isVisible()) {
+  <div class="cio-modal-overlay" (click)="close()">
+    <div class="cio-modal" role="dialog" aria-labelledby="rcv-title" (click)="$event.stopPropagation()">
+      <header class="cio-modal__header">
+        <h3 id="rcv-title">Accounting — Invoice {{ row()?.invoiceNo || '' }}</h3>
+        <button type="button" class="cio-modal__close" (click)="close()" aria-label="Close">&times;</button>
+      </header>
+
+      <div class="cio-modal__body">
+        @if (errorMessage()) {
+          <p class="cio-form-error" role="alert">{{ errorMessage() }}</p>
+        }
+
+        <div class="cio-form-row">
+          <span class="cio-form-label">Push to QuickBooks</span>
+          @if (!showQbField()) {
+            <button type="button" class="cio-btn cio-btn--outline" (click)="revealQbField()">Invoice Manually Pushed to QB</button>
+          } @else {
+            <input type="text" class="cio-input" placeholder="QuickBooks reference no." [ngModel]="qbRefNo()" (ngModelChange)="qbRefNo.set($event)" />
+            <button type="button" class="cio-btn cio-btn--primary" [disabled]="saving()" (click)="confirmPushToQb()">
+              {{ saving() ? 'Saving…' : 'Confirm' }}
+            </button>
+          }
+        </div>
+
+        <div class="cio-form-row">
+          <span class="cio-form-label">Payment</span>
+          @if (row()?.invoicePaid) {
+            <p class="cio-form-static">Invoice has been paid.</p>
+            @if (!showUnpaidField()) {
+              <button type="button" class="cio-btn cio-btn--outline" (click)="revealUnpaidField()">Mark Invoice as Unpaid</button>
+            } @else {
+              <textarea class="cio-textarea" placeholder="Reason for marking unpaid (optional)" [ngModel]="unpaidNote()" (ngModelChange)="unpaidNote.set($event)"></textarea>
+              <button type="button" class="cio-btn cio-btn--primary" [disabled]="saving()" (click)="confirmMarkUnpaid()">
+                {{ saving() ? 'Saving…' : 'Confirm Mark Unpaid' }}
+              </button>
+            }
+          } @else if (!showCheckField()) {
+            <button type="button" class="cio-btn cio-btn--outline" (click)="revealCheckField()">Invoice Paid</button>
+          } @else {
+            <input type="text" class="cio-input" placeholder="Check no." [ngModel]="checkNo()" (ngModelChange)="checkNo.set($event)" />
+            <button type="button" class="cio-btn cio-btn--primary" [disabled]="saving()" (click)="confirmMarkPaid()">
+              {{ saving() ? 'Saving…' : 'Confirm' }}
+            </button>
+          }
+        </div>
+
+        <div class="cio-form-row">
+          <span class="cio-form-label">Customer Notification</span>
+          @if (row()?.manuallySentToCustomer) {
+            <p class="cio-form-static">Invoice has been manually sent to customer.</p>
+          } @else {
+            <button type="button" class="cio-btn cio-btn--outline" [disabled]="saving()" (click)="confirmManuallySent()">
+              Manually Sent to Customer
+            </button>
+          }
+        </div>
+      </div>
+
+      <footer class="cio-modal__footer">
+        <button type="button" class="cio-btn cio-btn--outline" (click)="close()" [disabled]="saving()">Close</button>
+      </footer>
+    </div>
+  </div>
+}

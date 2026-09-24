@@ -1,0 +1,60 @@
+<div class="page">
+  <nav class="breadcrumb">
+    <a routerLink="/settings" class="breadcrumb__link">Settings</a>
+    <span class="breadcrumb__sep">/</span>
+    <span class="breadcrumb__current">Distance Rule Management</span>
+  </nav>
+
+  <div class="page__header">
+    <h1 class="page__title">Distance Rule Management</h1>
+    <p class="page__subtitle">Edit the vendor distance-broadcast rules. Update a description or value and save each row individually.</p>
+  </div>
+
+  @if (error()) {
+    <div class="error-banner">{{ error() }}</div>
+  }
+
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th class="th--num">#</th>
+          <th>Rule Description</th>
+          <th class="th--value">Rule Value</th>
+          <th class="th--date">Entered</th>
+          <th class="th--date">Last Changed</th>
+          <th class="th--by">Changed By</th>
+          <th class="th--action"></th>
+        </tr>
+      </thead>
+      <tbody>
+        @if (loading()) {
+          <tr><td colspan="7" class="td--empty">Loading distance rules…</td></tr>
+        } @else {
+        @for (r of rules(); track r.pKey; let idx = $index) {
+          <tr>
+            <td class="td--num">{{ idx + 1 }}</td>
+            <td class="td--desc">
+              <textarea class="cell-input" rows="2" [ngModel]="r.description" (ngModelChange)="updateDescription(r.pKey, $event)" [name]="'desc_' + r.pKey"></textarea>
+            </td>
+            <td class="td--value">
+              <input type="number" class="cell-input cell-input--num" step="0.01" [ngModel]="r.value" (ngModelChange)="updateValue(r.pKey, $event)" [name]="'val_' + r.pKey" />
+            </td>
+            <td class="td--date">{{ r.enteredDate }}</td>
+            <td class="td--date">{{ r.lastChanged }}</td>
+            <td class="td--by">{{ r.changedBy }}</td>
+            <td class="td--action">
+              <button type="button" class="btn-save" (click)="saveRule(r.pKey)">Save</button>
+              @if (isSaved(r.pKey)) { <span class="row-flash">Saved</span> }
+            </td>
+          </tr>
+        } @empty {
+          <tr><td colspan="7" class="td--empty">No distance rules defined.</td></tr>
+        }
+        }
+      </tbody>
+    </table>
+  </div>
+
+  <div class="footer-note">Distance rules are fixed — you can edit their description and value, but rows cannot be added or removed.</div>
+</div>

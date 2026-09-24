@@ -1,0 +1,65 @@
+<div class="appr-overlay" (click)="onClose()">
+  <div class="appr-modal" role="dialog" aria-modal="true" aria-labelledby="appr-title" (click)="$event.stopPropagation()">
+    <header class="appr-panel__head">
+      <span class="appr-panel__title" id="appr-title">✓ Estimate Approved · Send to Vendor?</span>
+      <button type="button" class="appr-panel__close" (click)="onClose()" aria-label="Close">✕</button>
+    </header>
+
+    @if (infoMessage()) {
+      <div class="appr-panel__info" role="status">{{ infoMessage() }}</div>
+    }
+    @if (errorMessage()) {
+      <div class="appr-panel__error" role="alert">{{ errorMessage() }}</div>
+    }
+
+    <div class="appr-panel__options" role="radiogroup" aria-label="Additional approval option">
+      <label class="appr-panel__option">
+        <input type="radio" name="sendToVendor" [checked]="sendToVendor()" (change)="selectSendToVendor(true)" />
+        <span class="appr-panel__option-label">Send Approval & Send Email</span>
+      </label>
+
+      <label class="appr-panel__option">
+        <input type="radio" name="sendToVendor" [checked]="!sendToVendor()" (change)="selectSendToVendor(false)" />
+        <span class="appr-panel__option-label">Save Approval &amp; Close</span>
+        <span class="appr-panel__option-hint">No email sent to vendor</span>
+      </label>
+    </div>
+
+    @if (sendToVendor()) {
+      <div class="appr-panel__recipients">
+        <div class="appr-panel__recipients-label">Send to</div>
+        @if (vendorContacts().length === 0) {
+          <div class="appr-panel__recipients-empty">No vendor contacts on file for this estimate.</div>
+        }
+        @for (contact of vendorContacts(); track contact.contactKey) {
+          <label class="appr-panel__recipient">
+            <input
+              type="checkbox"
+              [checked]="isRecipientSelected(contact.email)"
+              (change)="toggleRecipient(contact.email, $any($event.target).checked)"
+            />
+            <span>{{ contact.name }} &lt;{{ contact.email }}&gt;</span>
+          </label>
+        }
+      </div>
+    }
+
+    <div class="appr-panel__text">
+      <label class="appr-panel__text-label" for="approvalText-{{ estimateKey() }}">Approval note</label>
+      <textarea
+        id="approvalText-{{ estimateKey() }}"
+        class="appr-panel__textarea"
+        rows="3"
+        [ngModel]="approvalText()"
+        (ngModelChange)="approvalText.set($event)"
+        placeholder="Optional note included with the work order email…"
+      ></textarea>
+    </div>
+
+    <div class="appr-panel__actions">
+      <button type="button" class="appr-panel__submit" [disabled]="!canSubmit()" (click)="onSubmit()">
+        {{ submitting() ? 'Sending…' : (sendToVendor() ? 'Send to Vendor' : 'Save & Close') }}
+      </button>
+    </div>
+  </div>
+</div>

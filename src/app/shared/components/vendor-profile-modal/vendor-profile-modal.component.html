@@ -1,0 +1,277 @@
+@if (isOpen()) {
+  <div class="modal-overlay" (click)="onOverlayClick($event)">
+    <div class="modal modal--vendor-profile" role="dialog" aria-modal="true" aria-labelledby="vpModalTitle">
+      <div class="modal__header">
+        <h3 class="modal__title" id="vpModalTitle">👤 Vendor Profile — registration snapshot</h3>
+        <button type="button" class="modal__close" (click)="onClose()" aria-label="Close">&times;</button>
+      </div>
+
+      <div class="modal__body">
+        @if (errorMessage()) {
+          <div class="vp-error">{{ errorMessage() }}</div>
+        } @else if (loading()) {
+          <div class="vp-loading">Loading vendor profile…</div>
+        } @else if (data(); as d) {
+          <!-- Header card: avatar + name + trade chips on the left, default contact plain-text
+               top-right -- mirrors complete-screen-v2.html's showVendorProfile() header exactly. -->
+          <div class="vp-header">
+            <div class="vp-avatar">{{ initials(d.name) }}</div>
+            <div class="vp-header-main">
+              <div class="vp-name">
+                {{ d.name }}
+                @if (!d.isRegistered) {
+                  <span class="vp-badge vp-gray">NOT REGISTERED</span>
+                }
+                @if (d.isDeleted) {
+                  <span class="vp-badge vp-red">DEACTIVATED</span>
+                }
+                @if (d.highCostVendor) {
+                  <span class="vp-badge vp-amber">HIGH COST</span>
+                }
+                @if (d.consolidatorLabel) {
+                  <span class="vp-badge vp-blue">{{ d.consolidatorLabel | uppercase }}</span>
+                }
+                @if (d.classificationName) {
+                  <span class="vp-badge" [style.background]="d.classificationColor || '#f1f5f9'" [style.color]="'#fff'">
+                    {{ d.classificationName }}
+                  </span>
+                }
+              </div>
+              <div class="vp-sub">
+                <span>{{ d.address }}{{ d.addressLine2 ? ', ' + d.addressLine2 : '' }}</span>
+                <span>{{ d.city }}, {{ d.state }} {{ d.zipcode }}</span>
+              </div>
+              @if (d.isDnuEnabled) {
+                <div class="vp-dnu-banner">
+                  🚫 <b>DO NOT USE</b> — {{ d.dnuReason || 'no reason on file' }}
+                  @if (d.dnuWhoEnabled) {
+                    <span class="muted">({{ d.dnuWhoEnabled }})</span>
+                  }
+                </div>
+              }
+            </div>
+
+            @if (defaultContact(d); as dc) {
+              <div class="vp-header-contact">
+                <div><b>{{ dc.name }}</b>{{ dc.title ? ' · ' + dc.title : '' }}</div>
+                @if (dc.email) {
+                  <div><a href="mailto:{{ dc.email }}">✉ {{ dc.email }}</a></div>
+                }
+                @if (dc.phone) {
+                  <div><a href="tel:{{ dc.phone }}">☏ {{ dc.phone }}{{ dc.phoneExt ? ' x' + dc.phoneExt : '' }}</a></div>
+                }
+              </div>
+            }
+          </div>
+
+          <!-- Company + Rates, side by side, dense key/value rows (matches the mockup's .kv pattern) -->
+          <div class="vp-panels">
+            <div class="vp-panel">
+              <div class="vp-panel-title">Company</div>
+              <div class="kv"><span class="k">Phone</span><span class="v">{{ d.phone || '--' }}</span></div>
+              <div class="kv"><span class="k">Email</span><span class="v">{{ d.email || '--' }}</span></div>
+              <div class="kv"><span class="k">Tax ID / SS</span><span class="v">{{ d.taxId || '--' }}</span></div>
+              <div class="kv"><span class="k">Net terms</span><span class="v">{{ netTermsDisplay(d.netTermsName) }}</span></div>
+              <div class="kv"><span class="k">DNE / Emergency DNE</span><span class="v">{{ formatMoney(d.dne) }} / {{ formatMoney(d.emergencyDne) }}</span></div>
+              <div class="kv"><span class="k">Service radius</span><span class="v">{{ d.radiusInMiles ?? '--' }} miles</span></div>
+              @if (d.extraCoverage && (d.extraCoverage.extraStates.length || d.extraCoverage.extraCities.length || d.extraCoverage.extraZipcodes.length)) {
+                <div class="vp-panel-subtitle">Extra coverage area</div>
+                @if (d.extraCoverage.extraStates.length) {
+                  <div class="kv"><span class="k">States</span><span class="v">{{ d.extraCoverage.extraStates.join(', ') }}</span></div>
+                }
+                @if (d.extraCoverage.extraCities.length) {
+                  <div class="kv"><span class="k">Cities</span><span class="v">{{ d.extraCoverage.extraCities.join(', ') }}</span></div>
+                }
+                @if (d.extraCoverage.extraZipcodes.length) {
+                  <div class="kv"><span class="k">Zip codes</span><span class="v">{{ d.extraCoverage.extraZipcodes.join(', ') }}</span></div>
+                }
+              }
+              @if (d.businessModel; as bm) {
+                <div class="vp-panel-subtitle">Business model</div>
+                @if (bm.isSelfPerforming) {
+                  <div class="kv"><span class="k">Local / in-house techs</span><span class="v">✓ certified, no full sub-out</span></div>
+                  <div class="kv"><span class="k">W2 field technicians</span><span class="v">{{ bm.selfPerformingFieldTechCount ?? '--' }}</span></div>
+                } @else {
+                  <div class="kv"><span class="k">3rd party / subcontractors</span><span class="v">✓ certified</span></div>
+                  <div class="kv"><span class="k">Office account managers</span><span class="v">{{ bm.subcontractingOfficeManagerCount ?? '--' }}</span></div>
+                  <div class="kv"><span class="k">W2 field techs (if any)</span><span class="v">{{ bm.subcontractingFieldTechCount ?? '--' }}</span></div>
+                  <div class="kv"><span class="k">Years in business</span><span class="v">{{ bm.subcontractingYearsInBusiness ?? '--' }}</span></div>
+                  <div class="kv"><span class="k">Admin fee for job</span><span class="v">{{ formatPercent(bm.subcontractingAdminFeePercent) }}{{ bm.subcontractingCertified ? ' ✓ certified' : '' }}</span></div>
+                }
+              }
+            </div>
+
+            <div class="vp-panel">
+              <div class="vp-panel-title">Rates</div>
+              @if (d.generalRates; as r) {
+                <div class="kv"><span class="k">Flat rate trip charge</span><span class="v">{{ formatMoney(r.tripCharge) }}</span></div>
+                <div class="kv"><span class="k">Standard hourly rate</span><span class="v">{{ formatMoney(r.hourlyRate) }}</span></div>
+                <div class="kv"><span class="k">Service call minimum</span><span class="v">{{ formatMoney(r.serviceCharge) }}</span></div>
+                <div class="kv"><span class="k">Helper rate</span><span class="v">{{ formatMoney(r.helperRates) }}</span></div>
+                <div class="kv"><span class="k">OT / weekend trip</span><span class="v">{{ formatMoney(r.emergencyTripCharge) }}</span></div>
+                <div class="kv"><span class="k">OT / weekend hourly</span><span class="v">{{ formatMoney(r.emergencyHourlyRate) }}</span></div>
+                <div class="kv"><span class="k">OT / weekend minimum</span><span class="v">{{ formatMoney(r.emergencyServiceCharge) }}</span></div>
+                <div class="kv"><span class="k">OT / weekend helper</span><span class="v">{{ formatMoney(r.emergencyHelperRates) }}</span></div>
+              } @else {
+                <div class="muted">No general rates on file.</div>
+              }
+              @if (d.materialMarkup; as mm) {
+                <div class="vp-panel-subtitle">Material markup</div>
+                <div class="kv"><span class="k">Up to $1,000</span><span class="v">{{ formatPercent(mm.markupUpTo1000) }}</span></div>
+                <div class="kv"><span class="k">Up to $5,000</span><span class="v">{{ formatPercent(mm.markupUpTo5000) }}</span></div>
+                <div class="kv"><span class="k">Over $5,000</span><span class="v">{{ formatPercent(mm.markupOver5000) }}</span></div>
+              }
+            </div>
+          </div>
+
+          <!-- Trades -->
+          <div class="vp-panel vp-panel--full">
+            <div class="vp-panel-title">Trades ({{ d.trades.length }})</div>
+            @if (d.trades.length) {
+              <table class="vp-table">
+                <thead><tr><th>Trade</th><th>Hourly</th><th>Emergency Hourly</th><th>Helper</th><th>Emergency Helper</th></tr></thead>
+                <tbody>
+                  @for (t of d.trades; track t.laborKey) {
+                    <tr>
+                      <td>
+                        {{ t.tradeName }}
+                        @if (t.isPrimary) {
+                          <span class="vp-badge vp-blue">PRIMARY</span>
+                        }
+                      </td>
+                      <td>{{ formatMoney(t.hourlyRate) }}</td>
+                      <td>{{ formatMoney(t.emergencyHourlyRate) }}</td>
+                      <td>{{ formatMoney(t.helperRates) }}</td>
+                      <td>{{ formatMoney(t.emergencyHelperRates) }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            } @else {
+              <div class="muted">No trades assigned.</div>
+            }
+          </div>
+
+          <!-- Insurance -->
+          <div class="vp-panel vp-panel--full">
+            <div class="vp-panel-title">Insurance (live from Vendor Profile)</div>
+            <div class="kv">
+              <span class="k">Workers Comp</span>
+              <span class="v" [class]="insuranceStateLabel(d.insurance.carriesWc, d.insurance.wcExpiry).cls">
+                {{ insuranceStateLabel(d.insurance.carriesWc, d.insurance.wcExpiry).label }}
+              </span>
+            </div>
+            <div class="kv">
+              <span class="k">General Liability</span>
+              <span class="v" [class]="insuranceStateLabel(d.insurance.carriesGl, d.insurance.glExpiry).cls">
+                {{ insuranceStateLabel(d.insurance.carriesGl, d.insurance.glExpiry).label }}
+              </span>
+            </div>
+            @if (d.insurance.reasonForNoInsurance) {
+              <div class="vp-note-inline">
+                ⚠ Override on file: {{ d.insurance.reasonForNoInsurance }}
+                @if (d.insurance.percentageCut) {
+                  <span> · {{ d.insurance.percentageCut }}% cut</span>
+                }
+                @if (d.insurance.cutInAmt) {
+                  <span> · {{ formatMoney(d.insurance.cutInAmt) }} flat cut</span>
+                }
+              </div>
+            }
+            @if (d.insurance.pending.length) {
+              <div class="vp-pending">
+                <b>⏳ Awaiting admin approval:</b>
+                @for (p of d.insurance.pending; track p.pkey) {
+                  <div class="vp-pending-row">
+                    {{ p.insuranceType }} · proposed thru {{ formatDate(p.proposedExpiry) }} · {{ p.fileName }}
+                    · submitted {{ formatDateTime(p.submittedOn) }}
+                  </div>
+                }
+              </div>
+            }
+            @if (d.insuranceHistory.length) {
+              <details class="vp-details">
+                <summary>Insurance history ({{ d.insuranceHistory.length }})</summary>
+                <table class="vp-table">
+                  <thead><tr><th>Type</th><th>Expiry</th><th>File</th><th>Archived</th><th>By</th></tr></thead>
+                  <tbody>
+                    @for (h of d.insuranceHistory; track h.pkey) {
+                      <tr>
+                        <td>{{ h.insuranceType }}</td>
+                        <td>{{ formatDate(h.expiryDate) }}</td>
+                        <td>{{ h.fileName || '--' }}</td>
+                        <td>{{ formatDateTime(h.entryDate) }}</td>
+                        <td>{{ h.accountManagerName || '--' }}</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </details>
+            }
+          </div>
+
+          <!-- Contacts (the default contact is already shown top-right in the header) -->
+          @if (otherContacts(d).length) {
+            <details class="vp-details vp-details--panel">
+              <summary>Other contacts ({{ otherContacts(d).length }})</summary>
+              <table class="vp-table">
+                <thead><tr><th>Name</th><th>Title</th><th>Phone</th><th>Email</th><th></th></tr></thead>
+                <tbody>
+                  @for (c of otherContacts(d); track c.contactKey) {
+                    <tr [class.vp-row-inactive]="!c.isActive">
+                      <td>{{ c.name }}</td>
+                      <td>
+                        {{ c.title }}
+                        @if (c.isAccountingContact) {
+                          <span class="vp-badge vp-blue">ACCOUNTING</span>
+                        }
+                      </td>
+                      <td>{{ c.phone }}{{ c.phoneExt ? ' x' + c.phoneExt : '' }}</td>
+                      <td>{{ c.email }}</td>
+                      <td>
+                        @if (!c.isActive) {
+                          <span class="vp-badge vp-gray">DEACTIVE</span>
+                        }
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </details>
+          }
+
+          <!-- Notes -->
+          <details class="vp-details vp-details--panel" open>
+            <summary>Notes ({{ d.notes.length }})</summary>
+            @if (d.notes.length) {
+              @for (n of d.notes; track n.noteKey) {
+                <div class="vp-note" [class.vp-row-inactive]="!n.isActive">
+                  <div class="vp-note-head">
+                    <b>{{ n.addedByName || 'System' }}</b>
+                    <span class="muted">{{ formatDateTime(n.addedOn) }}</span>
+                    @if (n.isAutoNote) {
+                      <span class="vp-badge vp-gray">AUTO</span>
+                    }
+                    @if (!n.isActive) {
+                      <span class="vp-badge vp-gray">DEACTIVE</span>
+                    }
+                  </div>
+                  @if (n.title) {
+                    <div class="vp-note-title">{{ n.title }}</div>
+                  }
+                  <div class="vp-note-body" [innerHTML]="n.comment"></div>
+                </div>
+              }
+            } @else {
+              <div class="muted">No notes on file.</div>
+            }
+          </details>
+        }
+      </div>
+
+      <div class="modal__footer">
+        <button type="button" class="btn" (click)="onClose()">Close</button>
+      </div>
+    </div>
+  </div>
+}
